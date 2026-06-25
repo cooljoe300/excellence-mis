@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,12 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createStudent, updateStudent } from '@/app/actions/students';
+import {
+  getCurrentAcademicTermId,
+  getProgramCourses,
+  getStudentCourseIdsForTerm,
+  setStudentEnrollmentsForTerm,
+} from '@/app/actions/enrollments';
 import type { Program, Student } from '@/lib/types';
 import { UserPlus, Info } from 'lucide-react';
 
@@ -37,6 +43,68 @@ export function StudentForm({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [programId, setProgramId] = useState(student?.program_id ?? '');
+  const [termId, setTermId] = useState<string | null>(null);
+  const [availableCourses, setAvailableCourses] = useState<
+    { id: string; code: string; name: string }[]
+  >([]);
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState('');
+
+  const selectedSet = useMemo(() => new Set(selectedCourseIds), [selectedCourseIds]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const id = await getCurrentAcademicTermId();
+      if (!cancelled) setTermId(id);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCourses() {
+      setCoursesError('');
+      if (!programId) {
+        setAvailableCourses([]);
+        setSelectedCourseIds([]);
+        return;
+      }
+
+      setCoursesLoading(true);
+      try {
+        const courses = await getProgramCourses(programId);
+        if (cancelled) return;
+        setAvailableCourses(courses);
+
+        // If editing an existing student, preload currently enrolled courses for the current term.
+        if (student?.id && termId) {
+          const enrolled = await getStudentCourseIdsForTerm(student.id, termId);
+          if (cancelled) return;
+          setSelectedCourseIds(enrolled);
+        } else {
+          // default: none selected
+          setSelectedCourseIds([]);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setCoursesError('Failed to load courses for this program.');
+      } finally {
+        if (!cancelled) setCoursesLoading(false);
+      }
+    }
+
+    void loadCourses();
+    return () => {
+      cancelled = true;
+    };
+  }, [programId, student?.id, termId]);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -51,6 +119,18 @@ export function StudentForm({
       setError(result.error);
       setLoading(false);
       return;
+    }
+
+    const studentId =
+      student?.id ?? (typeof result === 'object' && 'id' in result ? (result.id as string) : null);
+
+    if (studentId && termId) {
+      const enrollResult = await setStudentEnrollmentsForTerm(studentId, termId, selectedCourseIds);
+      if (enrollResult && 'error' in enrollResult && enrollResult.error) {
+        setError(enrollResult.error);
+        setLoading(false);
+        return;
+      }
     }
 
     if ('id' in result && result.id) {
@@ -120,13 +200,77 @@ export function StudentForm({
           <CardTitle>Academic & Emergency</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Select name="program_id" label="Program" defaultValue={student?.program_id ?? ''} options={programOptions} />
+          <Select
+            name="program_id"
+            label="Program"
+            value={programId}
+            onChange={(e) => setProgramId(e.target.value)}
+            options={programOptions}
+          />
           <Input name="enrollment_date" label="Enrollment date" type="date" defaultValue={student?.enrollment_date ?? new Date().toISOString().split('T')[0]} />
           <Select name="status" label="Status" defaultValue={student?.status ?? 'active'} options={statusOptions} />
           <Input name="emergency_contact_name" label="Emergency contact name" defaultValue={student?.emergency_contact_name ?? ''} />
           <Input name="emergency_contact_phone" label="Emergency contact phone" defaultValue={student?.emergency_contact_phone ?? ''} />
           <div className="sm:col-span-2">
             <Textarea name="notes" label="Notes" rows={3} defaultValue={student?.notes ?? ''} />
+          </div>
+
+          <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Course registration</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Select the courses to register for the current term.
+                </p>
+              </div>
+              {!termId && (
+                <span className="text-xs text-amber-700">No current term set</span>
+              )}
+            </div>
+
+            {!programId ? (
+              <p className="mt-3 text-sm text-slate-600">Select a program to see its courses.</p>
+            ) : coursesLoading ? (
+              <p className="mt-3 text-sm text-slate-600">Loading courses…</p>
+            ) : coursesError ? (
+              <p className="mt-3 text-sm text-red-600">{coursesError}</p>
+            ) : availableCourses.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-600">
+                No active courses found for this program.
+              </p>
+            ) : (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {availableCourses.map((c) => {
+                  const checked = selectedSet.has(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-slate-300"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
+                        checked={checked}
+                        onChange={(e) => {
+                          setSelectedCourseIds((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(c.id);
+                            else next.delete(c.id);
+                            return Array.from(next);
+                          });
+                        }}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-900">
+                          {c.code}
+                          <span className="font-normal text-slate-500"> — {c.name}</span>
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
