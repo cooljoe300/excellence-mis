@@ -8,15 +8,17 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { createCourse } from '@/app/actions/courses';
+import { createCourse, deleteCourse, updateCourse } from '@/app/actions/courses';
 import type { Course, Program } from '@/lib/types';
 
 function CourseFormModal({
   programs,
   onClose,
+  course,
 }: {
   programs: Program[];
   onClose: () => void;
+  course?: Course;
 }) {
   const router = useRouter();
   const [error, setError] = useState('');
@@ -25,7 +27,15 @@ function CourseFormModal({
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const result = await createCourse(new FormData(e.currentTarget));
+    setError('');
+    const formData = new FormData(e.currentTarget);
+    if (!course) {
+      formData.set('is_active', 'true');
+    }
+
+    const result = course
+      ? await updateCourse(course.id, formData)
+      : await createCourse(formData);
     if (result.error) {
       setError(result.error);
       setLoading(false);
@@ -38,26 +48,51 @@ function CourseFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold">Add Course</h2>
+        <h2 className="text-lg font-semibold">{course ? 'Edit Course' : 'Add Course'}</h2>
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <Input name="name" label="Course name" required />
-          <Input name="code" label="Code" placeholder="CS101" required />
+          <Input name="name" label="Course name" defaultValue={course?.name} required />
+          <Input name="code" label="Code" placeholder="CS101" defaultValue={course?.code} required />
           <Select
             name="program_id"
             label="Program"
+            defaultValue={course?.program_id ?? ''}
             options={[
               { value: '', label: 'No program' },
               ...programs.map((p) => ({ value: p.id, label: p.name })),
             ]}
           />
           <div className="grid grid-cols-2 gap-4">
-            <Input name="credits" label="Credits" type="number" defaultValue="3" required />
+            <Input
+              name="credits"
+              label="Credits"
+              type="number"
+              defaultValue={course?.credits?.toString() ?? '3'}
+              required
+            />
           </div>
-          <Textarea name="description" label="Description" rows={2} />
+          <Textarea
+            name="description"
+            label="Description"
+            rows={2}
+            defaultValue={course?.description ?? ''}
+          />
+          {course && (
+            <Select
+              name="is_active"
+              label="Status"
+              defaultValue={course.is_active ? 'true' : 'false'}
+              options={[
+                { value: 'true', label: 'Active' },
+                { value: 'false', label: 'Inactive' },
+              ]}
+            />
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 justify-end">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Create'}</Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : course ? 'Save changes' : 'Create'}
+            </Button>
           </div>
         </form>
       </div>
@@ -73,6 +108,8 @@ export function CoursesClient({
   programs: Program[];
 }) {
   const [showForm, setShowForm] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   return (
     <div>
@@ -96,6 +133,7 @@ export function CoursesClient({
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Program</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Credits</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Status</th>
+                <th className="px-6 py-3 text-right font-medium text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -112,6 +150,36 @@ export function CoursesClient({
                       {course.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setEditingCourse(course)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={deletingId === course.id}
+                        onClick={async () => {
+                          if (!window.confirm(`Delete course "${course.name}"? This cannot be undone.`)) {
+                            return;
+                          }
+                          try {
+                            setDeletingId(course.id);
+                            await deleteCourse(course.id);
+                            window.location.reload();
+                          } finally {
+                            setDeletingId(null);
+                          }
+                        }}
+                      >
+                        {deletingId === course.id ? 'Deleting...' : 'Delete'}
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -120,6 +188,13 @@ export function CoursesClient({
       )}
 
       {showForm && <CourseFormModal programs={programs} onClose={() => setShowForm(false)} />}
+      {editingCourse && (
+        <CourseFormModal
+          programs={programs}
+          course={editingCourse}
+          onClose={() => setEditingCourse(null)}
+        />
+      )}
     </div>
   );
 }
