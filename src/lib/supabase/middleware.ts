@@ -33,6 +33,8 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/signup');
   const isDashboard = request.nextUrl.pathname.startsWith('/dashboard');
+  const isStudentSignup = request.nextUrl.pathname.startsWith('/student/signup');
+  const isStudentRegister = request.nextUrl.pathname.startsWith('/student/register');
 
   if (!user && isDashboard) {
     const url = request.nextUrl.clone();
@@ -40,9 +42,21 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (!user && isStudentRegister) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/student/signup';
+    return NextResponse.redirect(url);
+  }
+
   if (user && isAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
+    return NextResponse.redirect(url);
+  }
+
+  if (user && isStudentSignup) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/student/register';
     return NextResponse.redirect(url);
   }
 
