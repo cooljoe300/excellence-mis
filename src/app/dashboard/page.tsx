@@ -2,17 +2,32 @@ import { PageHeader } from '@/components/ui/page-header';
 import { StatCard, StatCardCurrency } from '@/components/dashboard/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/page-header';
-import { getDashboardStats, getRecentStudents } from '@/app/actions/dashboard';
+import { getAdminDashboardStats, getDashboardStats, getProfile, getRecentStudents } from '@/app/actions/dashboard';
 import { formatDate } from '@/lib/utils';
-import { Users, UserCheck, GraduationCap, BookOpen, ClipboardList, AlertCircle, CreditCard } from 'lucide-react';
+import {
+  Users,
+  UserCheck,
+  GraduationCap,
+  BookOpen,
+  ClipboardList,
+  AlertCircle,
+  CreditCard,
+  Shield,
+  UserCog,
+  UsersRound,
+} from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 export default async function DashboardPage() {
-  const [stats, recentStudents] = await Promise.all([
+  const [stats, recentStudents, profile] = await Promise.all([
     getDashboardStats(),
     getRecentStudents(),
+    getProfile(),
   ]);
+
+  const isAdmin = profile?.role === 'admin';
+  const adminStats = isAdmin ? await getAdminDashboardStats() : null;
 
   return (
     <div>
@@ -25,6 +40,36 @@ export default async function DashboardPage() {
           </Link>
         }
       />
+
+      {isAdmin && adminStats && (
+        <div className="mb-6 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-white p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-blue-700" />
+                <h2 className="text-lg font-semibold text-slate-900">Super Admin</h2>
+              </div>
+              <p className="mt-1 text-sm text-slate-600">
+                You have full access to manage users and all system data.
+              </p>
+            </div>
+            <Link href="/dashboard/settings">
+              <Button variant="secondary" size="sm">
+                <UserCog className="h-4 w-4" />
+                Admin settings
+              </Button>
+            </Link>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <StatCard title="Total Users" value={adminStats.totalUsers} icon={UsersRound} />
+            <StatCard title="Admins" value={adminStats.admins} icon={Shield} />
+            <StatCard title="Staff" value={adminStats.staff} icon={Users} />
+            <StatCard title="Teachers" value={adminStats.teachers} icon={GraduationCap} />
+            <StatCard title="Students" value={adminStats.students} icon={Users} />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total Students" value={stats.totalStudents} icon={Users} subtitle={`${stats.activeStudents} active`} />
