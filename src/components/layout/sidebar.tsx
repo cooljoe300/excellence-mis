@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import type { UserRole } from '@/lib/types';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -31,9 +32,18 @@ const navItems = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ];
 
-export function Sidebar({ userName }: { userName: string }) {
+export function Sidebar({ userName, userRole }: { userName: string; userRole: UserRole }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  const portalLabel =
+    userRole === 'admin'
+      ? 'Super Admin Portal'
+      : userRole === 'teacher'
+        ? 'Teacher Portal'
+        : userRole === 'student'
+          ? 'Student Portal'
+          : 'Staff Portal';
 
   async function handleLogout() {
     const supabase = createClient();
@@ -93,7 +103,7 @@ export function Sidebar({ userName }: { userName: string }) {
         <div className="flex items-center justify-between rounded-lg bg-slate-800 px-3 py-2">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{userName}</p>
-            <p className="text-xs text-slate-400">Staff Portal</p>
+            <p className="text-xs text-slate-400">{portalLabel}</p>
           </div>
           <button
             onClick={handleLogout}
