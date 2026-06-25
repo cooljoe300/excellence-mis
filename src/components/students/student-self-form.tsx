@@ -63,9 +63,14 @@ export function StudentSelfForm({
       return;
     }
 
+    const admissionNumber =
+      'admissionNumber' in result && typeof result.admissionNumber === 'string'
+        ? result.admissionNumber
+        : undefined;
+
     setSuccess({
       message: 'Registration complete! Your admission number has been generated.',
-      admissionNumber: 'admissionNumber' in result ? result.admissionNumber : undefined,
+      admissionNumber,
     });
     setLoading(false);
     setTimeout(() => router.push('/student'), 2500);
