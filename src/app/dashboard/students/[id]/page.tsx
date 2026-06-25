@@ -1,0 +1,131 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { PageHeader } from '@/components/ui/page-header';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getStudent } from '@/app/actions/students';
+import { formatDate, formatCurrency, getAdmissionNumber } from '@/lib/utils';
+import { StudentForm } from '@/components/students/student-form';
+import { getPrograms } from '@/app/actions/programs';
+import { DeleteStudentButton } from '@/components/students/delete-student-button';
+import { StudentWorkflow } from '@/components/students/student-workflow';
+import { CreditCard } from 'lucide-react';
+
+export default async function StudentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ edit?: string; registered?: string }>;
+}) {
+  const { id } = await params;
+  const { edit, registered } = await searchParams;
+
+  let student;
+  try {
+    student = await getStudent(id);
+  } catch {
+    notFound();
+  }
+
+  const programs = await getPrograms();
+  const admissionNumber = getAdmissionNumber(student);
+
+  if (edit === 'true') {
+    return (
+      <div>
+        <PageHeader title="Edit Student" description={`${student.first_name} ${student.last_name}`} />
+        <StudentForm programs={programs} student={student} />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <PageHeader
+        title={`${student.first_name} ${student.last_name}`}
+        description={`Admission: ${admissionNumber}`}
+        action={
+          <div className="flex gap-2">
+            <Link href={`/dashboard/students/${id}/id-card`} target="_blank">
+              <Button variant="secondary">
+                <CreditCard className="h-4 w-4" />
+                ID Card
+              </Button>
+            </Link>
+            <Link href={`/dashboard/students/${id}?edit=true`}>
+              <Button variant="secondary">Edit</Button>
+            </Link>
+            <DeleteStudentButton id={id} name={`${student.first_name} ${student.last_name}`} />
+          </div>
+        }
+      />
+
+      <StudentWorkflow student={student} justRegistered={registered === 'true'} />
+
+      <div className="mb-4 flex items-center gap-3">
+        <Badge status={student.status}>{student.status}</Badge>
+        <Badge status={student.lms_sync_status === 'synced' ? 'active' : student.lms_sync_status === 'failed' ? 'withdrawn' : 'pending'}>
+          LMS: {student.lms_sync_status === 'synced' ? 'Imported' : student.lms_sync_status === 'failed' ? 'Failed' : 'Not imported'}
+        </Badge>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>Personal Information</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Row label="Admission number" value={admissionNumber} />
+            <Row label="Email" value={student.email} />
+            <Row label="Phone" value={student.phone} />
+            <Row label="Date of birth" value={formatDate(student.date_of_birth)} />
+            <Row label="Gender" value={student.gender} />
+            <Row label="Nationality" value={student.nationality} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Academic</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Row label="Program" value={(student.program as { name: string } | null)?.name} />
+            <Row label="Enrollment date" value={formatDate(student.enrollment_date)} />
+            <Row label="ID card issued" value={formatDate(student.id_card_issued_at)} />
+            <Row label="Tuition" value={student.program ? formatCurrency((student.program as { tuition_fee: number }).tuition_fee) : '—'} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>LMS Account</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Row label="LMS username" value={student.lms_username} />
+            <Row label="LMS user ID" value={student.lms_user_id} />
+            <Row label="Synced at" value={formatDate(student.lms_synced_at)} />
+            {student.lms_sync_error && (
+              <Row label="Last error" value={student.lms_sync_error} />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Emergency Contact</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Row label="Name" value={student.emergency_contact_name} />
+            <Row label="Phone" value={student.emergency_contact_phone} />
+            <Row label="Address" value={student.address} />
+            <Row label="City" value={student.city} />
+            {student.notes && <Row label="Notes" value={student.notes} />}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-slate-500">{label}</span>
+      <span className="font-medium text-slate-900 text-right">{value || '—'}</span>
+    </div>
+  );
+}

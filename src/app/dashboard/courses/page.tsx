@@ -1,0 +1,8 @@
+import { getCourses } from '@/app/actions/courses';
+import { getPrograms } from '@/app/actions/programs';
+import { CoursesClient } from '@/components/courses/courses-client';
+
+export default async function CoursesPage() {
+  const [courses, programs] = await Promise.all([getCourses(), getPrograms()]);
+  return <CoursesClient courses={courses} programs={programs} />;
+}
