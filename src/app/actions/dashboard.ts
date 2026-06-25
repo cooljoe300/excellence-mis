@@ -3,6 +3,14 @@
 import { createClient } from '@/lib/supabase/server';
 import type { DashboardStats } from '@/lib/types';
 
+export interface AdminDashboardStats {
+  totalUsers: number;
+  admins: number;
+  staff: number;
+  teachers: number;
+  students: number;
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createClient();
 
@@ -62,4 +70,25 @@ export async function getProfile() {
     .eq('id', user.id)
     .single();
   return data;
+}
+
+export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
+  const supabase = await createClient();
+
+  const [{ count: totalUsers }, { count: admins }, { count: staff }, { count: teachers }, { count: students }] =
+    await Promise.all([
+      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'admin'),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'staff'),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'teacher'),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+    ]);
+
+  return {
+    totalUsers: totalUsers ?? 0,
+    admins: admins ?? 0,
+    staff: staff ?? 0,
+    teachers: teachers ?? 0,
+    students: students ?? 0,
+  };
 }
