@@ -17,16 +17,23 @@ BEGIN
   safe_full_name :=
     COALESCE(NULLIF(NEW.raw_user_meta_data->>'full_name', ''), split_part(COALESCE(NEW.email, ''), '@', 1), 'User');
 
-  INSERT INTO profiles (id, email, full_name, role)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.email, ''),
-    safe_full_name,
-    safe_role
-  )
-  ON CONFLICT (id) DO NOTHING;
+  BEGIN
+    INSERT INTO profiles (id, email, full_name, role)
+    VALUES (
+      NEW.id,
+      COALESCE(NEW.email, ''),
+      safe_full_name,
+      safe_role
+    )
+    ON CONFLICT (id) DO NOTHING;
+  EXCEPTION WHEN OTHERS THEN
+    -- Never block auth user creation if profile creation fails.
+    RETURN NEW;
+  END;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+ALTER FUNCTION handle_new_user() SET search_path = public;
 
