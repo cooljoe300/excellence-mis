@@ -92,9 +92,14 @@ export default function StudentSignupPage() {
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-500">
-          Staff?{' '}
+          Already have an account?{' '}
           <Link href="/login" className="font-medium text-blue-700 hover:underline">
             Sign in
+          </Link>
+          {' · '}
+          Staff?{' '}
+          <Link href="/signup" className="font-medium text-blue-700 hover:underline">
+            Staff portal
           </Link>
         </p>
       </div>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getStudent } from '@/app/actions/students';
 import { formatDate, formatCurrency, getAdmissionNumber } from '@/lib/utils';
+import { isSelfRegisteredStudent } from '@/lib/auth';
 import { StudentForm } from '@/components/students/student-form';
 import { getPrograms } from '@/app/actions/programs';
 import { DeleteStudentButton } from '@/components/students/delete-student-button';
@@ -31,6 +32,7 @@ export default async function StudentDetailPage({
 
   const programs = await getPrograms();
   const admissionNumber = getAdmissionNumber(student);
+  const selfRegistered = isSelfRegisteredStudent(student);
 
   if (edit === 'true') {
     return (
@@ -62,9 +64,16 @@ export default async function StudentDetailPage({
         }
       />
 
-      <StudentWorkflow student={student} justRegistered={registered === 'true'} />
+      <StudentWorkflow student={student} justRegistered={registered === 'true'} selfRegistered={selfRegistered} />
 
-      <div className="mb-4 flex items-center gap-3">
+      {selfRegistered && student.lms_sync_status !== 'synced' && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          This student self-registered. Review their details below, then use <strong>Import to LMS</strong> to create their Moodle account.
+        </div>
+      )}
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {selfRegistered && <Badge status="pending">Self-registered</Badge>}
         <Badge status={student.status}>{student.status}</Badge>
         <Badge status={student.lms_sync_status === 'synced' ? 'active' : student.lms_sync_status === 'failed' ? 'withdrawn' : 'pending'}>
           LMS: {student.lms_sync_status === 'synced' ? 'Imported' : student.lms_sync_status === 'failed' ? 'Failed' : 'Not imported'}

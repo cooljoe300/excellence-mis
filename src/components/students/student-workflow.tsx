@@ -12,9 +12,11 @@ import { cn } from '@/lib/utils';
 export function StudentWorkflow({
   student,
   justRegistered,
+  selfRegistered,
 }: {
   student: Student;
   justRegistered?: boolean;
+  selfRegistered?: boolean;
 }) {
   const router = useRouter();
   const [importing, setImporting] = useState(false);
@@ -98,6 +100,12 @@ export function StudentWorkflow({
       {justRegistered && (
         <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Student registered successfully. Admission number: <strong>{admissionNumber}</strong>
+        </div>
+      )}
+
+      {selfRegistered && !justRegistered && (
+        <div className="mb-4 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          Self-registered student — review details and push to LMS when ready.
         </div>
       )}
 

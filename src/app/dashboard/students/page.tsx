@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getStudents } from '@/app/actions/students';
 import { formatDate, getAdmissionNumber } from '@/lib/utils';
+import { isSelfRegisteredStudent } from '@/lib/auth';
 import { StudentSearch } from '@/components/students/student-search';
 
 export default async function StudentsPage({
@@ -49,6 +50,8 @@ export default async function StudentsPage({
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Name</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Email</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Program</th>
+                <th className="px-6 py-3 text-left font-medium text-slate-500">Source</th>
+                <th className="px-6 py-3 text-left font-medium text-slate-500">LMS</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Status</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Enrolled</th>
                 <th className="px-6 py-3 text-right font-medium text-slate-500">Actions</th>
@@ -64,6 +67,30 @@ export default async function StudentsPage({
                   <td className="px-6 py-4 text-slate-600">{student.email}</td>
                   <td className="px-6 py-4 text-slate-600">
                     {(student.program as { name: string } | null)?.name ?? '—'}
+                  </td>
+                  <td className="px-6 py-4">
+                    {isSelfRegisteredStudent(student) ? (
+                      <Badge status="pending">Self-registered</Badge>
+                    ) : (
+                      <span className="text-slate-500 text-xs">Staff</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge
+                      status={
+                        student.lms_sync_status === 'synced'
+                          ? 'active'
+                          : student.lms_sync_status === 'failed'
+                            ? 'withdrawn'
+                            : 'pending'
+                      }
+                    >
+                      {student.lms_sync_status === 'synced'
+                        ? 'Imported'
+                        : student.lms_sync_status === 'failed'
+                          ? 'Failed'
+                          : 'Pending'}
+                    </Badge>
                   </td>
                   <td className="px-6 py-4">
                     <Badge status={student.status}>{student.status}</Badge>

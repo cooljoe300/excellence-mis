@@ -63,14 +63,18 @@ export async function createMyStudentRecord(formData: FormData) {
       admission_number: '',
       lms_sync_status: 'not_synced',
     })
-    .select('id')
+    .select('id, admission_number, student_number')
     .single();
 
   if (error) return { error: error.message };
 
   revalidatePath('/dashboard/students');
   revalidatePath('/student');
-  return { success: true, id: data.id as string };
+  return {
+    success: true,
+    id: data.id as string,
+    admissionNumber: data.admission_number ?? data.student_number,
+  };
 }
 
 export async function updateMyStudentRecord(studentId: string, formData: FormData) {

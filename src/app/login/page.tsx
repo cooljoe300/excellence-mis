@@ -21,7 +21,7 @@ export default function LoginPage() {
     setError('');
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message);
@@ -29,7 +29,15 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/dashboard');
+    const role = data.user?.user_metadata?.role;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user!.id)
+      .maybeSingle();
+
+    const userRole = profile?.role ?? role;
+    router.push(userRole === 'student' ? '/student' : '/dashboard');
     router.refresh();
   }
 
@@ -69,7 +77,7 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-          <p className="mt-2 text-sm text-slate-500">Sign in to your staff account</p>
+          <p className="mt-2 text-sm text-slate-500">Sign in to your account</p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">
             <Input
@@ -97,9 +105,14 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-sm text-slate-500">
-            Don&apos;t have an account?{' '}
+            Staff?{' '}
             <Link href="/signup" className="font-medium text-blue-700 hover:underline">
-              Create account
+              Create staff account
+            </Link>
+            {' · '}
+            Student?{' '}
+            <Link href="/student/signup" className="font-medium text-blue-700 hover:underline">
+              Register here
             </Link>
           </p>
         </div>

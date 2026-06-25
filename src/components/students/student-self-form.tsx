@@ -21,14 +21,18 @@ const genderOptions = [
 export function StudentSelfForm({
   programs,
   existingStudent,
+  defaultFirstName,
+  defaultLastName,
 }: {
   programs: Program[];
   existingStudent?: Student;
+  defaultFirstName?: string;
+  defaultLastName?: string;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{ message: string; admissionNumber?: string } | null>(null);
 
   const programOptions = [
     { value: '', label: 'Select program' },
@@ -52,17 +56,33 @@ export function StudentSelfForm({
       return;
     }
 
-    setSuccess('Saved successfully.');
+    if (existingStudent?.id) {
+      setSuccess({ message: 'Your details have been updated.' });
+      setLoading(false);
+      router.refresh();
+      return;
+    }
+
+    setSuccess({
+      message: 'Registration complete! Your admission number has been generated.',
+      admissionNumber: 'admissionNumber' in result ? result.admissionNumber : undefined,
+    });
     setLoading(false);
-    router.refresh();
+    setTimeout(() => router.push('/student'), 2500);
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {success && (
-        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {success} You can now wait for the admin to review and push your record to the LMS.
+        <div className="rounded-lg bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
+          <p className="font-medium">{success.message}</p>
+          {success.admissionNumber && (
+            <p className="mt-2 text-lg font-bold font-mono">{success.admissionNumber}</p>
+          )}
+          <p className="mt-2 text-emerald-700">
+            An admin will review your record and push it to the LMS. Redirecting to your portal...
+          </p>
         </div>
       )}
 
@@ -71,8 +91,8 @@ export function StudentSelfForm({
           <CardTitle>Personal Information</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Input name="first_name" label="First name" defaultValue={existingStudent?.first_name} required />
-          <Input name="last_name" label="Last name" defaultValue={existingStudent?.last_name} required />
+          <Input name="first_name" label="First name" defaultValue={existingStudent?.first_name ?? defaultFirstName} required />
+          <Input name="last_name" label="Last name" defaultValue={existingStudent?.last_name ?? defaultLastName} required />
           <Input name="phone" label="Phone" defaultValue={existingStudent?.phone ?? ''} />
           <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={existingStudent?.date_of_birth ?? ''} />
           <Select name="gender" label="Gender" defaultValue={existingStudent?.gender ?? ''} options={genderOptions} />

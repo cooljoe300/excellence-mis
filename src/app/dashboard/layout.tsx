@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { getCurrentUserRole } from '@/lib/auth';
 import type { UserRole } from '@/lib/types';
 
 export default async function DashboardLayout({
@@ -14,6 +15,9 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
 
   if (!user) redirect('/login');
+
+  const role = await getCurrentUserRole();
+  if (role === 'student') redirect('/student');
 
   const { data: profile } = await supabase
     .from('profiles')

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { GraduationCap, Users, BookOpen, BarChart3, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUserRole } from '@/lib/auth';
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -10,7 +11,10 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) redirect('/dashboard');
+  if (user) {
+    const role = await getCurrentUserRole();
+    redirect(role === 'student' ? '/student' : '/dashboard');
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -29,8 +33,11 @@ export default async function HomePage() {
             <Link href="/login">
               <Button variant="ghost">Sign in</Button>
             </Link>
+            <Link href="/student/signup">
+              <Button variant="secondary">Student register</Button>
+            </Link>
             <Link href="/signup">
-              <Button>Get started</Button>
+              <Button>Staff portal</Button>
             </Link>
           </div>
         </div>
@@ -49,9 +56,12 @@ export default async function HomePage() {
           Manage student records, enrollments, attendance, fees, and academic programs —
           all in one modern platform built on Supabase and deployed on Vercel.
         </p>
-        <div className="mt-10 flex justify-center gap-4">
+        <div className="mt-10 flex flex-wrap justify-center gap-4">
+          <Link href="/student/signup">
+            <Button size="lg">Register as a student</Button>
+          </Link>
           <Link href="/signup">
-            <Button size="lg">Start managing students</Button>
+            <Button size="lg" variant="secondary">Staff portal</Button>
           </Link>
           <a href="https://lms.excellenceonlinecollege.com/" target="_blank" rel="noopener noreferrer">
             <Button size="lg" variant="secondary">
