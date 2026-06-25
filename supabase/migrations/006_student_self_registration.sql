@@ -13,19 +13,34 @@ RETURNS BOOLEAN AS $$
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
--- Students can insert their own record
-CREATE POLICY IF NOT EXISTS "Students can self register" ON public.students
-FOR INSERT
-TO authenticated
-WITH CHECK (
-  is_student()
-  AND profile_id = auth.uid()
-);
+-- Students can insert/update their own record
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'students' AND policyname = 'Students can self register'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "Students can self register" ON public.students
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (
+        is_student()
+        AND profile_id = auth.uid()
+      )
+    $policy$;
+  END IF;
 
--- Students can update their own record (excluding LMS/admin fields enforced by app; RLS ensures row ownership)
-CREATE POLICY IF NOT EXISTS "Students can update own record" ON public.students
-FOR UPDATE
-TO authenticated
-USING (is_student() AND profile_id = auth.uid())
-WITH CHECK (is_student() AND profile_id = auth.uid());
-
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'students' AND policyname = 'Students can update own record'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "Students can update own record" ON public.students
+      FOR UPDATE
+      TO authenticated
+      USING (is_student() AND profile_id = auth.uid())
+      WITH CHECK (is_student() AND profile_id = auth.uid())
+    $policy$;
+  END IF;
+END $$;
