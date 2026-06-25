@@ -1,10 +1,13 @@
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getProfile } from '@/app/actions/dashboard';
+import { getAdmissionNumberFormat } from '@/app/actions/system-settings';
+import { AdmissionFormatCard } from '@/components/settings/admission-format-card';
 import { ExternalLink } from 'lucide-react';
 
 export default async function SettingsPage() {
   const profile = await getProfile();
+  const admissionFormat = profile?.role === 'admin' ? await getAdmissionNumberFormat() : null;
 
   return (
     <div>
@@ -33,6 +36,10 @@ export default async function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {profile?.role === 'admin' && admissionFormat && (
+          <AdmissionFormatCard initialFormat={admissionFormat} />
+        )}
 
         <Card>
           <CardHeader>
