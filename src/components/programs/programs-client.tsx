@@ -7,16 +7,23 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
 import { ProgramFormModal } from '@/components/programs/program-form-modal';
 import type { Program } from '@/lib/types';
+import { deleteProgram } from '@/app/actions/programs';
 
 export function ProgramsClient({ programs }: { programs: Program[] }) {
   const [showForm, setShowForm] = useState(false);
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   return (
     <div>
       <PageHeader
         title="Programs"
         description="Academic programs offered at Excellence Online College"
-        action={<Button onClick={() => setShowForm(true)}>+ Add Program</Button>}
+        action={
+          <Button onClick={() => setShowForm(true)}>
+            + Add Program
+          </Button>
+        }
       />
 
       {programs.length === 0 ? (
@@ -33,6 +40,7 @@ export function ProgramsClient({ programs }: { programs: Program[] }) {
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Duration</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Tuition</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Status</th>
+                <th className="px-6 py-3 text-right font-medium text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -47,6 +55,36 @@ export function ProgramsClient({ programs }: { programs: Program[] }) {
                       {program.is_active ? 'Active' : 'Inactive'}
                     </Badge>
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setEditingProgram(program)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={deletingId === program.id}
+                        onClick={async () => {
+                          if (!window.confirm(`Delete program "${program.name}"? This cannot be undone.`)) {
+                            return;
+                          }
+                          try {
+                            setDeletingId(program.id);
+                            await deleteProgram(program.id);
+                            window.location.reload();
+                          } finally {
+                            setDeletingId(null);
+                          }
+                        }}
+                      >
+                        {deletingId === program.id ? 'Deleting...' : 'Delete'}
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -54,7 +92,17 @@ export function ProgramsClient({ programs }: { programs: Program[] }) {
         </DataTable>
       )}
 
-      {showForm && <ProgramFormModal onClose={() => setShowForm(false)} />}
+      {showForm && (
+        <ProgramFormModal
+          onClose={() => setShowForm(false)}
+        />
+      )}
+      {editingProgram && (
+        <ProgramFormModal
+          program={editingProgram}
+          onClose={() => setEditingProgram(null)}
+        />
+      )}
     </div>
   );
 }
