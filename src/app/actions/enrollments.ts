@@ -202,3 +202,14 @@ export async function getAcademicTerms() {
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function getEnrollmentsForStudent(studentId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('*, course:courses(*), term:academic_terms(*)')
+    .eq('student_id', studentId)
+    .order('enrolled_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}

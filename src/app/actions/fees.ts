@@ -77,3 +77,16 @@ export async function deleteFeePayment(id: string) {
   revalidatePath('/dashboard/fees');
   return { success: true };
 }
+
+export async function getFeePaymentsForStudent(studentId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('fee_payments')
+    .select(
+      '*, term:academic_terms(name), items:fee_payment_items(*, course:courses(code, name)), submissions:fee_payment_submissions(*)'
+    )
+    .eq('student_id', studentId)
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
