@@ -26,6 +26,7 @@ export function StudentUnitEnrollment({
   const [result, setResult] = useState<{
     selectedTotal: number;
     newUnitsFee: number;
+    feePaymentId: string | null;
     units: { code: string; name: string; unit_fee: number }[];
   } | null>(null);
 
@@ -72,6 +73,7 @@ export function StudentUnitEnrollment({
     setResult({
       selectedTotal: response.selectedTotal ?? 0,
       newUnitsFee: response.newUnitsFee ?? 0,
+      feePaymentId: response.feePaymentId ?? null,
       units: response.units ?? [],
     });
     setLoading(false);
@@ -88,7 +90,7 @@ export function StudentUnitEnrollment({
           </div>
           <p className="mt-2 text-sm text-emerald-700">
             {result.newUnitsFee > 0
-              ? 'A fee invoice has been created for your newly added units.'
+              ? 'A payment invoice has been generated. You can pay now via M-Pesa or bank transfer.'
               : 'Your unit selection has been updated.'}
           </p>
         </div>
@@ -112,13 +114,23 @@ export function StudentUnitEnrollment({
             </div>
             {result.newUnitsFee > 0 && (
               <p className="text-xs text-slate-500">
-                Amount due for new units this session: {formatCurrency(result.newUnitsFee)}
+                Amount due: {formatCurrency(result.newUnitsFee)}
               </p>
             )}
           </CardContent>
         </Card>
 
-        <Button onClick={() => router.push('/student')}>Back to portal</Button>
+        <div className="flex flex-wrap gap-3">
+          {result.newUnitsFee > 0 && (
+            <Button onClick={() => router.push('/student/fees')}>Pay now</Button>
+          )}
+          <Button
+            variant={result.newUnitsFee > 0 ? 'secondary' : 'primary'}
+            onClick={() => router.push('/student')}
+          >
+            Back to portal
+          </Button>
+        </div>
       </div>
     );
   }

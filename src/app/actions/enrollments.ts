@@ -3,6 +3,10 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { EnrollmentStatus } from '@/lib/types';
+import {
+  createFeeInvoiceForEnrollments,
+  getUnbilledEnrollmentsForCourses,
+} from '@/lib/enrollment-fees';
 
 export async function getCurrentAcademicTermId(): Promise<string | null> {
   const supabase = await createClient();
@@ -91,9 +95,32 @@ export async function setStudentEnrollmentsForTerm(
     if (insertError) return { error: insertError.message };
   }
 
+  const unbilledEnrollments = await getUnbilledEnrollmentsForCourses(
+    supabase,
+    studentId,
+    termId,
+    normalized
+  );
+
+  let feePaymentId: string | null = null;
+
+  if (unbilledEnrollments.length > 0) {
+    const invoiceResult = await createFeeInvoiceForEnrollments(supabase, {
+      studentId,
+      termId,
+      enrollments: unbilledEnrollments,
+    });
+
+    if (invoiceResult && 'error' in invoiceResult) return { error: invoiceResult.error };
+    if (invoiceResult && 'feePaymentId' in invoiceResult) {
+      feePaymentId = invoiceResult.feePaymentId;
+    }
+  }
+
   revalidatePath(`/dashboard/students/${studentId}`);
   revalidatePath('/dashboard/enrollments');
-  return { success: true };
+  revalidatePath('/dashboard/fees');
+  return { success: true, feePaymentId };
 }
 
 export async function getEnrollments() {
@@ -108,16 +135,38 @@ export async function getEnrollments() {
 
 export async function createEnrollment(formData: FormData) {
   const supabase = await createClient();
+  const studentId = formData.get('student_id') as string;
+  const courseId = formData.get('course_id') as string;
+  const termId = formData.get('term_id') as string;
+
   const { error } = await supabase.from('enrollments').insert({
-    student_id: formData.get('student_id') as string,
-    course_id: formData.get('course_id') as string,
-    term_id: formData.get('term_id') as string,
+    student_id: studentId,
+    course_id: courseId,
+    term_id: termId,
     status: (formData.get('status') as EnrollmentStatus) || 'active',
     grade: (formData.get('grade') as string) || null,
     score: formData.get('score') ? parseFloat(formData.get('score') as string) : null,
   });
   if (error) return { error: error.message };
+
+  const unbilledEnrollments = await getUnbilledEnrollmentsForCourses(
+    supabase,
+    studentId,
+    termId,
+    [courseId]
+  );
+
+  if (unbilledEnrollments.length > 0) {
+    const invoiceResult = await createFeeInvoiceForEnrollments(supabase, {
+      studentId,
+      termId,
+      enrollments: unbilledEnrollments,
+    });
+    if (invoiceResult && 'error' in invoiceResult) return { error: invoiceResult.error };
+  }
+
   revalidatePath('/dashboard/enrollments');
+  revalidatePath('/dashboard/fees');
   return { success: true };
 }
 

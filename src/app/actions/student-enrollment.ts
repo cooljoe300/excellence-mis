@@ -8,6 +8,10 @@ import {
   getProgramCourses,
   getStudentCourseIdsForTerm,
 } from '@/app/actions/enrollments';
+import {
+  createFeeInvoiceForEnrollments,
+  getUnbilledEnrollmentsForCourses,
+} from '@/lib/enrollment-fees';
 
 export interface UnitOption {
   id: string;
@@ -149,63 +153,46 @@ export async function enrollMyUnits(courseIds: string[]) {
     if (deleteError) return { error: deleteError.message };
   }
 
-  const newEnrollments: { id: string; course_id: string }[] = [];
-
   if (toAdd.length > 0) {
-    const { data: inserted, error: insertError } = await supabase
-      .from('enrollments')
-      .insert(
-        toAdd.map((courseId) => ({
-          student_id: student.id,
-          term_id: termId,
-          course_id: courseId,
-          status: 'active',
-        }))
-      )
-      .select('id, course_id');
-
-    if (insertError) return { error: insertError.message };
-    newEnrollments.push(...(inserted ?? []));
-  }
-
-  const addedCourses = toAdd.map((id) => validCourseMap.get(id)!);
-  const totalFee = addedCourses.reduce((sum, c) => sum + Number(c.unit_fee ?? 0), 0);
-
-  let feePaymentId: string | null = null;
-
-  if (totalFee > 0 && newEnrollments.length > 0) {
-    const courseLabels = addedCourses.map((c) => `${c.code} — ${c.name}`).join(', ');
-    const { data: feePayment, error: feeError } = await supabase
-      .from('fee_payments')
-      .insert({
+    const { error: insertError } = await supabase.from('enrollments').insert(
+      toAdd.map((courseId) => ({
         student_id: student.id,
         term_id: termId,
-        amount: totalFee,
-        amount_paid: 0,
-        status: 'pending',
-        description: `Unit registration: ${courseLabels}`,
-      })
-      .select('id')
-      .single();
-
-    if (feeError) return { error: feeError.message };
-    feePaymentId = feePayment.id;
-
-    const enrollmentByCourse = new Map(newEnrollments.map((e) => [e.course_id, e.id]));
-    const { error: itemsError } = await supabase.from('fee_payment_items').insert(
-      addedCourses.map((c) => ({
-        fee_payment_id: feePayment.id,
-        course_id: c.id,
-        enrollment_id: enrollmentByCourse.get(c.id) ?? null,
-        amount: Number(c.unit_fee ?? 0),
+        course_id: courseId,
+        status: 'active',
       }))
     );
 
-    if (itemsError) return { error: itemsError.message };
+    if (insertError) return { error: insertError.message };
+  }
+
+  const unbilledEnrollments = await getUnbilledEnrollmentsForCourses(
+    supabase,
+    student.id,
+    termId,
+    normalized
+  );
+
+  let feePaymentId: string | null = null;
+  let totalFee = 0;
+
+  if (unbilledEnrollments.length > 0) {
+    const invoiceResult = await createFeeInvoiceForEnrollments(supabase, {
+      studentId: student.id,
+      termId,
+      enrollments: unbilledEnrollments,
+    });
+
+    if (invoiceResult && 'error' in invoiceResult) return { error: invoiceResult.error };
+    if (invoiceResult && 'feePaymentId' in invoiceResult) {
+      feePaymentId = invoiceResult.feePaymentId;
+      totalFee = invoiceResult.totalFee;
+    }
   }
 
   revalidatePath('/student');
   revalidatePath('/student/enroll');
+  revalidatePath('/student/fees');
 
   after(() => {
     revalidatePath('/dashboard/enrollments');
