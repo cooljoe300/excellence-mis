@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getStudent } from '@/app/actions/students';
 import { getPrograms } from '@/app/actions/programs';
+import { getIntakes } from '@/app/actions/intakes';
 import { StudentForm } from '@/components/students/student-form';
 import { StudentProfileView } from '@/components/students/student-profile-view';
 import { isSelfRegisteredStudent } from '@/lib/auth';
@@ -24,14 +25,14 @@ export default async function StudentProfilePage({
   }
 
   if (edit === 'true') {
-    const programs = await getPrograms();
+    const [programs, intakes] = await Promise.all([getPrograms(), getIntakes()]);
     return (
       <div>
         <PageHeader
           title="Edit Student"
           description={`${student.first_name} ${student.last_name}`}
         />
-        <StudentForm programs={programs} student={student} />
+        <StudentForm programs={programs} intakes={intakes} student={student} />
       </div>
     );
   }

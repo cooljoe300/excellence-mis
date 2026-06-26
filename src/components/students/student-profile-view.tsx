@@ -81,6 +81,10 @@ export function StudentProfileView({
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <Row label="Program" value={(student.program as { name: string } | null)?.name} />
+            <Row
+              label="Intake"
+              value={(student.intake as { name: string } | null)?.name}
+            />
             <Row label="Enrollment date" value={formatDate(student.enrollment_date)} />
             <Row label="ID card issued" value={formatDate(student.id_card_issued_at)} />
             <Row

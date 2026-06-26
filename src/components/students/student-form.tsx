@@ -14,7 +14,7 @@ import {
   getStudentCourseIdsForTerm,
   setStudentEnrollmentsForTerm,
 } from '@/app/actions/enrollments';
-import type { Program, Student } from '@/lib/types';
+import type { Program, Student, Intake } from '@/lib/types';
 import { UserPlus, Info } from 'lucide-react';
 
 const statusOptions = [
@@ -34,9 +34,11 @@ const genderOptions = [
 
 export function StudentForm({
   programs,
+  intakes,
   student,
 }: {
   programs: Program[];
+  intakes: Intake[];
   student?: Student;
 }) {
   const router = useRouter();
@@ -146,6 +148,11 @@ export function StudentForm({
     ...programs.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` })),
   ];
 
+  const intakeOptions = [
+    { value: '', label: 'Select intake' },
+    ...intakes.map((i) => ({ value: i.id, label: `${i.code} — ${i.name}` })),
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {!student && (
@@ -206,6 +213,12 @@ export function StudentForm({
             value={programId}
             onChange={(e) => setProgramId(e.target.value)}
             options={programOptions}
+          />
+          <Select
+            name="intake_id"
+            label="Intake"
+            defaultValue={student?.intake_id ?? ''}
+            options={intakeOptions}
           />
           <Input name="enrollment_date" label="Enrollment date" type="date" defaultValue={student?.enrollment_date ?? new Date().toISOString().split('T')[0]} />
           <Select name="status" label="Status" defaultValue={student?.status ?? 'active'} options={statusOptions} />

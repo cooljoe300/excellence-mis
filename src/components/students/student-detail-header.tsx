@@ -17,6 +17,7 @@ export function StudentDetailHeader({
   const admissionNumber = getAdmissionNumber(student);
   const selfRegistered = isSelfRegisteredStudent(student);
   const programName = (student.program as { name: string } | null)?.name ?? '—';
+  const intakeName = (student.intake as { name: string } | null)?.name ?? '—';
 
   return (
     <div className="mb-4">
@@ -64,6 +65,7 @@ export function StudentDetailHeader({
             <tr>
               <th className="px-4 py-2.5 font-medium text-slate-500">Status</th>
               <th className="px-4 py-2.5 font-medium text-slate-500">Programme</th>
+              <th className="px-4 py-2.5 font-medium text-slate-500">Intake</th>
               <th className="px-4 py-2.5 font-medium text-slate-500">Enrolled</th>
               <th className="px-4 py-2.5 font-medium text-slate-500">LMS</th>
               <th className="px-4 py-2.5 font-medium text-slate-500">Source</th>
@@ -75,6 +77,7 @@ export function StudentDetailHeader({
                 <Badge status={student.status}>{student.status}</Badge>
               </td>
               <td className="px-4 py-3 text-slate-700">{programName}</td>
+              <td className="px-4 py-3 text-slate-600">{intakeName}</td>
               <td className="px-4 py-3 text-slate-600">{formatDate(student.enrollment_date)}</td>
               <td className="px-4 py-3">
                 <Badge

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Inbox,
   LayoutDashboard,
   Users,
   BookOpen,
@@ -26,6 +27,7 @@ const navItems = [
   { href: '/dashboard/students', label: 'Students', icon: Users },
   { href: '/dashboard/programs', label: 'Programs', icon: GraduationCap },
   { href: '/dashboard/semesters', label: 'Semesters', icon: CalendarDays },
+  { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox },
   { href: '/dashboard/courses', label: 'Courses', icon: BookOpen },
   { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList },
   { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck },

@@ -8,7 +8,7 @@ export async function getStudents(search?: string) {
   const supabase = await createClient();
   let query = supabase
     .from('students')
-    .select('*, program:programs(*)')
+    .select('*, program:programs(*), intake:intakes(*)')
     .order('created_at', { ascending: false });
 
   if (search) {
@@ -26,7 +26,7 @@ export async function getStudent(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('students')
-    .select('*, program:programs(*)')
+    .select('*, program:programs(*), intake:intakes(*)')
     .eq('id', id)
     .single();
   if (error) throw new Error(error.message);
@@ -51,6 +51,7 @@ export async function createStudent(formData: FormData) {
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: (formData.get('program_id') as string) || null,
+      intake_id: (formData.get('intake_id') as string) || null,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||
         new Date().toISOString().split('T')[0],
@@ -90,6 +91,7 @@ export async function updateStudent(id: string, formData: FormData) {
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: (formData.get('program_id') as string) || null,
+      intake_id: (formData.get('intake_id') as string) || null,
       status: formData.get('status') as StudentStatus,
       notes: (formData.get('notes') as string) || null,
     })

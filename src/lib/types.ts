@@ -26,6 +26,17 @@ export interface AcademicTerm {
   created_at: string;
 }
 
+export interface Intake {
+  id: string;
+  name: string;
+  code: string;
+  start_date: string;
+  end_date: string;
+  is_current: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
 export interface Program {
   id: string;
   name: string;
@@ -72,6 +83,7 @@ export interface Student {
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   program_id: string | null;
+  intake_id: string | null;
   enrollment_date: string;
   status: StudentStatus;
   lms_username: string | null;
@@ -85,6 +97,7 @@ export interface Student {
   created_at: string;
   updated_at: string;
   program?: Program;
+  intake?: Intake;
 }
 
 export interface Enrollment {
