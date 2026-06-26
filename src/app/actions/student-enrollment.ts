@@ -78,7 +78,7 @@ export async function getMyUnitEnrollmentData() {
     needsRegistration: false as const,
     student,
     termId,
-    programName: (student.program as { name: string } | null)?.name ?? null,
+    programName: getProgramName(student.program),
     units: units as UnitOption[],
     enrolledUnitIds,
     error: null,
