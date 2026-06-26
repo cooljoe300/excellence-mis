@@ -8,7 +8,9 @@ export async function getFeePayments() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('fee_payments')
-    .select('*, student:students(*), term:academic_terms(*)')
+    .select(
+      '*, student:students(*), term:academic_terms(*), submissions:fee_payment_submissions(*)'
+    )
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data;

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatCurrency, getAdmissionNumber } from '@/lib/utils';
-import { CheckCircle2, Clock, AlertCircle, UserPlus, BookOpen } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, UserPlus, BookOpen, CreditCard } from 'lucide-react';
 
 export default async function StudentPortalPage() {
   const student = await getMyStudentRecord();
@@ -20,6 +20,11 @@ export default async function StudentPortalPage() {
   const admissionNumber = getAdmissionNumber(student);
   const lmsSynced = student.lms_sync_status === 'synced';
   const lmsFailed = student.lms_sync_status === 'failed';
+  const fees = enrollmentData?.fees ?? [];
+  const totalDue = fees.reduce(
+    (sum, fee) => sum + Math.max(0, Number(fee.amount) - Number(fee.amount_paid)),
+    0
+  );
 
   return (
     <div>
@@ -120,6 +125,35 @@ export default async function StudentPortalPage() {
         </Card>
       </div>
 
+      <div className="mb-8">
+        <Card className={totalDue > 0 ? 'border-amber-200 bg-amber-50/30' : undefined}>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-blue-700" />
+              Fees & Balance
+            </CardTitle>
+            <Link href="/student/fees">
+              <Button size="sm">{totalDue > 0 ? 'Pay now' : 'View fees'}</Button>
+            </Link>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {fees.length === 0 ? (
+              <p className="text-slate-600">No fee invoices yet.</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Outstanding balance</span>
+                  <span className="font-bold text-blue-700">{formatCurrency(totalDue)}</span>
+                </div>
+                {totalDue <= 0 && (
+                  <p className="text-emerald-700">All fees paid in full.</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -164,6 +198,9 @@ export default async function StudentPortalPage() {
       <div className="mt-6 flex flex-wrap gap-3">
         <Link href="/student/enroll">
           <Button>Register units</Button>
+        </Link>
+        <Link href="/student/fees">
+          <Button variant={totalDue > 0 ? undefined : 'secondary'}>Pay fees</Button>
         </Link>
         <Link href="/student/register">
           <Button variant="secondary">Update my details</Button>

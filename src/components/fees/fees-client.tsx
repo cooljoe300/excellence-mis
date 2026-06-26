@@ -8,8 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { createFeePayment } from '@/app/actions/fees';
-import type { AcademicTerm, FeePayment, Student } from '@/lib/types';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import type { AcademicTerm, FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
+import { formatCurrency, formatDate, getFeeBalance } from '@/lib/utils';
 
 function FeeFormModal({
   students,
@@ -92,16 +92,14 @@ export function FeesClient({
 }) {
   const [showForm, setShowForm] = useState(false);
 
-  const totalOutstanding = fees.reduce(
-    (sum, f) => sum + Math.max(0, f.amount - f.amount_paid),
-    0
-  );
+  const totalOutstanding = fees.reduce((sum, f) => sum + getFeeBalance(f), 0);
+  const totalPaid = fees.reduce((sum, f) => sum + Number(f.amount_paid ?? 0), 0);
 
   return (
     <div>
       <PageHeader
         title="Fees & Payments"
-        description={`Outstanding balance: ${formatCurrency(totalOutstanding)}`}
+        description={`Collected: ${formatCurrency(totalPaid)} · Outstanding: ${formatCurrency(totalOutstanding)}`}
         action={<Button onClick={() => setShowForm(true)}>+ Record Payment</Button>}
       />
 
@@ -118,25 +116,63 @@ export function FeesClient({
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Description</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Amount</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Paid</th>
+                <th className="px-6 py-3 text-left font-medium text-slate-500">Balance</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Status</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Due</th>
+                <th className="px-6 py-3 text-left font-medium text-slate-500">Payment ref</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {fees.map((fee) => (
-                <tr key={fee.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium">
-                    {(fee.student as Student)?.first_name} {(fee.student as Student)?.last_name}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{fee.description ?? '—'}</td>
-                  <td className="px-6 py-4 text-slate-600">{formatCurrency(fee.amount)}</td>
-                  <td className="px-6 py-4 text-slate-600">{formatCurrency(fee.amount_paid)}</td>
-                  <td className="px-6 py-4">
-                    <Badge status={fee.status}>{fee.status}</Badge>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500">{formatDate(fee.due_date)}</td>
-                </tr>
-              ))}
+              {fees.map((fee) => {
+                const balance = getFeeBalance(fee);
+                const submissions = [...((fee.submissions ?? []) as FeePaymentSubmission[])].sort(
+                  (a, b) => b.created_at.localeCompare(a.created_at)
+                );
+                return (
+                  <tr key={fee.id} className="align-top hover:bg-slate-50">
+                    <td className="px-6 py-4 font-medium">
+                      {(fee.student as Student)?.first_name} {(fee.student as Student)?.last_name}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      <p>{fee.description ?? '—'}</p>
+                      <p className="mt-1 text-xs text-slate-500">{formatDate(fee.created_at)}</p>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">{formatCurrency(fee.amount)}</td>
+                    <td className="px-6 py-4 font-medium text-emerald-700">
+                      {formatCurrency(fee.amount_paid)}
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-blue-700">
+                      {balance > 0 ? formatCurrency(balance) : '—'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge status={balance <= 0 ? 'active' : fee.status}>
+                        {balance <= 0 ? 'paid in full' : fee.status}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {submissions.length === 0 ? (
+                        fee.reference_number ? (
+                          <span>
+                            {fee.payment_method} · {fee.reference_number}
+                          </span>
+                        ) : (
+                          '—'
+                        )
+                      ) : (
+                        <div className="space-y-1">
+                          {submissions.map((s) => (
+                            <div key={s.id} className="text-xs">
+                              <span className="font-medium">{formatCurrency(s.amount)}</span>
+                              {' · '}
+                              {s.payment_method} · {s.reference_number}
+                              <span className="block text-slate-400">{formatDate(s.created_at)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </DataTable>

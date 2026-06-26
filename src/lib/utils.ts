@@ -48,6 +48,10 @@ export function getAdmissionNumber(student: {
   return student.admission_number ?? student.student_number;
 }
 
+export function getFeeBalance(fee: { amount: number; amount_paid: number }) {
+  return Math.max(0, Number(fee.amount) - Number(fee.amount_paid));
+}
+
 export function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
     active: 'bg-emerald-100 text-emerald-800',

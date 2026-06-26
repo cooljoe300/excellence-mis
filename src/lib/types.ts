@@ -130,6 +130,7 @@ export interface FeePayment {
   student?: Student;
   term?: AcademicTerm;
   items?: FeePaymentItem[];
+  submissions?: FeePaymentSubmission[];
 }
 
 export interface FeePaymentItem {
@@ -140,6 +141,16 @@ export interface FeePaymentItem {
   amount: number;
   created_at: string;
   course?: Course;
+}
+
+export interface FeePaymentSubmission {
+  id: string;
+  fee_payment_id: string;
+  student_id: string;
+  amount: number;
+  payment_method: string;
+  reference_number: string;
+  created_at: string;
 }
 
 export interface DashboardStats {
