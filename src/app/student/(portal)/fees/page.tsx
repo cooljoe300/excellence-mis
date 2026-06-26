@@ -5,7 +5,14 @@ import { StudentFeesClient } from '@/components/students/student-fees-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 
-export default async function StudentFeesPage() {
+export default async function StudentFeesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
+  const { from } = await searchParams;
+  const fromEnrollment = from === 'enrollment';
+
   let data;
   try {
     data = await getMyFeesPageData();
@@ -47,6 +54,7 @@ export default async function StudentFeesPage() {
         totalDue={data.totalDue}
         totalPaid={data.totalPaid}
         totalBilled={data.totalBilled}
+        fromEnrollment={fromEnrollment}
       />
     </div>
   );

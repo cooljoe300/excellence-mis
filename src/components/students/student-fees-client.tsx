@@ -11,7 +11,7 @@ import type { FeePayment, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/app/actions/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
 import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
-import { CreditCard, Smartphone, Building2 } from 'lucide-react';
+import { CreditCard, Smartphone, Building2, CheckCircle2 } from 'lucide-react';
 
 function PayFeeModal({
   fee,
@@ -183,6 +183,7 @@ export function StudentFeesClient({
   totalDue,
   totalPaid,
   totalBilled,
+  fromEnrollment = false,
 }: {
   student: Student;
   fees: FeePayment[];
@@ -190,12 +191,25 @@ export function StudentFeesClient({
   totalDue: number;
   totalPaid: number;
   totalBilled: number;
+  fromEnrollment?: boolean;
 }) {
   const [payingFee, setPayingFee] = useState<FeePayment | null>(null);
   const admissionNumber = getAdmissionNumber(student);
 
   return (
     <div className="space-y-6">
+      {fromEnrollment && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-center gap-2 text-emerald-800">
+            <CheckCircle2 className="h-5 w-5 shrink-0" />
+            <p className="text-sm font-medium">
+              Units registered successfully. Your payment invoice is ready — pay below via M-Pesa or
+              bank transfer.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="py-5">

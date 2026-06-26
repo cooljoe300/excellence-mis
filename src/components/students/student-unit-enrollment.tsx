@@ -70,9 +70,16 @@ export function StudentUnitEnrollment({
       return;
     }
 
+    const newUnitsFee = response.newUnitsFee ?? 0;
+
+    if (newUnitsFee > 0) {
+      router.push('/student/fees?from=enrollment');
+      return;
+    }
+
     setResult({
       selectedTotal: response.selectedTotal ?? 0,
-      newUnitsFee: response.newUnitsFee ?? 0,
+      newUnitsFee,
       feePaymentId: response.feePaymentId ?? null,
       units: response.units ?? [],
     });
@@ -88,11 +95,7 @@ export function StudentUnitEnrollment({
             <CheckCircle2 className="h-5 w-5" />
             <p className="font-semibold">Units registered successfully</p>
           </div>
-          <p className="mt-2 text-sm text-emerald-700">
-            {result.newUnitsFee > 0
-              ? 'A payment invoice has been generated. You can pay now via M-Pesa or bank transfer.'
-              : 'Your unit selection has been updated.'}
-          </p>
+          <p className="mt-2 text-sm text-emerald-700">Your unit selection has been updated.</p>
         </div>
 
         <Card>
@@ -112,22 +115,11 @@ export function StudentUnitEnrollment({
               <span>Total</span>
               <span className="text-blue-700">{formatCurrency(result.selectedTotal)}</span>
             </div>
-            {result.newUnitsFee > 0 && (
-              <p className="text-xs text-slate-500">
-                Amount due: {formatCurrency(result.newUnitsFee)}
-              </p>
-            )}
           </CardContent>
         </Card>
 
         <div className="flex flex-wrap gap-3">
-          {result.newUnitsFee > 0 && (
-            <Button onClick={() => router.push('/student/fees')}>Pay now</Button>
-          )}
-          <Button
-            variant={result.newUnitsFee > 0 ? 'secondary' : 'primary'}
-            onClick={() => router.push('/student')}
-          >
+          <Button variant="primary" onClick={() => router.push('/student')}>
             Back to portal
           </Button>
         </div>
