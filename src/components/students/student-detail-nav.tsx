@@ -9,10 +9,7 @@ const tabs = [
   { label: 'Enrolment Profiles', segment: 'enrollment' },
   { label: 'Student ID', segment: 'id-card' },
   { label: 'Course Registration', segment: 'registration' },
-  { label: 'Results Slip', segment: 'results' },
-  { label: 'Transcripts', segment: 'transcripts' },
   { label: 'Fee Statement', segment: 'fees' },
-  { label: 'Hostel Bookings', segment: 'hostel' },
   { label: 'Student Log', segment: 'log' },
 ] as const;
 
