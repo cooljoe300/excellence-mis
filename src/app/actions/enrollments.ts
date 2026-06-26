@@ -8,6 +8,8 @@ import {
   getUnbilledEnrollmentsForCourses,
 } from '@/lib/enrollment-fees';
 
+export { getAcademicTerms } from '@/app/actions/academic-terms';
+
 export async function getCurrentAcademicTermId(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -191,16 +193,6 @@ export async function deleteEnrollment(id: string) {
   if (error) return { error: error.message };
   revalidatePath('/dashboard/enrollments');
   return { success: true };
-}
-
-export async function getAcademicTerms() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('academic_terms')
-    .select('*')
-    .order('start_date', { ascending: false });
-  if (error) throw new Error(error.message);
-  return data;
 }
 
 export async function getEnrollmentsForStudent(studentId: string) {
