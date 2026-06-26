@@ -30,15 +30,22 @@ export default function LoginPage() {
     }
 
     const role = data.user?.user_metadata?.role;
+    if (role === 'student') {
+      router.replace('/student');
+      return;
+    }
+    if (role === 'admin' || role === 'staff' || role === 'teacher') {
+      router.replace('/dashboard');
+      return;
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user!.id)
       .maybeSingle();
 
-    const userRole = profile?.role ?? role;
-    router.push(userRole === 'student' ? '/student' : '/dashboard');
-    router.refresh();
+    router.replace(profile?.role === 'student' ? '/student' : '/dashboard');
   }
 
   return (

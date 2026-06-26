@@ -14,16 +14,18 @@ export default function StudentSignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setInfo(null);
 
     try {
       const supabase = createClient();
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -37,8 +39,13 @@ export default function StudentSignupPage() {
         return;
       }
 
-      router.push('/student/register');
-      router.refresh();
+      if (!data.session) {
+        setInfo('Account created! Check your email to confirm your account, then sign in.');
+        setLoading(false);
+        return;
+      }
+
+      router.replace('/student/register');
     } catch (err) {
       setError(getErrorMessage(err));
       setLoading(false);
@@ -85,6 +92,9 @@ export default function StudentSignupPage() {
           />
           {error && (
             <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          )}
+          {info && (
+            <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">{info}</div>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Creating account...' : 'Create account'}

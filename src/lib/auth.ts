@@ -21,13 +21,16 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const metaRole = getRoleFromUser(user);
+  if (metaRole) return metaRole;
+
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .maybeSingle();
 
-  const role = profile?.role ?? getRoleFromUser(user);
+  const role = profile?.role;
   if (role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student') {
     return role;
   }

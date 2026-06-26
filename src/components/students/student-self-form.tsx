@@ -73,7 +73,7 @@ export function StudentSelfForm({
       admissionNumber,
     });
     setLoading(false);
-    setTimeout(() => router.push('/student'), 2500);
+    router.replace('/student');
   }
 
   return (
@@ -85,9 +85,7 @@ export function StudentSelfForm({
           {success.admissionNumber && (
             <p className="mt-2 text-lg font-bold font-mono">{success.admissionNumber}</p>
           )}
-          <p className="mt-2 text-emerald-700">
-            An admin will review your record and push it to the LMS. Redirecting to your portal...
-          </p>
+          <p className="mt-2 text-emerald-700">Taking you to your portal...</p>
         </div>
       )}
 

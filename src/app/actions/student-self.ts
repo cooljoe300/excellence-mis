@@ -1,5 +1,6 @@
 'use server';
 
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { StudentStatus } from '@/lib/types';
@@ -21,21 +22,43 @@ export async function getMyStudentRecord() {
   return data;
 }
 
+export async function getStudentRegisterPageData() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const [profileRes, programsRes, studentRes] = await Promise.all([
+    supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
+    supabase.from('programs').select('id, code, name, duration_months, tuition_fee, is_active, description, created_at, updated_at').eq('is_active', true).order('name'),
+    supabase
+      .from('students')
+      .select('*')
+      .eq('profile_id', user.id)
+      .maybeSingle(),
+  ]);
+
+  if (profileRes.error) throw new Error(profileRes.error.message);
+  if (programsRes.error) throw new Error(programsRes.error.message);
+  if (studentRes.error) throw new Error(studentRes.error.message);
+
+  const nameParts = (profileRes.data?.full_name ?? '').trim().split(/\s+/);
+
+  return {
+    programs: programsRes.data ?? [],
+    existingStudent: studentRes.data,
+    defaultFirstName: studentRes.data?.first_name ?? nameParts[0] ?? '',
+    defaultLastName: studentRes.data?.last_name ?? nameParts.slice(1).join(' ') ?? '',
+  };
+}
+
 export async function createMyStudentRecord(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: 'You must be signed in.' };
-
-  // Prevent duplicates
-  const existing = await supabase
-    .from('students')
-    .select('id')
-    .eq('profile_id', user.id)
-    .maybeSingle();
-
-  if (existing.data?.id) return { error: 'You have already registered.' };
 
   const { data, error } = await supabase
     .from('students')
@@ -66,10 +89,20 @@ export async function createMyStudentRecord(formData: FormData) {
     .select('id, admission_number, student_number')
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.code === '23505') {
+      return { error: 'You have already registered.' };
+    }
+    return { error: error.message };
+  }
 
-  revalidatePath('/dashboard/students');
   revalidatePath('/student');
+
+  // Defer admin list refresh so the student doesn't wait for it
+  after(() => {
+    revalidatePath('/dashboard/students');
+  });
+
   return {
     success: true,
     id: data.id as string,
@@ -106,7 +139,5 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
 
   if (error) return { error: error.message };
   revalidatePath('/student');
-  revalidatePath(`/dashboard/students/${studentId}`);
   return { success: true };
 }
-

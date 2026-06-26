@@ -3,18 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getRoleFromMetadata } from '@/lib/auth';
 import type { UserRole } from '@/lib/types';
 
-async function getUserRole(
-  supabase: ReturnType<typeof createServerClient>,
-  userId: string,
-  metadata: Record<string, unknown> | undefined
-): Promise<UserRole | null> {
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', userId)
-    .maybeSingle();
-
-  const role = profile?.role ?? getRoleFromMetadata(metadata);
+function resolveRole(
+  metadata: Record<string, unknown> | undefined,
+  profileRole: string | null | undefined
+): UserRole | null {
+  const role = profileRole ?? getRoleFromMetadata(metadata);
   if (role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student') {
     return role;
   }
@@ -56,7 +49,6 @@ export async function updateSession(request: NextRequest) {
   const isDashboard = pathname.startsWith('/dashboard');
   const isStudentSignup = pathname.startsWith('/student/signup');
   const isStudentRegister = pathname.startsWith('/student/register');
-  const isStudentPortal = pathname === '/student' || pathname.startsWith('/student/');
   const isHome = pathname === '/';
 
   if (!user && isDashboard) {
@@ -72,7 +64,21 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (user) {
-    const role = await getUserRole(supabase, user.id, user.user_metadata);
+    // Prefer JWT metadata — avoids a DB round-trip on most requests
+    let role = getRoleFromMetadata(user.user_metadata);
+
+    const needsRoleFromDb =
+      !role &&
+      (isDashboard || isAuthPage || isStudentSignup || isHome);
+
+    if (needsRoleFromDb) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+      role = resolveRole(user.user_metadata, profile?.role);
+    }
 
     if (role === 'student' && isDashboard) {
       const url = request.nextUrl.clone();
@@ -80,36 +86,22 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if (user && isAuthPage) {
+    if (isAuthPage) {
       const url = request.nextUrl.clone();
       url.pathname = role === 'student' ? '/student' : '/dashboard';
       return NextResponse.redirect(url);
     }
 
-    if (user && isStudentSignup) {
+    if (isStudentSignup) {
       const url = request.nextUrl.clone();
       url.pathname = role === 'student' ? '/student/register' : '/dashboard';
       return NextResponse.redirect(url);
     }
 
-    if (user && isHome) {
+    if (isHome) {
       const url = request.nextUrl.clone();
       url.pathname = role === 'student' ? '/student' : '/dashboard';
       return NextResponse.redirect(url);
-    }
-
-    if (role === 'student' && isStudentPortal && pathname === '/student') {
-      const { data: student } = await supabase
-        .from('students')
-        .select('id')
-        .eq('profile_id', user.id)
-        .maybeSingle();
-
-      if (!student && pathname === '/student') {
-        const url = request.nextUrl.clone();
-        url.pathname = '/student/register';
-        return NextResponse.redirect(url);
-      }
     }
   }
 
