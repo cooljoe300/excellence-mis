@@ -14,6 +14,11 @@ function resolveRole(
   return null;
 }
 
+function safeNextPath(path: string | null): string | null {
+  if (!path || !path.startsWith('/') || path.startsWith('//')) return null;
+  return path;
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -48,7 +53,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/signup');
   const isDashboard = pathname.startsWith('/dashboard');
   const isStudentSignup = pathname.startsWith('/student/signup');
-  const isStudentRegister = pathname.startsWith('/student/register');
+  const isStudentPortal = pathname.startsWith('/student') && !isStudentSignup;
   const isHome = pathname === '/';
 
   if (!user && isDashboard) {
@@ -57,19 +62,19 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (!user && (isStudentRegister || pathname === '/student')) {
+  if (!user && isStudentPortal) {
     const url = request.nextUrl.clone();
-    url.pathname = '/student/signup';
+    url.pathname = '/login';
+    url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
   }
 
   if (user) {
-    // Prefer JWT metadata — avoids a DB round-trip on most requests
     let role = getRoleFromMetadata(user.user_metadata);
 
     const needsRoleFromDb =
       !role &&
-      (isDashboard || isAuthPage || isStudentSignup || isHome);
+      (isDashboard || isAuthPage || isStudentSignup || isStudentPortal || isHome);
 
     if (needsRoleFromDb) {
       const { data: profile } = await supabase
@@ -86,9 +91,21 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
+    if (role && role !== 'student' && isStudentPortal) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+
     if (isAuthPage) {
       const url = request.nextUrl.clone();
-      url.pathname = role === 'student' ? '/student' : '/dashboard';
+      const next = safeNextPath(request.nextUrl.searchParams.get('next'));
+      if (next) {
+        url.pathname = next;
+        url.search = '';
+      } else {
+        url.pathname = role === 'student' ? '/student' : '/dashboard';
+      }
       return NextResponse.redirect(url);
     }
 

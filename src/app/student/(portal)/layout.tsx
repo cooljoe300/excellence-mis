@@ -13,7 +13,7 @@ export default async function StudentPortalLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect('/student/signup');
+  if (!user) redirect('/login');
 
   const metaRole = getRoleFromMetadata(user.user_metadata);
   if (metaRole && metaRole !== 'student') redirect('/dashboard');

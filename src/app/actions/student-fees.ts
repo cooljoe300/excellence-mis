@@ -23,9 +23,18 @@ export async function getMyFeesPageData() {
       .order('created_at', { ascending: false }),
   ]);
 
-  if (feesRes.error) throw new Error(feesRes.error.message);
+  let fees = (feesRes.data ?? []) as FeePayment[];
 
-  const fees = (feesRes.data ?? []) as FeePayment[];
+  if (feesRes.error) {
+    const fallback = await supabase
+      .from('fee_payments')
+      .select('*, term:academic_terms(name), items:fee_payment_items(*, course:courses(code, name))')
+      .eq('student_id', student.id)
+      .order('created_at', { ascending: false });
+
+    if (fallback.error) throw new Error(fallback.error.message);
+    fees = (fallback.data ?? []) as FeePayment[];
+  }
   const totalDue = fees.reduce((sum, fee) => sum + getFeeBalance(fee), 0);
   const totalPaid = fees.reduce((sum, fee) => sum + Number(fee.amount_paid ?? 0), 0);
   const totalBilled = fees.reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
@@ -54,7 +63,14 @@ export async function submitMyFeePayment(
     p_reference_number: referenceNumber,
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.message.includes('submit_student_fee_payment')) {
+      return {
+        error: 'Payment system is not set up yet. Ask admin to run migration 009_student_fee_payments.sql in Supabase.',
+      };
+    }
+    return { error: error.message };
+  }
 
   const result = data as {
     error?: string;
