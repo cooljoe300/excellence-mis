@@ -45,6 +45,7 @@ export interface Course {
   code: string;
   description: string | null;
   credits: number;
+  unit_fee: number;
   instructor_id: string | null;
   is_active: boolean;
   created_at: string;
@@ -128,6 +129,17 @@ export interface FeePayment {
   updated_at: string;
   student?: Student;
   term?: AcademicTerm;
+  items?: FeePaymentItem[];
+}
+
+export interface FeePaymentItem {
+  id: string;
+  fee_payment_id: string;
+  course_id: string;
+  enrollment_id: string | null;
+  amount: number;
+  created_at: string;
+  course?: Course;
 }
 
 export interface DashboardStats {

@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, LogOut, User, ExternalLink } from 'lucide-react';
+import { GraduationCap, LogOut, User, ExternalLink, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/student', label: 'My Portal', icon: GraduationCap },
+  { href: '/student/enroll', label: 'Register Units', icon: BookOpen },
   { href: '/student/register', label: 'My Details', icon: User },
 ];
 

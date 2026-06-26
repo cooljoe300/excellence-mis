@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getMyStudentRecord } from '@/app/actions/student-self';
+import { getMyEnrollmentsWithFees } from '@/app/actions/student-enrollment';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDate, getAdmissionNumber } from '@/lib/utils';
-import { CheckCircle2, Clock, AlertCircle, UserPlus } from 'lucide-react';
+import { formatDate, formatCurrency, getAdmissionNumber } from '@/lib/utils';
+import { CheckCircle2, Clock, AlertCircle, UserPlus, BookOpen } from 'lucide-react';
 
 export default async function StudentPortalPage() {
   const student = await getMyStudentRecord();
@@ -15,6 +16,7 @@ export default async function StudentPortalPage() {
     redirect('/student/register');
   }
 
+  const enrollmentData = await getMyEnrollmentsWithFees();
   const admissionNumber = getAdmissionNumber(student);
   const lmsSynced = student.lms_sync_status === 'synced';
   const lmsFailed = student.lms_sync_status === 'failed';
@@ -66,6 +68,58 @@ export default async function StudentPortalPage() {
         />
       </div>
 
+      <div className="mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-blue-700" />
+              My Units
+            </CardTitle>
+            <Link href="/student/enroll">
+              <Button size="sm">Register units</Button>
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {(enrollmentData?.enrollments.length ?? 0) === 0 ? (
+              <p className="text-sm text-slate-600">
+                You have not registered any units yet.{' '}
+                <Link href="/student/enroll" className="text-blue-700 hover:underline">
+                  Register units now
+                </Link>
+              </p>
+            ) : (
+              <div className="space-y-2 text-sm">
+                {enrollmentData?.enrollments.map((e) => {
+                  const course = e.course as { code: string; name: string; unit_fee: number } | null;
+                  return (
+                    <div key={e.id} className="flex justify-between gap-4 border-b border-slate-100 pb-2 last:border-0">
+                      <span className="text-slate-700">
+                        {course?.code} — {course?.name}
+                      </span>
+                      <span className="font-medium text-slate-900">
+                        {formatCurrency(course?.unit_fee ?? 0)}
+                      </span>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between pt-2 font-semibold text-slate-900">
+                  <span>Units total</span>
+                  <span className="text-blue-700">
+                    {formatCurrency(
+                      enrollmentData?.enrollments.reduce(
+                        (sum, e) =>
+                          sum + Number((e.course as { unit_fee?: number } | null)?.unit_fee ?? 0),
+                        0
+                      ) ?? 0
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -107,7 +161,10 @@ export default async function StudentPortalPage() {
         </Card>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link href="/student/enroll">
+          <Button>Register units</Button>
+        </Link>
         <Link href="/student/register">
           <Button variant="secondary">Update my details</Button>
         </Link>

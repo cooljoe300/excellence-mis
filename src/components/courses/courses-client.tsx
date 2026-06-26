@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { createCourse, deleteCourse, updateCourse } from '@/app/actions/courses';
 import type { Course, Program } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils';
 
 function CourseFormModal({
   programs,
@@ -67,6 +68,15 @@ function CourseFormModal({
               label="Credits"
               type="number"
               defaultValue={course?.credits?.toString() ?? '3'}
+              required
+            />
+            <Input
+              name="unit_fee"
+              label="Unit fee (KES)"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={course?.unit_fee?.toString() ?? '0'}
               required
             />
           </div>
@@ -132,6 +142,7 @@ export function CoursesClient({
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Name</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Program</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Credits</th>
+                <th className="px-6 py-3 text-left font-medium text-slate-500">Unit fee</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Status</th>
                 <th className="px-6 py-3 text-right font-medium text-slate-500">Actions</th>
               </tr>
@@ -145,6 +156,7 @@ export function CoursesClient({
                     {(course.program as { name: string } | null)?.name ?? '—'}
                   </td>
                   <td className="px-6 py-4 text-slate-600">{course.credits}</td>
+                  <td className="px-6 py-4 text-slate-600">{formatCurrency(course.unit_fee ?? 0)}</td>
                   <td className="px-6 py-4">
                     <Badge status={course.is_active ? 'active' : 'inactive'}>
                       {course.is_active ? 'Active' : 'Inactive'}

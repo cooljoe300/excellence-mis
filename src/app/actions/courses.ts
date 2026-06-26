@@ -21,6 +21,7 @@ export async function createCourse(formData: FormData) {
     description: (formData.get('description') as string) || null,
     program_id: (formData.get('program_id') as string) || null,
     credits: parseInt(formData.get('credits') as string) || 3,
+    unit_fee: parseFloat(formData.get('unit_fee') as string) || 0,
     instructor_id: (formData.get('instructor_id') as string) || null,
     is_active: formData.get('is_active') !== 'false',
   });
@@ -39,6 +40,7 @@ export async function updateCourse(id: string, formData: FormData) {
       description: (formData.get('description') as string) || null,
       program_id: (formData.get('program_id') as string) || null,
       credits: parseInt(formData.get('credits') as string) || 3,
+      unit_fee: parseFloat(formData.get('unit_fee') as string) || 0,
       instructor_id: (formData.get('instructor_id') as string) || null,
       is_active: formData.get('is_active') !== 'false',
     })

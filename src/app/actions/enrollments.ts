@@ -22,7 +22,7 @@ export async function getProgramCourses(programId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('courses')
-    .select('id, code, name')
+    .select('id, code, name, unit_fee, credits')
     .eq('program_id', programId)
     .eq('is_active', true)
     .order('name');
