@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 export function GET() {
   const manifest = {
+    id: '/student',
     name: 'Excellence Online College — Student Portal',
     short_name: 'EOC Student',
     description: 'Register units, pay fees, view your ID card, and manage your student profile.',

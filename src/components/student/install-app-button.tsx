@@ -6,7 +6,7 @@ import { useInstallApp } from '@/components/student/use-install-app';
 import { InstallAppIosModal } from '@/components/student/install-app-ios-modal';
 
 export function InstallAppButton({ className }: { className?: string }) {
-  const { installed, canOneClickInstall, showIosGuide, setShowIosGuide, handleInstall } =
+  const { installed, canOneClickInstall, showInstallGuide, setShowInstallGuide, handleInstall, ios } =
     useInstallApp();
 
   if (installed || !canOneClickInstall) return null;
@@ -24,7 +24,11 @@ export function InstallAppButton({ className }: { className?: string }) {
         <span className="hidden sm:inline">Install app</span>
         <span className="sm:hidden">Install</span>
       </Button>
-      <InstallAppIosModal open={showIosGuide} onClose={() => setShowIosGuide(false)} />
+      <InstallAppIosModal
+        open={showInstallGuide}
+        onClose={() => setShowInstallGuide(false)}
+        platform={ios ? 'ios' : 'android'}
+      />
     </>
   );
 }

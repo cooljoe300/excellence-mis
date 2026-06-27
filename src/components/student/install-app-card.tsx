@@ -17,8 +17,8 @@ export function InstallAppCard() {
     installed,
     ios,
     canOneClickInstall,
-    showIosGuide,
-    setShowIosGuide,
+    showInstallGuide,
+    setShowInstallGuide,
     handleInstall,
   } = useInstallApp();
 
@@ -75,7 +75,7 @@ export function InstallAppCard() {
           ))}
         </ul>
 
-        {!canOneClickInstall && !ios && (
+        {!canOneClickInstall && (
           <p className="border-t border-white/10 px-6 py-3 text-xs text-blue-200">
             On Android, use Chrome. On iPhone, use Safari — then tap Install when prompted, or use
             Share → Add to Home Screen.
@@ -83,7 +83,11 @@ export function InstallAppCard() {
         )}
       </div>
 
-      <InstallAppIosModal open={showIosGuide} onClose={() => setShowIosGuide(false)} />
+      <InstallAppIosModal
+        open={showInstallGuide}
+        onClose={() => setShowInstallGuide(false)}
+        platform={ios ? 'ios' : 'android'}
+      />
     </>
   );
 }

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/ui/logo';
 import { InstallAppButton } from '@/components/student/install-app-button';
+import { InstallAppPrompt } from '@/components/student/install-app-prompt';
 import { useState } from 'react';
 
 const navItems = [
@@ -143,7 +144,8 @@ export function StudentShell({
           </nav>
         )}
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 pb-24 sm:px-6 sm:py-8 sm:pb-8">{children}</main>
+      <InstallAppPrompt />
     </div>
   );
 }

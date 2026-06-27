@@ -12,6 +12,34 @@ export function isIosDevice() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent);
 }
 
+export function isAndroidDevice() {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
+export function isMobileDevice() {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+}
+
+const DISMISS_KEY = 'eoc-student-install-dismissed';
+const DISMISS_DAYS = 7;
+
+export function isInstallPromptDismissed() {
+  if (typeof localStorage === 'undefined') return false;
+  const raw = localStorage.getItem(DISMISS_KEY);
+  if (!raw) return false;
+  const dismissedAt = Number(raw);
+  if (Number.isNaN(dismissedAt)) return false;
+  return Date.now() - dismissedAt < DISMISS_DAYS * 24 * 60 * 60 * 1000;
+}
+
+export function dismissInstallPrompt() {
+  localStorage.setItem(DISMISS_KEY, String(Date.now()));
+}
+
 export function isStandalone() {
   if (typeof window === 'undefined') return false;
   return (
@@ -22,13 +50,17 @@ export function isStandalone() {
 
 export function useInstallApp() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [ios, setIos] = useState(false);
+  const [android, setAndroid] = useState(false);
+  const [mobile, setMobile] = useState(false);
 
   useEffect(() => {
     setInstalled(isStandalone());
     setIos(isIosDevice());
+    setAndroid(isAndroidDevice());
+    setMobile(isMobileDevice());
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -39,8 +71,8 @@ export function useInstallApp() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const canInstall = !installed && (Boolean(deferredPrompt) || ios);
-  const canOneClickInstall = Boolean(deferredPrompt) || ios;
+  const canInstall = !installed && (Boolean(deferredPrompt) || ios || (mobile && android));
+  const canOneClickInstall = Boolean(deferredPrompt) || ios || (mobile && android);
 
   const handleInstall = useCallback(async () => {
     if (deferredPrompt) {
@@ -52,18 +84,20 @@ export function useInstallApp() {
       }
       return;
     }
-    if (ios) {
-      setShowIosGuide(true);
+    if (ios || android) {
+      setShowInstallGuide(true);
     }
-  }, [deferredPrompt, ios]);
+  }, [deferredPrompt, ios, android]);
 
   return {
     installed,
     ios,
+    android,
+    mobile,
     canInstall,
     canOneClickInstall,
-    showIosGuide,
-    setShowIosGuide,
+    showInstallGuide,
+    setShowInstallGuide,
     handleInstall,
   };
 }
