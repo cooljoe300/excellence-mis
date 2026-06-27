@@ -10,7 +10,24 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { createFeePayment, approveFeePaymentSubmission } from '@/app/actions/fees';
 import type { AcademicTerm, FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
-import { formatCurrency, formatDate, getFeeBalance, getPendingSubmissionAmount, getStudentFeeDisplayStatus } from '@/lib/utils';
+import {
+  formatCurrency,
+  formatDate,
+  getFeeBalance,
+  getPendingSubmissionAmount,
+  getStudentFeeDisplayStatus,
+} from '@/lib/utils';
+import { CheckCircle2 } from 'lucide-react';
+
+function isPendingSubmission(s: FeePaymentSubmission) {
+  return (s.status ?? 'approved') === 'pending';
+}
+
+type PendingItem = {
+  submission: FeePaymentSubmission;
+  fee: FeePayment;
+  student: Student;
+};
 
 function FeeFormModal({
   students,
@@ -95,17 +112,27 @@ export function FeesClient({
   const [showForm, setShowForm] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [approveError, setApproveError] = useState<string | null>(null);
+  const [approveSuccess, setApproveSuccess] = useState<string | null>(null);
 
   const totalOutstanding = fees.reduce((sum, f) => sum + getFeeBalance(f), 0);
   const totalPaid = fees.reduce((sum, f) => sum + Number(f.amount_paid ?? 0), 0);
-  const pendingCount = fees.reduce(
-    (sum, f) => sum + (f.submissions ?? []).filter((s) => (s as FeePaymentSubmission).status === 'pending').length,
-    0
+
+  const pendingItems: PendingItem[] = fees.flatMap((fee) =>
+    ((fee.submissions ?? []) as FeePaymentSubmission[])
+      .filter(isPendingSubmission)
+      .map((submission) => ({
+        submission,
+        fee,
+        student: fee.student as Student,
+      }))
   );
+
+  const pendingCount = pendingItems.length;
 
   async function handleApprove(submissionId: string) {
     setApprovingId(submissionId);
     setApproveError(null);
+    setApproveSuccess(null);
     const result = await approveFeePaymentSubmission(submissionId);
     if (result.error) {
       setApproveError(result.error);
@@ -113,6 +140,7 @@ export function FeesClient({
       return;
     }
     setApprovingId(null);
+    setApproveSuccess('Payment approved successfully.');
     router.refresh();
   }
 
@@ -126,6 +154,72 @@ export function FeesClient({
 
       {approveError && (
         <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{approveError}</div>
+      )}
+
+      {approveSuccess && (
+        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{approveSuccess}</div>
+      )}
+
+      {pendingCount > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60">
+          <div className="border-b border-amber-200 px-6 py-4">
+            <h2 className="font-semibold text-amber-900">
+              Pending approval ({pendingCount})
+            </h2>
+            <p className="mt-1 text-sm text-amber-800">
+              Students submitted these payments — verify the M-Pesa or bank code, then approve.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-amber-200/80 bg-amber-100/50 text-left text-amber-900">
+                <tr>
+                  <th className="px-6 py-3 font-medium">Student</th>
+                  <th className="px-6 py-3 font-medium">Invoice</th>
+                  <th className="px-6 py-3 font-medium">Amount</th>
+                  <th className="px-6 py-3 font-medium">Method</th>
+                  <th className="px-6 py-3 font-medium">Reference</th>
+                  <th className="px-6 py-3 font-medium">Submitted</th>
+                  <th className="px-6 py-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-200/60">
+                {pendingItems.map(({ submission, fee, student }) => (
+                  <tr key={submission.id} className="bg-white/70">
+                    <td className="px-6 py-4 font-medium text-slate-900">
+                      {student?.first_name} {student?.last_name}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">{fee.description ?? 'Fee invoice'}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-900">
+                      {formatCurrency(submission.amount)}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">{submission.payment_method}</td>
+                    <td className="px-6 py-4 font-mono text-slate-800">{submission.reference_number}</td>
+                    <td className="px-6 py-4 text-slate-500">{formatDate(submission.created_at)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          disabled={approvingId === submission.id}
+                          onClick={() => handleApprove(submission.id)}
+                          className="bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          {approvingId === submission.id ? 'Approving...' : 'Approve'}
+                        </Button>
+                        <Link href={`/dashboard/fees/receipt/${submission.id}`} target="_blank">
+                          <Button size="sm" variant="secondary">
+                            Receipt
+                          </Button>
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {fees.length === 0 ? (
@@ -144,6 +238,7 @@ export function FeesClient({
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Balance</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Status</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Payment ref</th>
+                <th className="px-6 py-3 text-left font-medium text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -153,7 +248,7 @@ export function FeesClient({
                 const submissions = [...((fee.submissions ?? []) as FeePaymentSubmission[])].sort(
                   (a, b) => b.created_at.localeCompare(a.created_at)
                 );
-                const pendingSubmissions = submissions.filter((s) => s.status === 'pending');
+                const pendingSubmissions = submissions.filter(isPendingSubmission);
                 return (
                   <tr key={fee.id} className="align-top hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium">
@@ -198,20 +293,6 @@ export function FeesClient({
                                 {formatCurrency(s.amount)} · {s.payment_method} · {s.reference_number}
                               </div>
                               <span className="text-amber-700">{formatDate(s.created_at)}</span>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                <Link href={`/dashboard/fees/receipt/${s.id}`} target="_blank">
-                                  <Button size="sm" variant="secondary">
-                                    View receipt
-                                  </Button>
-                                </Link>
-                                <Button
-                                  size="sm"
-                                  disabled={approvingId === s.id}
-                                  onClick={() => handleApprove(s.id)}
-                                >
-                                  {approvingId === s.id ? 'Confirming...' : 'Confirm payment'}
-                                </Button>
-                              </div>
                             </div>
                           ))}
                           {submissions
@@ -237,6 +318,32 @@ export function FeesClient({
                               </div>
                             ))}
                         </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {pendingSubmissions.length > 0 ? (
+                        <div className="space-y-2">
+                          {pendingSubmissions.map((s) => (
+                            <div key={s.id} className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                disabled={approvingId === s.id}
+                                onClick={() => handleApprove(s.id)}
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                {approvingId === s.id ? 'Approving...' : 'Approve'}
+                              </Button>
+                              <Link href={`/dashboard/fees/receipt/${s.id}`} target="_blank">
+                                <Button size="sm" variant="secondary">
+                                  Receipt
+                                </Button>
+                              </Link>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
                   </tr>
