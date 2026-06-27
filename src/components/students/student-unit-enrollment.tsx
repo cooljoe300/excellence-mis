@@ -43,6 +43,7 @@ export function StudentUnitEnrollment({
   );
 
   function toggleUnit(id: string, checked: boolean) {
+    if (!checked && enrolledUnitIds.includes(id)) return;
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (checked) next.add(id);
@@ -53,8 +54,9 @@ export function StudentUnitEnrollment({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (selectedIds.length === 0) {
-      setError('Select at least one unit to register.');
+    const newUnitIds = selectedIds.filter((id) => !enrolledUnitIds.includes(id));
+    if (newUnitIds.length === 0) {
+      setError('Select at least one new unit to register.');
       return;
     }
 
@@ -149,7 +151,8 @@ export function StudentUnitEnrollment({
             <div className="space-y-2">
               <p className="mb-4 text-sm text-slate-600">
                 Tick the units you want to register. Each unit has its own fee — your total is
-                calculated automatically.
+                calculated automatically. Once registered, a unit cannot be removed by you; contact
+                the college administration if you need to deregister.
               </p>
               {units.map((unit) => {
                 const checked = selectedSet.has(unit.id);
@@ -157,13 +160,18 @@ export function StudentUnitEnrollment({
                 return (
                   <label
                     key={unit.id}
-                    className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 hover:border-blue-200 hover:bg-blue-50/30"
+                    className={`flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 ${
+                      alreadyEnrolled
+                        ? 'cursor-default bg-slate-50'
+                        : 'cursor-pointer hover:border-blue-200 hover:bg-blue-50/30'
+                    }`}
                   >
                     <div className="flex items-start gap-3 min-w-0">
                       <input
                         type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
                         checked={checked}
+                        disabled={alreadyEnrolled}
                         onChange={(e) => toggleUnit(unit.id, e.target.checked)}
                       />
                       <div className="min-w-0">
@@ -172,8 +180,8 @@ export function StudentUnitEnrollment({
                           <span className="font-normal text-slate-500"> — {unit.name}</span>
                         </p>
                         <p className="text-xs text-slate-500">{unit.credits} credits</p>
-                        {alreadyEnrolled && checked && (
-                          <p className="text-xs text-emerald-600">Already enrolled</p>
+                        {alreadyEnrolled && (
+                          <p className="text-xs text-emerald-600">Registered — contact admin to deregister</p>
                         )}
                       </div>
                     </div>
@@ -212,7 +220,7 @@ export function StudentUnitEnrollment({
 
       <div className="flex gap-3">
         <Button type="submit" disabled={loading || units.length === 0 || termMissing}>
-          {loading ? 'Registering...' : 'Register selected units'}
+          {loading ? 'Registering...' : 'Register new units'}
         </Button>
         <Button type="button" variant="secondary" onClick={() => router.push('/student')}>
           Cancel

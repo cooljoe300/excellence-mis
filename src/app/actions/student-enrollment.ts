@@ -136,21 +136,20 @@ export async function enrollMyUnits(courseIds: string[]) {
   const existingByCourse = new Map((existing ?? []).map((e) => [e.course_id as string, e]));
   const desiredSet = new Set(normalized);
 
-  const toRemove = (existing ?? [])
-    .filter((e) => !desiredSet.has(e.course_id as string))
-    .filter((e) => e.grade == null && e.score == null)
-    .map((e) => e.course_id as string);
-
   const toAdd = normalized.filter((id) => !existingByCourse.has(id));
 
-  if (toRemove.length > 0) {
-    const { error: deleteError } = await supabase
-      .from('enrollments')
-      .delete()
-      .eq('student_id', student.id)
-      .eq('term_id', termId)
-      .in('course_id', toRemove);
-    if (deleteError) return { error: deleteError.message };
+  const attemptedRemoval = (existing ?? [])
+    .filter((e) => !desiredSet.has(e.course_id as string))
+    .map((e) => e.course_id as string);
+
+  if (attemptedRemoval.length > 0) {
+    return {
+      error: 'You cannot deregister units yourself. Please contact the college administration.',
+    };
+  }
+
+  if (toAdd.length === 0) {
+    return { error: 'Select at least one new unit to register.' };
   }
 
   if (toAdd.length > 0) {
@@ -206,7 +205,6 @@ export async function enrollMyUnits(courseIds: string[]) {
   return {
     success: true,
     addedCount: toAdd.length,
-    removedCount: toRemove.length,
     newUnitsFee: totalFee,
     selectedTotal,
     feePaymentId,
