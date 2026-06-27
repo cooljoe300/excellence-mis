@@ -16,7 +16,7 @@ const heights: Record<NonNullable<LogoProps['size']>, number> = {
   xl: 96,
 };
 
-export function Logo({ size = 'md', className, href = '/', priority = false }: LogoProps) {
+export function Logo({ size = 'md', className, href = '/login', priority = false }: LogoProps) {
   const height = heights[size];
   const width = Math.round(height * 1.15);
 

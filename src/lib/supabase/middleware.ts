@@ -56,6 +56,12 @@ export async function updateSession(request: NextRequest) {
   const isStudentPortal = pathname.startsWith('/student') && !isStudentSignup;
   const isHome = pathname === '/';
 
+  if (!user && isHome) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
   if (!user && isDashboard) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
