@@ -138,7 +138,7 @@ export default async function StudentPortalPage() {
               Fees & Balance
             </CardTitle>
             <Link href="/student/fees">
-              <Button size="sm">{totalDue > 0 ? 'Pay now' : 'View fees'}</Button>
+              <Button size="sm">{totalDue > 0 ? 'Pay fees' : 'View fees'}</Button>
             </Link>
           </CardHeader>
           <CardContent className="text-sm">
@@ -150,6 +150,9 @@ export default async function StudentPortalPage() {
                   <span className="text-slate-600">Outstanding balance</span>
                   <span className="font-bold text-blue-700">{formatCurrency(totalDue)}</span>
                 </div>
+                {totalDue > 0 && (
+                  <p className="text-amber-800">Partial payments accepted — pay what you can today.</p>
+                )}
                 {totalDue <= 0 && (
                   <p className="text-emerald-700">All fees paid in full.</p>
                 )}

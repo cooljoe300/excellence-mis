@@ -130,6 +130,9 @@ export function FeeInvoiceDocument({
             Bank: {paymentSettings.bankName} · {paymentSettings.bankAccount} ·{' '}
             {paymentSettings.bankBranch}
           </p>
+          <p className="mt-2 text-xs text-slate-500">
+            Partial payments are accepted — send what you can and pay the balance later.
+          </p>
         </div>
       )}
 

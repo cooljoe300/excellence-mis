@@ -52,6 +52,38 @@ export function getFeeBalance(fee: { amount: number; amount_paid: number }) {
   return Math.max(0, Number(fee.amount) - Number(fee.amount_paid));
 }
 
+export function getAvailableFeeBalance(
+  fee: { amount: number; amount_paid: number },
+  submissions?: { status?: string; amount: number }[]
+) {
+  const balance = getFeeBalance(fee);
+  const pending = getPendingSubmissionAmount(submissions);
+  return Math.max(0, balance - pending);
+}
+
+export function getPartialPaymentPresets(availableBalance: number) {
+  if (availableBalance <= 0) return [];
+
+  const full = Math.round(availableBalance * 100) / 100;
+  const half = Math.round((availableBalance / 2) * 100) / 100;
+  const presets = [
+    { label: 'Full balance', amount: full },
+    { label: 'Half', amount: half },
+  ];
+
+  for (const step of [1000, 500, 100]) {
+    if (step < full && !presets.some((p) => p.amount === step)) {
+      presets.push({ label: formatCurrency(step), amount: step });
+    }
+  }
+
+  return presets
+    .filter((preset, index, list) => list.findIndex((p) => p.amount === preset.amount) === index)
+    .filter((preset) => preset.amount > 0 && preset.amount <= full)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 4);
+}
+
 export function getPendingSubmissionAmount(
   submissions: { status?: string; amount: number }[] | undefined
 ) {

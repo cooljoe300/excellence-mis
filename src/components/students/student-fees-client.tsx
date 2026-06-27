@@ -11,9 +11,9 @@ import { Select } from '@/components/ui/select';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/app/actions/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
-import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance, getPendingSubmissionAmount, getStudentFeeDisplayStatus } from '@/lib/utils';
+import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
-import { CreditCard, Smartphone, Building2, CheckCircle2 } from 'lucide-react';
+import { CreditCard, Smartphone, Building2, CheckCircle2, Info } from 'lucide-react';
 
 function PayFeeModal({
   fee,
@@ -29,8 +29,9 @@ function PayFeeModal({
   const router = useRouter();
   const balance = getFeeBalance(fee);
   const pendingAmount = getPendingSubmissionAmount(fee.submissions);
-  const availableBalance = Math.max(0, balance - pendingAmount);
-  const [amount, setAmount] = useState(availableBalance.toString());
+  const availableBalance = getAvailableFeeBalance(fee, fee.submissions);
+  const presets = getPartialPaymentPresets(availableBalance);
+  const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -38,19 +39,26 @@ function PayFeeModal({
   const [success, setSuccess] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
 
+  const parsedAmount = parseFloat(amount);
+  const isValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
+  const isPartialPayment = isValidAmount && parsedAmount < availableBalance;
+  const remainingAfterPayment = isValidAmount
+    ? Math.max(0, availableBalance - parsedAmount)
+    : availableBalance;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const parsedAmount = parseFloat(amount);
-    if (!parsedAmount || parsedAmount <= 0) {
+    const paidAmount = parseFloat(amount);
+    if (!paidAmount || paidAmount <= 0) {
       setError('Enter a valid amount.');
       setLoading(false);
       return;
     }
 
-    if (parsedAmount > availableBalance) {
+    if (paidAmount > availableBalance) {
       setError(`Amount cannot exceed the available balance of ${formatCurrency(availableBalance)}.`);
       setLoading(false);
       return;
@@ -58,7 +66,7 @@ function PayFeeModal({
 
     const result = await submitMyFeePayment(
       fee.id,
-      parsedAmount,
+      paidAmount,
       paymentMethod === 'mpesa' ? 'M-Pesa' : 'Bank',
       referenceNumber.trim()
     );
@@ -69,8 +77,13 @@ function PayFeeModal({
       return;
     }
 
+    const partial = paidAmount < availableBalance;
+    const remaining = Math.max(0, availableBalance - paidAmount);
+
     setSuccess(
-      `Payment submitted for approval (${formatCurrency(parsedAmount)}). An admin will verify your ${paymentMethod === 'mpesa' ? 'M-Pesa' : 'bank'} code.`
+      partial
+        ? `Partial payment of ${formatCurrency(paidAmount)} submitted for approval. Remaining balance: ${formatCurrency(remaining)} — you can pay the rest anytime.`
+        : `Payment of ${formatCurrency(paidAmount)} submitted for approval. An admin will verify your ${paymentMethod === 'mpesa' ? 'M-Pesa' : 'bank'} code.`
     );
     setReceiptId(result.submissionId ?? null);
     setLoading(false);
@@ -78,7 +91,13 @@ function PayFeeModal({
   }
 
   return (
-    <Modal open onClose={onClose} title="Pay fees" description={fee.description ?? 'Fee invoice'} size="md">
+    <Modal
+      open
+      onClose={onClose}
+      title="Submit a payment"
+      description="Pay what you have — partial payments are welcome"
+      size="md"
+    >
 
         <div className="mt-4 space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm">
           <div className="flex items-center gap-2 font-medium text-blue-900">
@@ -123,6 +142,14 @@ function PayFeeModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                You do not need the full balance today. Send whatever you can via M-Pesa or bank,
+                then enter the <strong>exact amount you paid</strong> below.
+              </p>
+            </div>
+
             <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-600">Amount due</span>
@@ -160,16 +187,46 @@ function PayFeeModal({
               ]}
             />
 
-            <Input
-              label="Amount paid (KES)"
-              type="number"
-              min="1"
-              step="0.01"
-              max={availableBalance}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
+            <div className="space-y-2">
+              <Input
+                label="Amount you paid (KES)"
+                type="number"
+                min="1"
+                step="1"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={`e.g. ${Math.min(1000, Math.floor(availableBalance)) || 500}`}
+                required
+              />
+              {presets.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {presets.map((preset) => (
+                    <button
+                      key={`${preset.label}-${preset.amount}`}
+                      type="button"
+                      onClick={() => setAmount(preset.amount.toString())}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        amount === preset.amount.toString()
+                          ? 'border-blue-600 bg-blue-50 text-blue-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700'
+                      }`}
+                    >
+                      {preset.label}
+                      {preset.label !== 'Full balance' && preset.label !== 'Half'
+                        ? ''
+                        : ` (${formatCurrency(preset.amount)})`}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isValidAmount && (
+                <p className={`text-xs ${isPartialPayment ? 'text-amber-700' : 'text-emerald-700'}`}>
+                  {isPartialPayment
+                    ? `Partial payment — ${formatCurrency(remainingAfterPayment)} will remain after approval.`
+                    : 'This will clear the available balance on this invoice.'}
+                </p>
+              )}
+            </div>
 
             <Input
               label={paymentMethod === 'mpesa' ? 'M-Pesa confirmation code' : 'Bank transaction reference'}
@@ -185,8 +242,8 @@ function PayFeeModal({
               <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Submitting...' : 'Submit payment'}
+              <Button type="submit" disabled={loading || !isValidAmount}>
+                {loading ? 'Submitting...' : isPartialPayment ? 'Submit partial payment' : 'Submit payment'}
               </Button>
             </div>
           </form>
@@ -222,8 +279,8 @@ export function StudentFeesClient({
           <div className="flex items-center gap-2 text-emerald-800">
             <CheckCircle2 className="h-5 w-5 shrink-0" />
             <p className="text-sm font-medium">
-              Units registered successfully. Your payment invoice is ready — pay below via M-Pesa or
-              bank transfer.
+              Units registered successfully. Your fee invoice is ready — pay any amount you can now
+              via M-Pesa or bank, and clear the rest later.
             </p>
           </div>
         </div>
@@ -258,6 +315,14 @@ export function StudentFeesClient({
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
+            <p className="font-semibold text-slate-900">Partial payments are OK</p>
+            <p className="mt-1 text-slate-600">
+              If you do not have the full balance, pay what you can today. Your invoice stays open
+              until the remainder is cleared — submit each M-Pesa or bank payment separately with
+              its confirmation code.
+            </p>
+          </div>
           <div className="rounded-xl border border-slate-200 p-4">
             <p className="font-semibold text-slate-900">M-Pesa Paybill</p>
             <p className="mt-2 text-slate-600">
@@ -342,7 +407,7 @@ export function StudentFeesClient({
                       </Link>
                       {!isPaid && (
                         <Button size="sm" onClick={() => setPayingFee(fee)}>
-                          Pay now
+                          {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
                         </Button>
                       )}
                     </div>

@@ -45,7 +45,7 @@ export default async function StudentFeesPage({
     <div>
       <PageHeader
         title="Fees & Payments"
-        description="View your invoices, pay via M-Pesa paybill or bank, and track your balance"
+        description="Pay any amount you can via M-Pesa or bank — partial payments are accepted"
       />
       <StudentFeesClient
         student={data.student}
