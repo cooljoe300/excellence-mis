@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { importStudentToLms } from '@/app/actions/lms';
-import { CheckCircle2, Circle, Upload, CreditCard, UserPlus } from 'lucide-react';
+import { CheckCircle2, Circle, Upload, CreditCard, UserPlus, FileText } from 'lucide-react';
 import type { Student } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -13,10 +13,12 @@ export function StudentWorkflow({
   student,
   justRegistered,
   selfRegistered,
+  invoiceId,
 }: {
   student: Student;
   justRegistered?: boolean;
   selfRegistered?: boolean;
+  invoiceId?: string | null;
 }) {
   const router = useRouter();
   const [importing, setImporting] = useState(false);
@@ -56,6 +58,22 @@ export function StudentWorkflow({
     },
     {
       id: 2,
+      title: 'Fee invoice',
+      description: invoiceId
+        ? 'Invoice generated and available in the student portal'
+        : 'No units registered — no invoice created',
+      done: !!invoiceId,
+      icon: FileText,
+      action: invoiceId ? (
+        <Link href={`/dashboard/fees/invoice/${invoiceId}`} target="_blank">
+          <Button size="sm" variant="secondary">
+            Download Invoice
+          </Button>
+        </Link>
+      ) : undefined,
+    },
+    {
+      id: 3,
       title: 'Print ID Card',
       description: idCardReady ? 'ID card auto-generated' : 'Pending',
       done: idCardReady,
@@ -69,7 +87,7 @@ export function StudentWorkflow({
       ),
     },
     {
-      id: 3,
+      id: 4,
       title: 'Import to Moodle LMS',
       description: lmsSynced
         ? `Synced as ${student.lms_username}`
@@ -100,6 +118,11 @@ export function StudentWorkflow({
       {justRegistered && (
         <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Student registered successfully. Admission number: <strong>{admissionNumber}</strong>
+          {invoiceId && (
+            <span className="mt-1 block">
+              A fee invoice has been created and is now visible in the student portal.
+            </span>
+          )}
         </div>
       )}
 
@@ -137,10 +160,10 @@ export function StudentWorkflow({
                   </p>
                 </div>
                 <p className="mt-1 text-sm text-slate-600">{step.description}</p>
-                {importResult?.error && step.id === 3 && (
+                {importResult?.error && step.id === 4 && (
                   <p className="mt-2 text-sm text-red-600">{importResult.error}</p>
                 )}
-                {importResult?.username && step.id === 3 && (
+                {importResult?.username && step.id === 4 && (
                   <div className="mt-3 rounded-lg bg-white border border-emerald-200 p-3 text-sm">
                     <p><strong>LMS Username:</strong> {importResult.username}</p>
                     <p><strong>Temporary Password:</strong> {importResult.temporaryPassword}</p>

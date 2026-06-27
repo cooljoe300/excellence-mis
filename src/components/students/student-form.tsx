@@ -16,6 +16,7 @@ import {
 } from '@/app/actions/enrollments';
 import type { Program, Student, Intake } from '@/lib/types';
 import { UserPlus, Info } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 const statusOptions = [
   { value: 'active', label: 'Active' },
@@ -48,7 +49,7 @@ export function StudentForm({
   const [programId, setProgramId] = useState(student?.program_id ?? '');
   const [termId, setTermId] = useState<string | null>(null);
   const [availableCourses, setAvailableCourses] = useState<
-    { id: string; code: string; name: string }[]
+    { id: string; code: string; name: string; unit_fee: number }[]
   >([]);
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
@@ -126,6 +127,8 @@ export function StudentForm({
     const studentId =
       student?.id ?? (typeof result === 'object' && 'id' in result ? (result.id as string) : null);
 
+    let feePaymentId: string | null = null;
+
     if (studentId && termId) {
       const enrollResult = await setStudentEnrollmentsForTerm(studentId, termId, selectedCourseIds);
       if (enrollResult && 'error' in enrollResult && enrollResult.error) {
@@ -133,10 +136,13 @@ export function StudentForm({
         setLoading(false);
         return;
       }
+      feePaymentId = enrollResult.feePaymentId ?? null;
     }
 
     if ('id' in result && result.id) {
-      router.push(`/dashboard/students/${result.id}?registered=true`);
+      const params = new URLSearchParams({ registered: 'true' });
+      if (feePaymentId) params.set('invoice', feePaymentId);
+      router.push(`/dashboard/students/${result.id}?${params.toString()}`);
     } else {
       router.push('/dashboard/students');
     }
@@ -163,6 +169,7 @@ export function StudentForm({
               <p className="font-semibold">Step 1: Register in MIS</p>
               <p className="mt-1 text-blue-700">
                 Admission number and student ID card are created automatically.
+                If you register units, a fee invoice is generated and sent to the student portal.
                 After registration, import the student to Moodle LMS.
               </p>
             </div>
@@ -278,6 +285,7 @@ export function StudentForm({
                           {c.code}
                           <span className="font-normal text-slate-500"> — {c.name}</span>
                         </p>
+                        <p className="text-xs text-slate-500">{formatCurrency(c.unit_fee ?? 0)}</p>
                       </div>
                     </label>
                   );

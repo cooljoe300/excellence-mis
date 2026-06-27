@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -25,6 +26,7 @@ export function AdminCourseRegistration({ student }: { student: Student }) {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedUnits = useMemo(
@@ -117,6 +119,7 @@ export function AdminCourseRegistration({ student }: { student: Student }) {
         ? 'Units registered and a fee invoice has been generated.'
         : 'Course registration updated successfully.'
     );
+    setInvoiceId(result.feePaymentId ?? null);
     setLoading(false);
     router.refresh();
   }
@@ -147,7 +150,18 @@ export function AdminCourseRegistration({ student }: { student: Student }) {
         <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
       {success && (
-        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{success}</div>
+        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <p>{success}</p>
+          {invoiceId && (
+            <Link
+              href={`/dashboard/fees/invoice/${invoiceId}`}
+              target="_blank"
+              className="mt-2 inline-block font-medium text-blue-700 hover:underline"
+            >
+              Download invoice →
+            </Link>
+          )}
+        </div>
       )}
 
       <Card>

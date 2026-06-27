@@ -12,10 +12,10 @@ export default async function StudentProfilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ edit?: string; registered?: string }>;
+  searchParams: Promise<{ edit?: string; registered?: string; invoice?: string }>;
 }) {
   const { id } = await params;
-  const { edit, registered } = await searchParams;
+  const { edit, registered, invoice } = await searchParams;
 
   let student;
   try {
@@ -42,6 +42,7 @@ export default async function StudentProfilePage({
       student={student}
       justRegistered={registered === 'true'}
       selfRegistered={isSelfRegisteredStudent(student)}
+      invoiceId={invoice ?? null}
     />
   );
 }

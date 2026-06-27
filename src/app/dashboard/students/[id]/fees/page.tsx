@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { getFeePaymentsForStudent } from '@/app/actions/fees';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatDate, getFeeBalance } from '@/lib/utils';
 import type { FeePayment } from '@/lib/types';
@@ -87,7 +89,7 @@ export default async function StudentFeeStatementPage({
                       ))}
                     </div>
                   )}
-                  <div className="grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-3">
+                  <div className="grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-4">
                     <div>
                       <p className="text-slate-500">Amount</p>
                       <p className="font-semibold">{formatCurrency(fee.amount)}</p>
@@ -101,6 +103,13 @@ export default async function StudentFeeStatementPage({
                     <div>
                       <p className="text-slate-500">Balance</p>
                       <p className="font-semibold text-blue-700">{formatCurrency(balance)}</p>
+                    </div>
+                    <div className="flex items-end justify-start sm:justify-end">
+                      <Link href={`/dashboard/fees/invoice/${fee.id}`} target="_blank">
+                        <Button size="sm" variant="secondary">
+                          Download
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </CardContent>

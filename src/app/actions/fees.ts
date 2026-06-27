@@ -39,6 +39,8 @@ export async function createFeePayment(formData: FormData) {
   });
   if (error) return { error: error.message };
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
   return { success: true };
 }
 
@@ -67,6 +69,8 @@ export async function updateFeePayment(id: string, formData: FormData) {
     .eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
   return { success: true };
 }
 
@@ -75,6 +79,8 @@ export async function deleteFeePayment(id: string) {
   const { error } = await supabase.from('fee_payments').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
   return { success: true };
 }
 
@@ -89,4 +95,17 @@ export async function getFeePaymentsForStudent(studentId: string) {
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data ?? [];
+}
+
+export async function getFeePayment(id: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('fee_payments')
+    .select(
+      '*, student:students(*, program:programs(name)), term:academic_terms(name), items:fee_payment_items(*, course:courses(code, name))'
+    )
+    .eq('id', id)
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
 }

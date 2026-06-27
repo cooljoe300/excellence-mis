@@ -17,10 +17,12 @@ export function StudentProfileView({
   student,
   justRegistered,
   selfRegistered,
+  invoiceId,
 }: {
   student: Student;
   justRegistered?: boolean;
   selfRegistered?: boolean;
+  invoiceId?: string | null;
 }) {
   const admissionNumber = getAdmissionNumber(student);
 
@@ -30,6 +32,7 @@ export function StudentProfileView({
         student={student}
         justRegistered={justRegistered}
         selfRegistered={selfRegistered}
+        invoiceId={invoiceId}
       />
 
       {selfRegistered && student.lms_sync_status !== 'synced' && (

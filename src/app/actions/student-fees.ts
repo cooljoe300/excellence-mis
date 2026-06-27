@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getPaymentSettings } from '@/app/actions/system-settings';
 import { getMyStudentRecord } from '@/app/actions/student-self';
+import { getFeePayment } from '@/app/actions/fees';
 import type { FeePayment } from '@/lib/types';
 import { getFeeBalance } from '@/lib/utils';
 
@@ -93,4 +94,19 @@ export async function submitMyFeePayment(
     balance: result.balance,
     status: result.status,
   };
+}
+
+export async function getMyFeePayment(feePaymentId: string) {
+  const student = await getMyStudentRecord();
+  if (!student) return null;
+
+  let fee;
+  try {
+    fee = await getFeePayment(feePaymentId);
+  } catch {
+    return null;
+  }
+
+  if (fee.student_id !== student.id) return null;
+  return { fee, student };
 }

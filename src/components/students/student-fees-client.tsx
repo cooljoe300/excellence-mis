@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -301,7 +302,12 @@ export function StudentFeesClient({
                       <p className="text-slate-500">Balance</p>
                       <p className="font-semibold text-blue-700">{formatCurrency(balance)}</p>
                     </div>
-                    <div className="flex items-end justify-start sm:justify-end">
+                    <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
+                      <Link href={`/student/fees/invoice/${fee.id}`} target="_blank">
+                        <Button size="sm" variant="secondary">
+                          Download
+                        </Button>
+                      </Link>
                       {!isPaid && (
                         <Button size="sm" onClick={() => setPayingFee(fee)}>
                           Pay now

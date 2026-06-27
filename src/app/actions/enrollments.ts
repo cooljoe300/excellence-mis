@@ -120,8 +120,11 @@ export async function setStudentEnrollmentsForTerm(
   }
 
   revalidatePath(`/dashboard/students/${studentId}`);
+  revalidatePath(`/dashboard/students/${studentId}/fees`);
   revalidatePath('/dashboard/enrollments');
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
   return { success: true, feePaymentId };
 }
 
@@ -169,6 +172,8 @@ export async function createEnrollment(formData: FormData) {
 
   revalidatePath('/dashboard/enrollments');
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
   return { success: true };
 }
 
