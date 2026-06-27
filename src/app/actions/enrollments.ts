@@ -8,8 +8,6 @@ import {
   getUnbilledEnrollmentsForCourses,
 } from '@/lib/enrollment-fees';
 
-export { getAcademicTerms } from '@/app/actions/academic-terms';
-
 export async function getCurrentAcademicTermId(): Promise<string | null> {
   const supabase = await createClient();
   const { data, error } = await supabase

@@ -4,7 +4,7 @@ import {
   checkPaymentApprovalSetup,
 } from '@/app/actions/fees';
 import { getStudents } from '@/app/actions/students';
-import { getAcademicTerms } from '@/app/actions/enrollments';
+import { getAcademicTerms } from '@/app/actions/academic-terms';
 import { FeesClient } from '@/components/fees/fees-client';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 

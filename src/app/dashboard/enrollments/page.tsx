@@ -1,4 +1,5 @@
-import { getEnrollments, getAcademicTerms } from '@/app/actions/enrollments';
+import { getEnrollments } from '@/app/actions/enrollments';
+import { getAcademicTerms } from '@/app/actions/academic-terms';
 import { getStudents } from '@/app/actions/students';
 import { getCourses } from '@/app/actions/courses';
 import { EnrollmentsClient } from '@/components/enrollments/enrollments-client';
