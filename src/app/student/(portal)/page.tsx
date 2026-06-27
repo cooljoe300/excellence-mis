@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatDate, formatCurrency, getAdmissionNumber } from '@/lib/utils';
 import { CheckCircle2, Clock, AlertCircle, UserPlus, BookOpen, CreditCard } from 'lucide-react';
+import { InstallAppCard } from '@/components/student/install-app-card';
 
 export default async function StudentPortalPage() {
   const student = await getMyStudentRecord();
@@ -40,6 +41,8 @@ export default async function StudentPortalPage() {
           Keep this number — you will need it for your ID card and LMS access.
         </p>
       </div>
+
+      <InstallAppCard />
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <StatusStep
