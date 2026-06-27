@@ -4,6 +4,20 @@ import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { StudentStatus } from '@/lib/types';
+import { uploadStudentPassportPhoto } from '@/lib/student-photo';
+
+async function applyPhotoFromForm(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studentId: string,
+  formData: FormData
+) {
+  const photo = formData.get('photo');
+  if (!(photo instanceof File) || photo.size === 0) return { photoUrl: undefined as string | undefined };
+
+  const upload = await uploadStudentPassportPhoto(supabase, studentId, photo);
+  if (upload.error) return { error: upload.error };
+  return { photoUrl: upload.url };
+}
 
 export async function getMyStudentRecord() {
   const supabase = await createClient();
@@ -34,7 +48,7 @@ export async function getStudentRegisterPageData() {
     supabase.from('programs').select('id, code, name, duration_months, tuition_fee, is_active, description, created_at, updated_at').eq('is_active', true).order('name'),
     supabase
       .from('students')
-      .select('*')
+      .select('*, program:programs(id, code, name)')
       .eq('profile_id', user.id)
       .maybeSingle(),
   ]);
@@ -96,7 +110,21 @@ export async function createMyStudentRecord(formData: FormData) {
     return { error: error.message };
   }
 
+  const photoResult = await applyPhotoFromForm(supabase, data.id as string, formData);
+  if (photoResult.error) return { error: photoResult.error };
+
+  if (photoResult.photoUrl) {
+    const { error: photoUpdateError } = await supabase
+      .from('students')
+      .update({ photo_url: photoResult.photoUrl })
+      .eq('id', data.id)
+      .eq('profile_id', user.id);
+    if (photoUpdateError) return { error: photoUpdateError.message };
+  }
+
   revalidatePath('/student');
+  revalidatePath('/student/id-card');
+  revalidatePath('/student/register');
 
   // Defer admin list refresh so the student doesn't wait for it
   after(() => {
@@ -117,6 +145,9 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
   } = await supabase.auth.getUser();
   if (!user) return { error: 'You must be signed in.' };
 
+  const photoResult = await applyPhotoFromForm(supabase, studentId, formData);
+  if (photoResult.error) return { error: photoResult.error };
+
   const { error } = await supabase
     .from('students')
     .update({
@@ -133,11 +164,16 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: (formData.get('program_id') as string) || null,
       notes: (formData.get('notes') as string) || null,
+      ...(photoResult.photoUrl ? { photo_url: photoResult.photoUrl } : {}),
     })
     .eq('id', studentId)
     .eq('profile_id', user.id);
 
   if (error) return { error: error.message };
   revalidatePath('/student');
+  revalidatePath('/student/id-card');
+  revalidatePath('/student/register');
+  revalidatePath(`/dashboard/students/${studentId}`);
+  revalidatePath(`/dashboard/students/${studentId}/id-card`);
   return { success: true };
 }

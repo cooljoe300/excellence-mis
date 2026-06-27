@@ -54,7 +54,9 @@ export default async function StudentPortalPage() {
           title="ID Card"
           description={
             student.id_card_issued_at
-              ? `Issued ${formatDate(student.id_card_issued_at)}`
+              ? student.photo_url
+                ? `Ready — ${formatDate(student.id_card_issued_at)}`
+                : 'Add passport photo in My Details'
               : 'Pending admin review'
           }
         />
@@ -201,6 +203,9 @@ export default async function StudentPortalPage() {
         </Link>
         <Link href="/student/fees">
           <Button variant={totalDue > 0 ? undefined : 'secondary'}>Pay fees</Button>
+        </Link>
+        <Link href="/student/id-card" target="_blank">
+          <Button variant="secondary">View ID card</Button>
         </Link>
         <Link href="/student/register">
           <Button variant="secondary">Update my details</Button>

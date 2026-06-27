@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -9,7 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import type { Program, Student } from '@/lib/types';
 import { createMyStudentRecord, updateMyStudentRecord } from '@/app/actions/student-self';
-import { UserPlus } from 'lucide-react';
+import {
+  PassportPhotoUpload,
+  StudentIdCardPreview,
+} from '@/components/students/student-id-card-preview';
+import { UserPlus, CreditCard } from 'lucide-react';
 
 const genderOptions = [
   { value: '', label: 'Select gender' },
@@ -33,6 +38,8 @@ export function StudentSelfForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<{ message: string; admissionNumber?: string } | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [selectedProgramId, setSelectedProgramId] = useState(existingStudent?.program_id ?? '');
 
   const programOptions = [
     { value: '', label: 'Select program' },
@@ -77,13 +84,13 @@ export function StudentSelfForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} encType="multipart/form-data" className="space-y-6">
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
       {success && (
         <div className="rounded-lg bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
           <p className="font-medium">{success.message}</p>
           {success.admissionNumber && (
-            <p className="mt-2 text-lg font-bold font-mono">{success.admissionNumber}</p>
+            <p className="mt-2 font-mono text-lg font-bold">{success.admissionNumber}</p>
           )}
           <p className="mt-2 text-emerald-700">Taking you to your portal...</p>
         </div>
@@ -105,6 +112,42 @@ export function StudentSelfForm({
 
       <Card>
         <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5 text-blue-700" />
+            Passport Photo & ID Card
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-6 lg:grid-cols-2">
+          <div>
+            <p className="mb-4 text-sm text-slate-600">
+              Upload a passport-style photo for your student ID card. You can update it any time
+              from this page.
+            </p>
+            <PassportPhotoUpload
+              existingPhotoUrl={existingStudent?.photo_url}
+              onPreviewChange={setPhotoPreviewUrl}
+            />
+            {existingStudent?.id && (
+              <Link
+                href="/student/id-card"
+                target="_blank"
+                className="mt-4 inline-block text-sm font-medium text-blue-700 hover:underline"
+              >
+                View full ID card →
+              </Link>
+            )}
+          </div>
+          <StudentIdCardPreview
+            student={existingStudent}
+            photoPreviewUrl={photoPreviewUrl}
+            programs={programs}
+            programId={selectedProgramId}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Address</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -121,7 +164,13 @@ export function StudentSelfForm({
           <CardTitle>Academics & Emergency</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Select name="program_id" label="Program" defaultValue={existingStudent?.program_id ?? ''} options={programOptions} />
+          <Select
+            name="program_id"
+            label="Program"
+            defaultValue={existingStudent?.program_id ?? ''}
+            options={programOptions}
+            onChange={(e) => setSelectedProgramId(e.target.value)}
+          />
           <Input
             name="enrollment_date"
             label="Enrollment date"
@@ -141,11 +190,10 @@ export function StudentSelfForm({
           <UserPlus className="h-4 w-4" />
           {loading ? 'Saving...' : existingStudent ? 'Update details' : 'Register'}
         </Button>
-        <Button type="button" variant="secondary" onClick={() => router.push('/login')}>
+        <Button type="button" variant="secondary" onClick={() => router.push('/student')}>
           Back
         </Button>
       </div>
     </form>
   );
 }
-
