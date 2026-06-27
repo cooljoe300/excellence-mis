@@ -52,6 +52,26 @@ export function getFeeBalance(fee: { amount: number; amount_paid: number }) {
   return Math.max(0, Number(fee.amount) - Number(fee.amount_paid));
 }
 
+export function getPendingSubmissionAmount(
+  submissions: { status?: string; amount: number }[] | undefined
+) {
+  return (submissions ?? [])
+    .filter((s) => (s.status ?? 'approved') === 'pending')
+    .reduce((sum, s) => sum + Number(s.amount), 0);
+}
+
+export function getStudentFeeDisplayStatus(fee: {
+  amount: number;
+  amount_paid: number;
+  status: string;
+  submissions?: { status?: string; amount: number }[];
+}) {
+  const balance = getFeeBalance(fee);
+  if (balance <= 0) return 'paid';
+  if (getPendingSubmissionAmount(fee.submissions) > 0) return 'pending approval';
+  return fee.status;
+}
+
 export function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
     active: 'bg-emerald-100 text-emerald-800',
@@ -70,6 +90,7 @@ export function getStatusColor(status: string): string {
     partial: 'bg-amber-100 text-amber-800',
     overdue: 'bg-red-100 text-red-800',
     waived: 'bg-slate-100 text-slate-600',
+    'pending approval': 'bg-amber-100 text-amber-800',
     not_synced: 'bg-amber-100 text-amber-800',
     synced: 'bg-emerald-100 text-emerald-800',
     failed: 'bg-red-100 text-red-800',

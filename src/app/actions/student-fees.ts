@@ -67,7 +67,7 @@ export async function submitMyFeePayment(
   if (error) {
     if (error.message.includes('submit_student_fee_payment')) {
       return {
-        error: 'Payment system is not set up yet. Ask admin to run migration 009_student_fee_payments.sql in Supabase.',
+        error: 'Payment system is not set up yet. Ask admin to run migrations 009 and 011 in Supabase.',
       };
     }
     return { error: error.message };
@@ -76,7 +76,9 @@ export async function submitMyFeePayment(
   const result = data as {
     error?: string;
     success?: boolean;
+    submission_id?: string;
     amount_paid?: number;
+    pending_amount?: number;
     balance?: number;
     status?: string;
   };
@@ -90,9 +92,33 @@ export async function submitMyFeePayment(
 
   return {
     success: true,
-    amountPaid: result.amount_paid,
+    submissionId: result.submission_id as string | undefined,
+    pendingAmount: result.pending_amount,
     balance: result.balance,
     status: result.status,
+  };
+}
+
+export async function getMyFeePaymentSubmission(submissionId: string) {
+  const student = await getMyStudentRecord();
+  if (!student) return null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('fee_payment_submissions')
+    .select(
+      '*, fee_payment:fee_payments(*, term:academic_terms(name), items:fee_payment_items(*, course:courses(code, name)))'
+    )
+    .eq('id', submissionId)
+    .single();
+
+  if (error || !data) return null;
+  if (data.student_id !== student.id) return null;
+
+  return {
+    submission: data,
+    fee: data.fee_payment as FeePayment,
+    student,
   };
 }
 

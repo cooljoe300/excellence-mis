@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import type { FeePayment, Student } from '@/lib/types';
+import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/app/actions/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
-import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
+import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance, getPendingSubmissionAmount, getStudentFeeDisplayStatus } from '@/lib/utils';
 import { CreditCard, Smartphone, Building2, CheckCircle2 } from 'lucide-react';
 
 function PayFeeModal({
@@ -27,12 +27,15 @@ function PayFeeModal({
 }) {
   const router = useRouter();
   const balance = getFeeBalance(fee);
-  const [amount, setAmount] = useState(balance.toString());
+  const pendingAmount = getPendingSubmissionAmount(fee.submissions);
+  const availableBalance = Math.max(0, balance - pendingAmount);
+  const [amount, setAmount] = useState(availableBalance.toString());
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [receiptId, setReceiptId] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,8 +49,8 @@ function PayFeeModal({
       return;
     }
 
-    if (parsedAmount > balance) {
-      setError(`Amount cannot exceed the balance of ${formatCurrency(balance)}.`);
+    if (parsedAmount > availableBalance) {
+      setError(`Amount cannot exceed the available balance of ${formatCurrency(availableBalance)}.`);
       setLoading(false);
       return;
     }
@@ -66,10 +69,9 @@ function PayFeeModal({
     }
 
     setSuccess(
-      result.balance && result.balance > 0
-        ? `Payment recorded. Remaining balance: ${formatCurrency(result.balance)}`
-        : 'Payment recorded. Your fees are now paid in full.'
+      `Payment submitted for approval (${formatCurrency(parsedAmount)}). An admin will verify your ${paymentMethod === 'mpesa' ? 'M-Pesa' : 'bank'} code.`
     );
+    setReceiptId(result.submissionId ?? null);
     setLoading(false);
     router.refresh();
   }
@@ -110,8 +112,15 @@ function PayFeeModal({
         {success ? (
           <div className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             {success}
-            <div className="mt-4">
-              <Button onClick={onClose}>Close</Button>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {receiptId && (
+                <Link href={`/student/fees/receipt/${receiptId}`} target="_blank">
+                  <Button>Download receipt</Button>
+                </Link>
+              )}
+              <Button variant="secondary" onClick={onClose}>
+                Close
+              </Button>
             </div>
           </div>
         ) : (
@@ -129,6 +138,18 @@ function PayFeeModal({
                 <span>Balance</span>
                 <span className="text-blue-700">{formatCurrency(balance)}</span>
               </div>
+              {pendingAmount > 0 && (
+                <div className="mt-1 flex justify-between text-amber-700">
+                  <span>Pending approval</span>
+                  <span>{formatCurrency(pendingAmount)}</span>
+                </div>
+              )}
+              {pendingAmount > 0 && (
+                <div className="mt-1 flex justify-between font-semibold text-blue-700">
+                  <span>Available to pay</span>
+                  <span>{formatCurrency(availableBalance)}</span>
+                </div>
+              )}
             </div>
 
             <Select
@@ -146,7 +167,7 @@ function PayFeeModal({
               type="number"
               min="1"
               step="0.01"
-              max={balance}
+              max={availableBalance}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
@@ -269,7 +290,13 @@ export function StudentFeesClient({
         <div className="space-y-4">
           {fees.map((fee) => {
             const balance = getFeeBalance(fee);
+            const pendingAmount = getPendingSubmissionAmount(fee.submissions);
+            const displayStatus = getStudentFeeDisplayStatus(fee);
             const isPaid = balance <= 0;
+            const hasPending = pendingAmount > 0;
+            const submissions = [...((fee.submissions ?? []) as FeePaymentSubmission[])].sort(
+              (a, b) => b.created_at.localeCompare(a.created_at)
+            );
             return (
               <Card key={fee.id}>
                 <CardContent className="py-5">
@@ -280,13 +307,18 @@ export function StudentFeesClient({
                         {(fee.term as { name: string } | null)?.name ?? 'No term'} ·{' '}
                         {formatDate(fee.created_at)}
                       </p>
-                      {fee.reference_number && (
+                      {hasPending && (
+                        <p className="mt-1 text-xs text-amber-700">
+                          {formatCurrency(pendingAmount)} pending admin approval
+                        </p>
+                      )}
+                      {fee.reference_number && !hasPending && (
                         <p className="mt-1 text-xs text-slate-500">
                           Last ref: {fee.payment_method} — {fee.reference_number}
                         </p>
                       )}
                     </div>
-                    <Badge status={isPaid ? 'active' : fee.status}>{isPaid ? 'paid' : fee.status}</Badge>
+                    <Badge status={displayStatus}>{displayStatus}</Badge>
                   </div>
 
                   <div className="mt-4 grid gap-2 text-sm sm:grid-cols-4">
@@ -301,11 +333,14 @@ export function StudentFeesClient({
                     <div>
                       <p className="text-slate-500">Balance</p>
                       <p className="font-semibold text-blue-700">{formatCurrency(balance)}</p>
+                      {hasPending && (
+                        <p className="text-xs text-amber-600">{formatCurrency(pendingAmount)} awaiting approval</p>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
                       <Link href={`/student/fees/invoice/${fee.id}`} target="_blank">
                         <Button size="sm" variant="secondary">
-                          Download
+                          Invoice
                         </Button>
                       </Link>
                       {!isPaid && (
@@ -315,6 +350,40 @@ export function StudentFeesClient({
                       )}
                     </div>
                   </div>
+
+                  {submissions.length > 0 && (
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        Payment receipts
+                      </p>
+                      <div className="mt-2 space-y-2">
+                        {submissions.map((s) => (
+                          <div
+                            key={s.id}
+                            className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                          >
+                            <div>
+                              <span className="font-medium text-slate-800">
+                                {formatCurrency(s.amount)}
+                              </span>
+                              <span className="text-slate-500">
+                                {' '}
+                                · {s.payment_method} · {s.reference_number}
+                              </span>
+                              <span className="ml-2 text-xs capitalize text-slate-400">
+                                {(s.status ?? 'approved') === 'pending' ? 'pending approval' : s.status}
+                              </span>
+                            </div>
+                            <Link href={`/student/fees/receipt/${s.id}`} target="_blank">
+                              <Button size="sm" variant="secondary">
+                                Receipt
+                              </Button>
+                            </Link>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );

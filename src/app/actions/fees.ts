@@ -84,6 +84,44 @@ export async function deleteFeePayment(id: string) {
   return { success: true };
 }
 
+export async function approveFeePaymentSubmission(submissionId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc('approve_fee_payment_submission', {
+    p_submission_id: submissionId,
+  });
+
+  if (error) {
+    if (error.message.includes('approve_fee_payment_submission')) {
+      return {
+        error: 'Payment approval is not set up yet. Ask admin to run migration 011_fee_payment_approval.sql in Supabase.',
+      };
+    }
+    return { error: error.message };
+  }
+
+  const result = data as {
+    error?: string;
+    success?: boolean;
+    amount_paid?: number;
+    balance?: number;
+    status?: string;
+  };
+
+  if (result?.error) return { error: result.error };
+  if (!result?.success) return { error: 'Payment could not be approved.' };
+
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
+
+  return {
+    success: true,
+    amountPaid: result.amount_paid,
+    balance: result.balance,
+    status: result.status,
+  };
+}
+
 export async function getFeePaymentsForStudent(studentId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -105,6 +143,19 @@ export async function getFeePayment(id: string) {
       '*, student:students(*, program:programs(name)), term:academic_terms(name), items:fee_payment_items(*, course:courses(code, name))'
     )
     .eq('id', id)
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getFeePaymentSubmission(submissionId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('fee_payment_submissions')
+    .select(
+      '*, fee_payment:fee_payments(*, student:students(*, program:programs(name)), term:academic_terms(name), items:fee_payment_items(*, course:courses(code, name)))'
+    )
+    .eq('id', submissionId)
     .single();
   if (error) throw new Error(error.message);
   return data;

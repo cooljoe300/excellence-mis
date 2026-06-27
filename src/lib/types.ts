@@ -3,6 +3,7 @@ export type StudentStatus = 'active' | 'inactive' | 'graduated' | 'suspended' | 
 export type EnrollmentStatus = 'pending' | 'active' | 'completed' | 'dropped';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 export type PaymentStatus = 'pending' | 'paid' | 'partial' | 'overdue' | 'waived';
+export type PaymentSubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type LmsSyncStatus = 'not_synced' | 'synced' | 'failed';
 
 export interface Profile {
@@ -163,6 +164,9 @@ export interface FeePaymentSubmission {
   amount: number;
   payment_method: string;
   reference_number: string;
+  status: PaymentSubmissionStatus;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
   created_at: string;
 }
 
