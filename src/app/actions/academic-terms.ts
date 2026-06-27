@@ -40,6 +40,8 @@ export async function createAcademicTerm(formData: FormData) {
   revalidatePath('/dashboard/semesters');
   revalidatePath('/dashboard/enrollments');
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/enroll');
+  revalidatePath('/student');
   return { success: true };
 }
 
@@ -67,6 +69,8 @@ export async function updateAcademicTerm(id: string, formData: FormData) {
   revalidatePath('/dashboard/semesters');
   revalidatePath('/dashboard/enrollments');
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/enroll');
+  revalidatePath('/student');
   return { success: true };
 }
 
@@ -78,5 +82,20 @@ export async function deleteAcademicTerm(id: string) {
   revalidatePath('/dashboard/semesters');
   revalidatePath('/dashboard/enrollments');
   revalidatePath('/dashboard/fees');
+  revalidatePath('/student/enroll');
+  return { success: true };
+}
+
+export async function setCurrentAcademicTerm(id: string) {
+  const supabase = await createClient();
+  await clearCurrentTerm(supabase, id);
+  const { error } = await supabase.from('academic_terms').update({ is_current: true }).eq('id', id);
+  if (error) return { error: error.message };
+
+  revalidatePath('/dashboard/semesters');
+  revalidatePath('/dashboard/enrollments');
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/student/enroll');
+  revalidatePath('/student');
   return { success: true };
 }

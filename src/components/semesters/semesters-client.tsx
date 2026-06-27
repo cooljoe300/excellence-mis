@@ -1,18 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PageHeader, DataTable } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import { SemesterFormModal } from '@/components/semesters/semester-form-modal';
-import { deleteAcademicTerm } from '@/app/actions/academic-terms';
+import { deleteAcademicTerm, setCurrentAcademicTerm } from '@/app/actions/academic-terms';
 import type { AcademicTerm } from '@/lib/types';
 
 export function SemestersClient({ terms }: { terms: AcademicTerm[] }) {
+  const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [editingTerm, setEditingTerm] = useState<AcademicTerm | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [settingCurrentId, setSettingCurrentId] = useState<string | null>(null);
+  const hasCurrentTerm = terms.some((term) => term.is_current);
 
   return (
     <div>
@@ -21,6 +25,13 @@ export function SemestersClient({ terms }: { terms: AcademicTerm[] }) {
         description="Create and manage academic semesters used for enrolments and fee billing"
         action={<Button onClick={() => setShowForm(true)}>+ Add Semester</Button>}
       />
+
+      {terms.length > 0 && !hasCurrentTerm && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          No semester is marked as current. Students cannot register units until you set one as
+          current — use the <strong>Set current</strong> button below.
+        </div>
+      )}
 
       {terms.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500">
@@ -55,6 +66,25 @@ export function SemestersClient({ terms }: { terms: AcademicTerm[] }) {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
+                      {!term.is_current && (
+                        <Button
+                          size="sm"
+                          disabled={settingCurrentId === term.id}
+                          onClick={async () => {
+                            setSettingCurrentId(term.id);
+                            const result = await setCurrentAcademicTerm(term.id);
+                            if (result.error) {
+                              window.alert(result.error);
+                              setSettingCurrentId(null);
+                              return;
+                            }
+                            setSettingCurrentId(null);
+                            router.refresh();
+                          }}
+                        >
+                          {settingCurrentId === term.id ? 'Setting...' : 'Set current'}
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="secondary"

@@ -10,7 +10,8 @@ import {
 
 export async function getCurrentAcademicTermId(): Promise<string | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  const { data: explicit, error: explicitError } = await supabase
     .from('academic_terms')
     .select('id')
     .eq('is_current', true)
@@ -18,8 +19,29 @@ export async function getCurrentAcademicTermId(): Promise<string | null> {
     .limit(1)
     .maybeSingle();
 
-  if (error) return null;
-  return data?.id ?? null;
+  if (explicitError) return null;
+  if (explicit?.id) return explicit.id;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data: activeByDate } = await supabase
+    .from('academic_terms')
+    .select('id')
+    .lte('start_date', today)
+    .gte('end_date', today)
+    .order('start_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (activeByDate?.id) return activeByDate.id;
+
+  const { data: latest } = await supabase
+    .from('academic_terms')
+    .select('id')
+    .order('start_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return latest?.id ?? null;
 }
 
 export async function getProgramCourses(programId: string) {
