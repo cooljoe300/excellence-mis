@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Modal } from '@/components/ui/modal';
+import { Alert } from '@/components/ui/alert';
+import { useToast } from '@/components/ui/toast';
 import { createFeePayment, approveFeePaymentSubmission } from '@/app/actions/fees';
 import type { AcademicTerm, FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import {
@@ -34,6 +37,7 @@ function FeeFormModal({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { success } = useToast();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -46,15 +50,14 @@ function FeeFormModal({
       setLoading(false);
       return;
     }
+    success('Fee payment recorded successfully');
     router.refresh();
     onClose();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold">Record Fee Payment</h2>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+    <Modal open onClose={onClose} title="Record Fee Payment" size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
           <Select
             name="student_id"
             label="Student"
@@ -83,14 +86,13 @@ function FeeFormModal({
           <Input name="payment_method" label="Payment method" placeholder="M-Pesa, Bank, Cash" />
           <Input name="reference_number" label="Reference number" />
           <Input name="description" label="Description" placeholder="Tuition fee - Term 1" />
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-2 justify-end">
+          {error && <Alert variant="error">{error}</Alert>}
+          <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Record'}</Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

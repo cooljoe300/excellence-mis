@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, LogOut, User, ExternalLink, BookOpen, CreditCard, IdCard } from 'lucide-react';
+import { GraduationCap, LogOut, User, ExternalLink, BookOpen, CreditCard, IdCard, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/ui/logo';
+import { useState } from 'react';
 
 const navItems = [
   { href: '/student', label: 'My Portal', icon: GraduationCap },
@@ -24,6 +26,7 @@ export function StudentShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -33,42 +36,46 @@ export function StudentShell({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-700 font-bold text-white">
-              EOC
-            </div>
-            <div>
-              <p className="font-semibold text-slate-900">Excellence Online College</p>
-              <p className="text-xs text-slate-500">Student Portal</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <Logo size="md" href={null} />
+
+          <div className="flex items-center gap-2 sm:gap-4">
             <a
               href="https://lms.excellenceonlinecollege.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden items-center gap-1.5 text-sm text-blue-700 hover:underline sm:flex"
+              className="hidden items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary-light transition-colors sm:flex"
             >
               <ExternalLink className="h-4 w-4" />
               Open LMS
             </a>
-            <div className="text-right">
+            <div className="hidden text-right sm:block">
               <p className="text-sm font-medium text-slate-900">{userName}</p>
-              <p className="text-xs text-slate-500">Student</p>
+              <p className="text-xs text-muted">Student</p>
             </div>
             <button
+              type="button"
               onClick={handleLogout}
-              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-              title="Sign out"
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />
             </button>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(!mobileNavOpen)}
+              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 sm:hidden"
+              aria-label={mobileNavOpen ? 'Close menu' : 'Open menu'}
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
         </div>
-        <nav className="mx-auto flex max-w-5xl gap-1 px-6 pb-3">
+
+        {/* Desktop nav */}
+        <nav className="mx-auto hidden max-w-5xl gap-1 px-6 pb-3 sm:flex">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -79,9 +86,9 @@ export function StudentShell({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-primary-light text-primary'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 )}
               >
@@ -91,8 +98,47 @@ export function StudentShell({
             );
           })}
         </nav>
+
+        {/* Mobile nav dropdown */}
+        {mobileNavOpen && (
+          <nav className="border-t border-border bg-white px-4 py-3 sm:hidden animate-slide-up">
+            <div className="space-y-1">
+              {navItems.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== '/student' && pathname.startsWith(item.href));
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileNavOpen(false)}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-primary-light text-primary'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <a
+                href="https://lms.excellenceonlinecollege.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-primary"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open LMS
+              </a>
+            </div>
+          </nav>
+        )}
       </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

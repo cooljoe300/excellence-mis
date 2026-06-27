@@ -1,4 +1,4 @@
-import { PageHeader } from '@/components/ui/page-header';
+import { PageHeader, EmptyState } from '@/components/ui/page-header';
 import { StatCard, StatCardCurrency } from '@/components/dashboard/stat-card';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/page-header';
@@ -87,12 +87,16 @@ export default async function DashboardPage() {
       <div className="mt-8">
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Recently Added Students</h2>
         {recentStudents.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
-            No students yet.{' '}
-            <Link href="/dashboard/students/new" className="text-blue-700 hover:underline">
-              Add your first student
-            </Link>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No students yet"
+            description="Get started by registering your first student in the system."
+            action={
+              <Link href="/dashboard/students/new">
+                <Button>+ Add Student</Button>
+              </Link>
+            }
+          />
         ) : (
           <DataTable>
             <table className="w-full text-sm">

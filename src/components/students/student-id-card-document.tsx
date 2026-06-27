@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { formatDate, getAdmissionNumber, getInitials } from '@/lib/utils';
 import type { Student } from '@/lib/types';
 
@@ -19,17 +20,21 @@ export function StudentIdCardDocument({
       className="mx-auto w-[340px] overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-xl print:shadow-none print:border-slate-400"
       style={{ aspectRatio: '1.586 / 1' }}
     >
-      <div className="bg-gradient-to-r from-blue-900 to-blue-700 px-5 py-3 text-white">
-        <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#003380] to-[#004a99] px-5 py-3 text-white">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-medium uppercase tracking-widest text-blue-200">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-[#e1a916]">
               Excellence Online College
             </p>
             <p className="text-sm font-bold">Student Identification Card</p>
           </div>
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20 text-xs font-bold">
-            EOC
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Excellence Online College"
+            width={48}
+            height={42}
+            className="h-9 w-auto rounded bg-white px-1 py-0.5 object-contain"
+          />
         </div>
       </div>
 
@@ -43,46 +48,45 @@ export function StudentIdCardDocument({
               className="h-full w-full object-cover"
             />
           ) : (
-            <span className="text-2xl font-bold text-blue-700">{getInitials(fullName)}</span>
+            <span className="text-2xl font-bold text-primary">{getInitials(fullName)}</span>
           )}
         </div>
 
         <div className="min-w-0 flex-1 space-y-1.5 text-xs">
           <div>
-            <p className="text-[9px] uppercase tracking-wide text-slate-400">Full Name</p>
-            <p className="text-sm font-bold leading-tight text-slate-900">{fullName}</p>
+            <p className="text-[10px] uppercase tracking-wide text-slate-400">Name</p>
+            <p className="font-semibold text-slate-900 leading-tight">{fullName}</p>
           </div>
           <div>
-            <p className="text-[9px] uppercase tracking-wide text-slate-400">Admission No.</p>
-            <p className="font-mono text-sm font-bold text-blue-700">{admissionNumber}</p>
+            <p className="text-[10px] uppercase tracking-wide text-slate-400">Admission No.</p>
+            <p className="font-mono text-sm font-bold text-primary">{admissionNumber}</p>
           </div>
           <div>
-            <p className="text-[9px] uppercase tracking-wide text-slate-400">Program</p>
-            <p className="font-medium leading-tight text-slate-800">{programName}</p>
-            {programCode && <p className="text-slate-500">{programCode}</p>}
+            <p className="text-[10px] uppercase tracking-wide text-slate-400">Program</p>
+            <p className="text-slate-700 leading-tight">
+              {programCode ? `${programCode} — ` : ''}{programName}
+            </p>
           </div>
-          <div>
-            <p className="text-[9px] uppercase tracking-wide text-slate-400">Enrolled</p>
-            <p className="text-slate-700">{formatDate(student.enrollment_date)}</p>
-          </div>
-        </div>
-
-        <div className="flex shrink-0 flex-col items-center">
-          {qrDataUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={qrDataUrl} alt="QR Code" className="h-[72px] w-[72px]" />
-          ) : (
-            <div className="flex h-[72px] w-[72px] items-center justify-center rounded border border-dashed border-slate-300 bg-slate-50 text-[8px] text-slate-400">
-              QR code
+          {student.enrollment_date && (
+            <div>
+              <p className="text-[10px] uppercase tracking-wide text-slate-400">Enrolled</p>
+              <p className="text-slate-700">{formatDate(student.enrollment_date)}</p>
             </div>
           )}
-          <span className="mt-1 text-center text-[7px] text-slate-400">Scan to verify</span>
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-2">
-        <p className="text-[9px] text-slate-500">Valid while enrolled · {student.status}</p>
-        <p className="font-mono text-[9px] text-slate-400">ID: {student.id.slice(0, 8).toUpperCase()}</p>
+      <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-5 py-3">
+        <div className="text-[10px] text-slate-500">
+          <p>Valid while enrolled at EOC</p>
+          {student.id_card_issued_at && (
+            <p className="mt-0.5">Issued {formatDate(student.id_card_issued_at)}</p>
+          )}
+        </div>
+        {qrDataUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={qrDataUrl} alt="Student QR code" className="h-14 w-14" />
+        )}
       </div>
     </div>
   );

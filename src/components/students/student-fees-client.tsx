@@ -12,6 +12,7 @@ import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/app/actions/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
 import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance, getPendingSubmissionAmount, getStudentFeeDisplayStatus } from '@/lib/utils';
+import { Modal } from '@/components/ui/modal';
 import { CreditCard, Smartphone, Building2, CheckCircle2 } from 'lucide-react';
 
 function PayFeeModal({
@@ -77,10 +78,7 @@ function PayFeeModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold text-slate-900">Pay fees</h2>
-        <p className="mt-1 text-sm text-slate-600">{fee.description ?? 'Fee invoice'}</p>
+    <Modal open onClose={onClose} title="Pay fees" description={fee.description ?? 'Fee invoice'} size="md">
 
         <div className="mt-4 space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm">
           <div className="flex items-center gap-2 font-medium text-blue-900">
@@ -193,8 +191,7 @@ function PayFeeModal({
             </div>
           </form>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 

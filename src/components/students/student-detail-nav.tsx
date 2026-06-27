@@ -5,12 +5,12 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 const tabs = [
-  { label: 'Student Personal Profile', segment: '' },
-  { label: 'Enrolment Profiles', segment: 'enrollment' },
-  { label: 'Student ID', segment: 'id-card' },
-  { label: 'Course Registration', segment: 'registration' },
-  { label: 'Fee Statement', segment: 'fees' },
-  { label: 'Student Log', segment: 'log' },
+  { label: 'Profile', segment: '' },
+  { label: 'Enrollment', segment: 'enrollment' },
+  { label: 'ID Card', segment: 'id-card' },
+  { label: 'Registration', segment: 'registration' },
+  { label: 'Fees', segment: 'fees' },
+  { label: 'Activity Log', segment: 'log' },
 ] as const;
 
 export function StudentDetailNav({ studentId }: { studentId: string }) {
@@ -23,8 +23,8 @@ export function StudentDetailNav({ studentId }: { studentId: string }) {
   }
 
   return (
-    <nav className="mb-6 overflow-x-auto border-b border-slate-200">
-      <div className="flex min-w-max gap-0">
+    <nav className="mb-6 -mx-1 overflow-x-auto">
+      <div className="flex min-w-max gap-1 rounded-xl bg-slate-100 p-1">
         {tabs.map((tab) => {
           const href = tab.segment ? `${basePath}/${tab.segment}` : basePath;
           const isActive =
@@ -37,10 +37,10 @@ export function StudentDetailNav({ studentId }: { studentId: string }) {
               key={tab.segment || 'profile'}
               href={href}
               className={cn(
-                'whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+                'whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
                 isActive
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                  ? 'bg-white text-primary shadow-sm'
+                  : 'text-muted hover:text-slate-900 hover:bg-white/60'
               )}
             >
               {tab.label}

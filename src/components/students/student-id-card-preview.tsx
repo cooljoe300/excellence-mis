@@ -84,7 +84,7 @@ export function PassportPhotoUpload({
           )}
         </div>
         <label className="cursor-pointer">
-          <span className="inline-flex rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800">
+          <span className="inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover">
             Choose photo
           </span>
           <input

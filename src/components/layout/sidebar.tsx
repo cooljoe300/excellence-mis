@@ -16,29 +16,43 @@ import {
   Settings,
   LogOut,
   ExternalLink,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/ui/logo';
 import type { UserRole } from '@/lib/types';
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/students', label: 'Students', icon: Users },
-  { href: '/dashboard/programs', label: 'Programs', icon: GraduationCap },
-  { href: '/dashboard/semesters', label: 'Semesters', icon: CalendarDays },
-  { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox },
-  { href: '/dashboard/courses', label: 'Courses', icon: BookOpen },
-  { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList },
-  { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck },
-  { href: '/dashboard/fees', label: 'Fees', icon: CreditCard },
-  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+const allNavItems = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/students', label: 'Students', icon: Users, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/programs', label: 'Programs', icon: GraduationCap, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/semesters', label: 'Semesters', icon: CalendarDays, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/courses', label: 'Courses', icon: BookOpen, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/fees', label: 'Fees', icon: CreditCard, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin', 'staff'] as UserRole[] },
 ];
 
-export function Sidebar({ userName, userRole }: { userName: string; userRole: UserRole }) {
+function getNavItems(role: UserRole) {
+  return allNavItems.filter((item) => item.roles.includes(role));
+}
+
+interface SidebarProps {
+  userName: string;
+  userRole: UserRole;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const navItems = getNavItems(userRole);
 
   const portalLabel =
     userRole === 'admin'
@@ -56,21 +70,29 @@ export function Sidebar({ userName, userRole }: { userName: string; userRole: Us
     router.refresh();
   }
 
-  return (
-    <aside className="flex h-full w-64 flex-col border-r border-slate-200 bg-slate-900 text-white">
-      <div className="border-b border-slate-700 px-6 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 font-bold">
-            EOC
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-tight">Excellence Online</p>
-            <p className="text-xs text-slate-400">Student MIS</p>
-          </div>
+  function handleNavClick() {
+    onMobileClose?.();
+  }
+
+  const sidebarContent = (
+    <>
+      <div className="border-b border-slate-700 px-5 py-5">
+        <div className="flex items-center justify-between">
+          <Logo size="md" href={null} className="rounded-lg bg-white px-2 py-1" />
+          {mobileOpen && onMobileClose && (
+            <button
+              type="button"
+              onClick={onMobileClose}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -80,14 +102,15 @@ export function Sidebar({ userName, userRole }: { userName: string; userRole: Us
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleNavClick}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4 shrink-0" />
               {item.label}
             </Link>
           );
@@ -104,20 +127,50 @@ export function Sidebar({ userName, userRole }: { userName: string; userRole: Us
           <ExternalLink className="h-4 w-4" />
           Open LMS
         </a>
-        <div className="flex items-center justify-between rounded-lg bg-slate-800 px-3 py-2">
-          <div className="min-w-0">
+        <div className="flex items-center justify-between rounded-lg bg-slate-800/80 px-3 py-2.5">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{userName}</p>
             <p className="text-xs text-slate-400">{portalLabel}</p>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
-            className="rounded p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white"
-            title="Sign out"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+            aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm lg:hidden animate-fade-in"
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-[var(--sidebar-bg)] text-white lg:hidden',
+          'transition-transform duration-300 ease-out',
+          mobileOpen ? 'translate-x-0 animate-slide-in-right' : '-translate-x-full'
+        )}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex h-full w-64 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar-bg)] text-white shrink-0">
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

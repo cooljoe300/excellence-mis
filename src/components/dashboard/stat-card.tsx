@@ -12,16 +12,21 @@ interface StatCardProps {
 
 export function StatCard({ title, value, subtitle, icon: Icon, trend, className }: StatCardProps) {
   return (
-    <div className={cn('rounded-xl border border-slate-200 bg-white p-6 shadow-sm', className)}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
-          {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
-          {trend && <p className="mt-2 text-xs text-emerald-600">{trend}</p>}
+    <div
+      className={cn(
+        'group rounded-xl border border-border bg-white p-5 sm:p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300',
+        className
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-muted">{title}</p>
+          <p className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
+          {trend && <p className="mt-2 text-xs font-medium text-emerald-600">{trend}</p>}
         </div>
-        <div className="rounded-lg bg-blue-50 p-3">
-          <Icon className="h-5 w-5 text-blue-600" />
+        <div className="rounded-xl bg-primary-light p-3 transition-colors group-hover:bg-blue-100 shrink-0">
+          <Icon className="h-5 w-5 text-primary" />
         </div>
       </div>
     </div>

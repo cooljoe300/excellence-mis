@@ -3,13 +3,17 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PageHeader, DataTable } from '@/components/ui/page-header';
+import { PageHeader, DataTable, EmptyState } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select } from '@/components/ui/select';
+import { Modal } from '@/components/ui/modal';
+import { Alert } from '@/components/ui/alert';
+import { useToast } from '@/components/ui/toast';
 import { createEnrollment } from '@/app/actions/enrollments';
 import type { AcademicTerm, Course, Enrollment, Student } from '@/lib/types';
 import { formatCurrency, formatDate, getAdmissionNumber } from '@/lib/utils';
+import { ClipboardList } from 'lucide-react';
 
 type GroupedStudentEnrollment = {
   key: string;
@@ -67,6 +71,7 @@ function EnrollmentFormModal({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const { success } = useToast();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -79,15 +84,14 @@ function EnrollmentFormModal({
       setLoading(false);
       return;
     }
+    success('Enrollment created successfully');
     router.refresh();
     onClose();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold">New Enrollment</h2>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+    <Modal open onClose={onClose} title="New Enrollment" size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
           <Select
             name="student_id"
             label="Student"
@@ -129,8 +133,8 @@ function EnrollmentFormModal({
               { value: 'dropped', label: 'Dropped' },
             ]}
           />
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-2 justify-end">
+          {error && <Alert variant="error">{error}</Alert>}
+          <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
@@ -139,8 +143,7 @@ function EnrollmentFormModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -167,9 +170,12 @@ export function EnrollmentsClient({
       />
 
       {grouped.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500">
-          No enrollments yet.
-        </div>
+        <EmptyState
+          icon={ClipboardList}
+          title="No enrollments yet"
+          description="Create your first enrollment to register a student in a course."
+          action={<Button onClick={() => setShowForm(true)}>+ New Enrollment</Button>}
+        />
       ) : (
         <DataTable>
           <table className="w-full text-sm">

@@ -1,15 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  --background: #f4f6f9;
   --foreground: #0f172a;
+  --primary: #003380;
+  --primary-hover: #002966;
+  --primary-light: #eef2f9;
+  --accent: #e1a916;
+  --accent-hover: #c99512;
+  --accent-light: #fef9ec;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --sidebar-bg: #003380;
+  --sidebar-border: #002966;
+  --sidebar-text: #cbd5e1;
+  --sidebar-active: #e1a916;
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-light: var(--primary-light);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-light: var(--accent-light);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-sidebar-bg: var(--sidebar-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --radius-card: var(--radius-card);
 }
 
 body {
@@ -18,10 +45,52 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s ease-out;
+}
+
+.animate-toast-in {
+  animation: toast-in 0.3s ease-out;
+}
+
 @media print {
   aside,
   nav,
-  header {
+  header,
+  .no-print {
     display: none !important;
   }
 
