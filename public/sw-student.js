@@ -1,9 +1,24 @@
-const CACHE = 'eoc-student-v1';
+const CACHE = 'eoc-student-v2';
+
+const PRECACHE = [
+  '/logo.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
+  '/apple-icon.png',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
-      cache.addAll(['/student', '/icon-192.png', '/icon-512.png', '/logo.png'])
+      Promise.all(
+        PRECACHE.map((url) =>
+          cache.add(url).catch(() => {
+            // Skip assets that fail — don't block install
+          })
+        )
+      )
     )
   );
   self.skipWaiting();

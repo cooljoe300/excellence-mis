@@ -48,7 +48,7 @@ export function InstallAppIosModal({
               3
             </span>
             <span>
-              Tap <strong>Add</strong>. The EOC Student app will appear on your home screen.
+              Tap <strong>Add</strong>. The Excellence Online College app will appear on your home screen with the college logo.
             </span>
           </li>
         </ol>
@@ -77,7 +77,7 @@ export function InstallAppIosModal({
             </span>
             <span>
               Tap <Download className="inline h-4 w-4 text-primary" /> <strong>Install</strong>.
-              EOC Student will appear on your home screen.
+              Excellence Online College will appear on your home screen with the college logo.
             </span>
           </li>
         </ol>

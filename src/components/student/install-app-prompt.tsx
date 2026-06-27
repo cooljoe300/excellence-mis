@@ -56,17 +56,17 @@ export function InstallAppPrompt() {
         <div className="mx-auto flex max-w-lg items-center gap-3 rounded-xl border border-[#e1a916]/40 bg-[#003380] p-3 text-white shadow-elevated">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white p-1">
             <Image
-              src="/icon-192.png"
-              alt=""
+              src="/logo.png"
+              alt="Excellence Online College"
               width={40}
               height={40}
               className="h-full w-full object-contain"
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight">Install EOC Student</p>
+            <p className="text-sm font-semibold leading-tight">Install Excellence Online College</p>
             <p className="mt-0.5 text-xs text-blue-100">
-              Add to your home screen for faster access to fees, units, and your ID card.
+              Add the college app to your home screen with the EOC logo — fees, units, and your ID card in one tap.
             </p>
           </div>
           <Button

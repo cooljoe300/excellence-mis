@@ -31,8 +31,8 @@ export function InstallAppCard() {
           <div className="flex gap-4">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white p-1.5">
               <Image
-                src="/icon-192.png"
-                alt=""
+                src="/logo.png"
+                alt="Excellence Online College"
                 width={48}
                 height={48}
                 className="h-full w-full object-contain"
@@ -42,9 +42,9 @@ export function InstallAppCard() {
               <p className="text-xs font-semibold uppercase tracking-wider text-[#e1a916]">
                 Get the app
               </p>
-              <h2 className="mt-1 text-lg font-bold">Install EOC Student on your device</h2>
+              <h2 className="mt-1 text-lg font-bold">Install Excellence Online College on your phone</h2>
               <p className="mt-1 text-sm text-blue-100">
-                Add the student portal to your phone or tablet — no app store needed.
+                Add the student portal as an app on your home screen — the college logo appears as the app icon.
               </p>
             </div>
           </div>
