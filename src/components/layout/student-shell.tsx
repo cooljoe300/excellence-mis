@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/ui/logo';
+import { InstallAppButton } from '@/components/student/install-app-button';
 import { useState } from 'react';
 
 const navItems = [
@@ -42,6 +43,7 @@ export function StudentShell({
           <Logo size="md" href={null} />
 
           <div className="flex items-center gap-2 sm:gap-4">
+            <InstallAppButton />
             <a
               href="https://lms.excellenceonlinecollege.com/"
               target="_blank"
@@ -134,6 +136,9 @@ export function StudentShell({
                 <ExternalLink className="h-4 w-4" />
                 Open LMS
               </a>
+              <div className="px-3 py-2">
+                <InstallAppButton className="w-full justify-center" />
+              </div>
             </div>
           </nav>
         )}

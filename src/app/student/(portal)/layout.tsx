@@ -1,7 +1,25 @@
+import type { Metadata, Viewport } from 'next';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getRoleFromMetadata } from '@/lib/auth';
 import { StudentShell } from '@/components/layout/student-shell';
+import { RegisterStudentServiceWorker } from '@/components/student/register-student-sw';
+
+export const metadata: Metadata = {
+  title: 'Student Portal | Excellence Online College',
+  description: 'Register units, pay fees, and manage your student profile at Excellence Online College.',
+  manifest: '/student/manifest.webmanifest',
+  applicationName: 'EOC Student',
+  appleWebApp: {
+    capable: true,
+    title: 'EOC Student',
+    statusBarStyle: 'default',
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#003380',
+};
 
 export default async function StudentPortalLayout({
   children,
@@ -29,5 +47,10 @@ export default async function StudentPortalLayout({
 
   const userName = profile?.full_name ?? user.email ?? 'Student';
 
-  return <StudentShell userName={userName}>{children}</StudentShell>;
+  return (
+    <>
+      <RegisterStudentServiceWorker />
+      <StudentShell userName={userName}>{children}</StudentShell>
+    </>
+  );
 }
