@@ -12,8 +12,62 @@ export async function getFeePayments() {
       '*, student:students(*), term:academic_terms(*), submissions:fee_payment_submissions(*)'
     )
     .order('created_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return data;
+
+  if (error) {
+    const fallback = await supabase
+      .from('fee_payments')
+      .select('*, student:students(*), term:academic_terms(*)')
+      .order('created_at', { ascending: false });
+    if (fallback.error) throw new Error(fallback.error.message);
+    return fallback.data ?? [];
+  }
+
+  return data ?? [];
+}
+
+export async function checkPaymentApprovalSetup(): Promise<{ ready: boolean; message?: string }> {
+  const supabase = await createClient();
+  const { error } = await supabase.from('fee_payment_submissions').select('status').limit(1);
+
+  if (error) {
+    const missingColumn =
+      error.message.includes('status') ||
+      error.message.includes('column') ||
+      error.code === '42703';
+    if (missingColumn) {
+      return {
+        ready: false,
+        message:
+          'Payment approval is not set up. Run supabase/migrations/011_fee_payment_approval.sql in the Supabase SQL Editor, then redeploy the app.',
+      };
+    }
+  }
+
+  return { ready: true };
+}
+
+export async function getPendingFeePaymentSubmissions() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('fee_payment_submissions')
+    .select(
+      '*, student:students(*), fee_payment:fee_payments(*, student:students(*), term:academic_terms(name))'
+    )
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    if (
+      error.message.includes('status') ||
+      error.message.includes('column') ||
+      error.code === '42703'
+    ) {
+      return [];
+    }
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
 }
 
 export async function createFeePayment(formData: FormData) {

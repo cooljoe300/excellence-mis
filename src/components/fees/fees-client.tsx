@@ -14,16 +14,11 @@ import {
   formatCurrency,
   formatDate,
   getFeeBalance,
-  getPendingSubmissionAmount,
   getStudentFeeDisplayStatus,
 } from '@/lib/utils';
 import { CheckCircle2 } from 'lucide-react';
 
-function isPendingSubmission(s: FeePaymentSubmission) {
-  return (s.status ?? 'approved') === 'pending';
-}
-
-type PendingItem = {
+type PendingApproval = {
   submission: FeePaymentSubmission;
   fee: FeePayment;
   student: Student;
@@ -103,10 +98,14 @@ export function FeesClient({
   fees,
   students,
   terms,
+  pendingApprovals,
+  approvalSetup,
 }: {
   fees: FeePayment[];
   students: Student[];
   terms: AcademicTerm[];
+  pendingApprovals: PendingApproval[];
+  approvalSetup: { ready: boolean; message?: string };
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
@@ -116,18 +115,15 @@ export function FeesClient({
 
   const totalOutstanding = fees.reduce((sum, f) => sum + getFeeBalance(f), 0);
   const totalPaid = fees.reduce((sum, f) => sum + Number(f.amount_paid ?? 0), 0);
+  const pendingCount = pendingApprovals.length;
 
-  const pendingItems: PendingItem[] = fees.flatMap((fee) =>
-    ((fee.submissions ?? []) as FeePaymentSubmission[])
-      .filter(isPendingSubmission)
-      .map((submission) => ({
-        submission,
-        fee,
-        student: fee.student as Student,
-      }))
-  );
-
-  const pendingCount = pendingItems.length;
+  const pendingByFeeId = new Map<string, PendingApproval[]>();
+  for (const item of pendingApprovals) {
+    const feeId = item.submission.fee_payment_id;
+    const list = pendingByFeeId.get(feeId) ?? [];
+    list.push(item);
+    pendingByFeeId.set(feeId, list);
+  }
 
   async function handleApprove(submissionId: string) {
     setApprovingId(submissionId);
@@ -160,16 +156,28 @@ export function FeesClient({
         <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{approveSuccess}</div>
       )}
 
-      {pendingCount > 0 && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60">
-          <div className="border-b border-amber-200 px-6 py-4">
-            <h2 className="font-semibold text-amber-900">
-              Pending approval ({pendingCount})
-            </h2>
-            <p className="mt-1 text-sm text-amber-800">
-              Students submitted these payments — verify the M-Pesa or bank code, then approve.
-            </p>
-          </div>
+      {!approvalSetup.ready && approvalSetup.message && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {approvalSetup.message}
+        </div>
+      )}
+
+      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50/60">
+        <div className="border-b border-amber-200 px-6 py-4">
+          <h2 className="font-semibold text-amber-900">
+            Pending approval{pendingCount > 0 ? ` (${pendingCount})` : ''}
+          </h2>
+          <p className="mt-1 text-sm text-amber-800">
+            When students submit M-Pesa or bank payment codes, verify the reference and click{' '}
+            <strong>Approve</strong>.
+          </p>
+        </div>
+
+        {pendingCount === 0 ? (
+          <p className="px-6 py-8 text-center text-sm text-slate-600">
+            No payments waiting for approval right now.
+          </p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-amber-200/80 bg-amber-100/50 text-left text-amber-900">
@@ -184,7 +192,7 @@ export function FeesClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-200/60">
-                {pendingItems.map(({ submission, fee, student }) => (
+                {pendingApprovals.map(({ submission, fee, student }) => (
                   <tr key={submission.id} className="bg-white/70">
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {student?.first_name} {student?.last_name}
@@ -219,8 +227,8 @@ export function FeesClient({
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {fees.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-500">
@@ -244,11 +252,16 @@ export function FeesClient({
             <tbody className="divide-y divide-slate-100">
               {fees.map((fee) => {
                 const balance = getFeeBalance(fee);
-                const displayStatus = getStudentFeeDisplayStatus(fee);
+                const pendingSubmissions = pendingByFeeId.get(fee.id) ?? [];
                 const submissions = [...((fee.submissions ?? []) as FeePaymentSubmission[])].sort(
                   (a, b) => b.created_at.localeCompare(a.created_at)
                 );
-                const pendingSubmissions = submissions.filter(isPendingSubmission);
+                const pendingAmount = pendingSubmissions.reduce(
+                  (sum, { submission }) => sum + Number(submission.amount),
+                  0
+                );
+                const displayStatus =
+                  pendingAmount > 0 ? 'pending approval' : getStudentFeeDisplayStatus(fee);
                 return (
                   <tr key={fee.id} className="align-top hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium">
@@ -257,9 +270,9 @@ export function FeesClient({
                     <td className="px-6 py-4 text-slate-600">
                       <p>{fee.description ?? '—'}</p>
                       <p className="mt-1 text-xs text-slate-500">{formatDate(fee.created_at)}</p>
-                      {getPendingSubmissionAmount(submissions) > 0 && (
+                      {pendingAmount > 0 && (
                         <p className="mt-1 text-xs font-medium text-amber-700">
-                          {formatCurrency(getPendingSubmissionAmount(submissions))} awaiting approval
+                          {formatCurrency(pendingAmount)} awaiting approval
                         </p>
                       )}
                     </td>
@@ -284,7 +297,7 @@ export function FeesClient({
                         )
                       ) : (
                         <div className="space-y-2">
-                          {pendingSubmissions.map((s) => (
+                          {pendingSubmissions.map(({ submission: s }) => (
                             <div
                               key={s.id}
                               className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs"
@@ -323,7 +336,7 @@ export function FeesClient({
                     <td className="px-6 py-4">
                       {pendingSubmissions.length > 0 ? (
                         <div className="space-y-2">
-                          {pendingSubmissions.map((s) => (
+                          {pendingSubmissions.map(({ submission: s }) => (
                             <div key={s.id} className="flex flex-wrap gap-2">
                               <Button
                                 size="sm"
