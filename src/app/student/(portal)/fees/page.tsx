@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getMyFeesPageData } from '@/app/actions/student-fees';
+import { getMpesaStkAvailability } from '@/app/actions/mpesa';
 import { StudentFeesClient } from '@/components/students/student-fees-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -41,6 +42,8 @@ export default async function StudentFeesPage({
     redirect('/student/register');
   }
 
+  const stkAvailability = await getMpesaStkAvailability();
+
   return (
     <div>
       <PageHeader
@@ -51,6 +54,7 @@ export default async function StudentFeesPage({
         student={data.student}
         fees={data.fees}
         paymentSettings={data.paymentSettings}
+        stkConfigured={stkAvailability.configured}
         totalDue={data.totalDue}
         totalPaid={data.totalPaid}
         totalBilled={data.totalBilled}

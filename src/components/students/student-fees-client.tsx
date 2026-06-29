@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,19 +11,65 @@ import { Select } from '@/components/ui/select';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/app/actions/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
-import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus } from '@/lib/utils';
+import { getMyStkPushStatus, initiateMyStkPush } from '@/app/actions/mpesa';
+import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
-import { CreditCard, Smartphone, Building2, CheckCircle2, Info } from 'lucide-react';
+import { CreditCard, Smartphone, Building2, CheckCircle2, Info, Loader2 } from 'lucide-react';
+
+function BalanceSummary({
+  fee,
+  balance,
+  pendingAmount,
+  availableBalance,
+}: {
+  fee: FeePayment;
+  balance: number;
+  pendingAmount: number;
+  availableBalance: number;
+}) {
+  return (
+    <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
+      <div className="flex justify-between">
+        <span className="text-slate-600">Amount due</span>
+        <span className="font-medium">{formatCurrency(fee.amount)}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-slate-600">Already paid</span>
+        <span className="font-medium">{formatCurrency(fee.amount_paid)}</span>
+      </div>
+      <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 font-semibold">
+        <span>Balance</span>
+        <span className="text-blue-700">{formatCurrency(balance)}</span>
+      </div>
+      {pendingAmount > 0 && (
+        <>
+          <div className="mt-1 flex justify-between text-amber-700">
+            <span>Pending approval</span>
+            <span>{formatCurrency(pendingAmount)}</span>
+          </div>
+          <div className="mt-1 flex justify-between font-semibold text-blue-700">
+            <span>Available to pay</span>
+            <span>{formatCurrency(availableBalance)}</span>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function PayFeeModal({
   fee,
   admissionNumber,
   paymentSettings,
+  studentPhone,
+  stkConfigured,
   onClose,
 }: {
   fee: FeePayment;
   admissionNumber: string;
   paymentSettings: PaymentSettings;
+  studentPhone: string;
+  stkConfigured: boolean;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -31,13 +77,19 @@ function PayFeeModal({
   const pendingAmount = getPendingSubmissionAmount(fee.submissions);
   const availableBalance = getAvailableFeeBalance(fee, fee.submissions);
   const presets = getPartialPaymentPresets(availableBalance);
+  const stkAvailable = paymentSettings.mpesaStkEnabled && stkConfigured;
+
+  const [mode, setMode] = useState<'stk' | 'manual'>(stkAvailable ? 'stk' : 'manual');
   const [amount, setAmount] = useState('');
+  const [phone, setPhone] = useState(studentPhone);
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
+  const [stkRequestId, setStkRequestId] = useState<string | null>(null);
+  const [stkWaiting, setStkWaiting] = useState(false);
 
   const parsedAmount = parseFloat(amount);
   const isValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
@@ -46,7 +98,82 @@ function PayFeeModal({
     ? Math.max(0, availableBalance - parsedAmount)
     : availableBalance;
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    if (!stkRequestId || !stkWaiting) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      const result = await getMyStkPushStatus(stkRequestId);
+      if (cancelled || 'error' in result) return;
+
+      if (result.status === 'completed') {
+        setStkWaiting(false);
+        setSuccess(
+          result.amount < availableBalance
+            ? `M-Pesa payment of ${formatCurrency(result.amount)} received. Remaining balance will update shortly — you can pay the rest anytime.`
+            : `M-Pesa payment of ${formatCurrency(result.amount)} received and applied to your invoice.`
+        );
+        setReceiptId(result.submissionId ?? null);
+        router.refresh();
+        return;
+      }
+
+      if (result.status === 'failed' || result.status === 'cancelled') {
+        setStkWaiting(false);
+        setError(result.resultDesc || 'M-Pesa payment was not completed.');
+        setStkRequestId(null);
+      }
+    };
+
+    const interval = window.setInterval(poll, 3000);
+    poll();
+
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) {
+        setStkWaiting(false);
+        setError('Payment timed out. If you completed M-Pesa on your phone, refresh this page in a moment.');
+      }
+    }, 120000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.clearTimeout(timeout);
+    };
+  }, [stkRequestId, stkWaiting, availableBalance, router]);
+
+  async function handleStkSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const paidAmount = parseFloat(amount);
+    if (!paidAmount || paidAmount <= 0) {
+      setError('Enter a valid amount.');
+      setLoading(false);
+      return;
+    }
+
+    if (paidAmount > availableBalance) {
+      setError(`Amount cannot exceed the available balance of ${formatCurrency(availableBalance)}.`);
+      setLoading(false);
+      return;
+    }
+
+    const result = await initiateMyStkPush(fee.id, paidAmount, phone.trim());
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+
+    setStkRequestId(result.requestId ?? null);
+    setStkWaiting(true);
+    setSuccess('Check your phone — enter your M-Pesa PIN when Safaricom prompts you.');
+    setLoading(false);
+  }
+
+  async function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -94,11 +221,36 @@ function PayFeeModal({
     <Modal
       open
       onClose={onClose}
-      title="Submit a payment"
-      description="Pay what you have — partial payments are welcome"
+      title="Pay fees"
+      description={
+        stkAvailable
+          ? 'Pay instantly with M-Pesa STK push or submit a manual payment'
+          : 'Pay what you have — partial payments are welcome'
+      }
       size="md"
     >
+        {stkAvailable && !success && (
+          <div className="mt-4 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+            {(['stk', 'manual'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  setMode(tab);
+                  setError(null);
+                }}
+                className={cn(
+                  'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  mode === tab ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'
+                )}
+              >
+                {tab === 'stk' ? 'M-Pesa STK push' : 'Manual payment'}
+              </button>
+            ))}
+          </div>
+        )}
 
+        {mode === 'manual' && (
         <div className="mt-4 space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm">
           <div className="flex items-center gap-2 font-medium text-blue-900">
             <Smartphone className="h-4 w-4" />
@@ -125,23 +277,110 @@ function PayFeeModal({
             <p className="text-xs text-blue-700">Branch: {paymentSettings.bankBranch}</p>
           </div>
         </div>
+        )}
 
         {success ? (
           <div className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {success}
+            <div className="flex items-start gap-2">
+              {stkWaiting ? (
+                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              )}
+              <span>{success}</span>
+            </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              {receiptId && (
+              {receiptId && !stkWaiting && (
                 <Link href={`/student/fees/receipt/${receiptId}`} target="_blank">
                   <Button>Download receipt</Button>
                 </Link>
               )}
-              <Button variant="secondary" onClick={onClose}>
-                Close
-              </Button>
+              {!stkWaiting && (
+                <Button variant="secondary" onClick={onClose}>
+                  Close
+                </Button>
+              )}
             </div>
           </div>
+        ) : mode === 'stk' ? (
+          <form onSubmit={handleStkSubmit} className="mt-4 space-y-4">
+            <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
+              <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                Enter your M-Pesa number and amount. You will get a prompt on your phone to enter your
+                PIN — no paybill steps or confirmation code needed.
+              </p>
+            </div>
+
+            <BalanceSummary
+              fee={fee}
+              balance={balance}
+              pendingAmount={pendingAmount}
+              availableBalance={availableBalance}
+            />
+
+            <Input
+              label="M-Pesa phone number"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. 0712 345 678"
+              required
+            />
+
+            <div className="space-y-2">
+              <Input
+                label="Amount to pay (KES)"
+                type="number"
+                min="1"
+                step="1"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={`e.g. ${Math.min(1000, Math.floor(availableBalance)) || 500}`}
+                required
+              />
+              {presets.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {presets.map((preset) => (
+                    <button
+                      key={`${preset.label}-${preset.amount}`}
+                      type="button"
+                      onClick={() => setAmount(preset.amount.toString())}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        amount === preset.amount.toString()
+                          ? 'border-blue-600 bg-blue-50 text-blue-700'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700'
+                      }`}
+                    >
+                      {preset.label}
+                      {preset.label !== 'Full balance' && preset.label !== 'Half'
+                        ? ''
+                        : ` (${formatCurrency(preset.amount)})`}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isValidAmount && isPartialPayment && (
+                <p className="text-xs text-amber-700">
+                  Partial payment — {formatCurrency(remainingAfterPayment)} will remain on this
+                  invoice.
+                </p>
+              )}
+            </div>
+
+            {error && <p className="text-sm text-red-600">{error}</p>}
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading || !isValidAmount || !phone.trim()}>
+                {loading ? 'Sending prompt...' : 'Send M-Pesa prompt'}
+              </Button>
+            </div>
+          </form>
         ) : (
-          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <form onSubmit={handleManualSubmit} className="mt-4 space-y-4">
             <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
               <Info className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
@@ -150,32 +389,12 @@ function PayFeeModal({
               </p>
             </div>
 
-            <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Amount due</span>
-                <span className="font-medium">{formatCurrency(fee.amount)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Already paid</span>
-                <span className="font-medium">{formatCurrency(fee.amount_paid)}</span>
-              </div>
-              <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 font-semibold">
-                <span>Balance</span>
-                <span className="text-blue-700">{formatCurrency(balance)}</span>
-              </div>
-              {pendingAmount > 0 && (
-                <div className="mt-1 flex justify-between text-amber-700">
-                  <span>Pending approval</span>
-                  <span>{formatCurrency(pendingAmount)}</span>
-                </div>
-              )}
-              {pendingAmount > 0 && (
-                <div className="mt-1 flex justify-between font-semibold text-blue-700">
-                  <span>Available to pay</span>
-                  <span>{formatCurrency(availableBalance)}</span>
-                </div>
-              )}
-            </div>
+            <BalanceSummary
+              fee={fee}
+              balance={balance}
+              pendingAmount={pendingAmount}
+              availableBalance={availableBalance}
+            />
 
             <Select
               label="Payment method"
@@ -256,6 +475,7 @@ export function StudentFeesClient({
   student,
   fees,
   paymentSettings,
+  stkConfigured,
   totalDue,
   totalPaid,
   totalBilled,
@@ -264,6 +484,7 @@ export function StudentFeesClient({
   student: Student;
   fees: FeePayment[];
   paymentSettings: PaymentSettings;
+  stkConfigured: boolean;
   totalDue: number;
   totalPaid: number;
   totalBilled: number;
@@ -319,8 +540,10 @@ export function StudentFeesClient({
             <p className="font-semibold text-slate-900">Partial payments are OK</p>
             <p className="mt-1 text-slate-600">
               If you do not have the full balance, pay what you can today. Your invoice stays open
-              until the remainder is cleared — submit each M-Pesa or bank payment separately with
-              its confirmation code.
+              until the remainder is cleared.
+              {paymentSettings.mpesaStkEnabled && stkConfigured
+                ? ' Use M-Pesa STK push for an instant payment prompt on your phone.'
+                : ' Submit each M-Pesa or bank payment separately with its confirmation code.'}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 p-4">
@@ -458,6 +681,8 @@ export function StudentFeesClient({
           fee={payingFee}
           admissionNumber={admissionNumber}
           paymentSettings={paymentSettings}
+          studentPhone={student.phone ?? ''}
+          stkConfigured={stkConfigured}
           onClose={() => setPayingFee(null)}
         />
       )}

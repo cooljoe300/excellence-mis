@@ -6,7 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { setPaymentSettings, type PaymentSettings } from '@/app/actions/system-settings';
 
-export function PaymentSettingsCard({ initialSettings }: { initialSettings: PaymentSettings }) {
+export function PaymentSettingsCard({
+  initialSettings,
+  stkConfigured,
+}: {
+  initialSettings: PaymentSettings;
+  stkConfigured: boolean;
+}) {
   const [settings, setSettings] = useState(initialSettings);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +53,32 @@ export function PaymentSettingsCard({ initialSettings }: { initialSettings: Paym
           value={settings.mpesaAccountLabel}
           onChange={(e) => setSettings((s) => ({ ...s, mpesaAccountLabel: e.target.value }))}
         />
+
+        <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={settings.mpesaStkEnabled}
+            onChange={(e) => setSettings((s) => ({ ...s, mpesaStkEnabled: e.target.checked }))}
+          />
+          <span>
+            <span className="font-medium text-slate-900">Enable M-Pesa STK push</span>
+            <span className="mt-1 block text-slate-600">
+              Students receive a payment prompt on their phone instead of typing a confirmation
+              code. Requires Daraja API credentials in server environment variables.
+            </span>
+            <span
+              className={`mt-2 inline-block text-xs font-medium ${
+                stkConfigured ? 'text-emerald-700' : 'text-amber-700'
+              }`}
+            >
+              {stkConfigured
+                ? 'Daraja credentials detected on server.'
+                : 'Daraja credentials not detected — add MPESA_* env vars and redeploy.'}
+            </span>
+          </span>
+        </label>
+
         <Input
           label="Bank name"
           value={settings.bankName}

@@ -31,6 +31,7 @@ export async function setAdmissionNumberFormat(value: string) {
 export interface PaymentSettings {
   mpesaPaybill: string;
   mpesaAccountLabel: string;
+  mpesaStkEnabled: boolean;
   bankName: string;
   bankAccount: string;
   bankBranch: string;
@@ -39,6 +40,7 @@ export interface PaymentSettings {
 const PAYMENT_SETTING_KEYS = {
   mpesaPaybill: 'mpesa_paybill',
   mpesaAccountLabel: 'mpesa_account_label',
+  mpesaStkEnabled: 'mpesa_stk_enabled',
   bankName: 'bank_name',
   bankAccount: 'bank_account',
   bankBranch: 'bank_branch',
@@ -47,6 +49,7 @@ const PAYMENT_SETTING_KEYS = {
 const PAYMENT_DEFAULTS: PaymentSettings = {
   mpesaPaybill: '522522',
   mpesaAccountLabel: 'Use your admission number as account number',
+  mpesaStkEnabled: false,
   bankName: 'Equity Bank',
   bankAccount: '1234567890',
   bankBranch: 'Nairobi',
@@ -62,6 +65,7 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     mpesaPaybill: map.get(PAYMENT_SETTING_KEYS.mpesaPaybill) ?? PAYMENT_DEFAULTS.mpesaPaybill,
     mpesaAccountLabel:
       map.get(PAYMENT_SETTING_KEYS.mpesaAccountLabel) ?? PAYMENT_DEFAULTS.mpesaAccountLabel,
+    mpesaStkEnabled: map.get(PAYMENT_SETTING_KEYS.mpesaStkEnabled) === 'true',
     bankName: map.get(PAYMENT_SETTING_KEYS.bankName) ?? PAYMENT_DEFAULTS.bankName,
     bankAccount: map.get(PAYMENT_SETTING_KEYS.bankAccount) ?? PAYMENT_DEFAULTS.bankAccount,
     bankBranch: map.get(PAYMENT_SETTING_KEYS.bankBranch) ?? PAYMENT_DEFAULTS.bankBranch,
@@ -73,6 +77,10 @@ export async function setPaymentSettings(settings: PaymentSettings) {
   const rows = [
     { key: PAYMENT_SETTING_KEYS.mpesaPaybill, value: settings.mpesaPaybill.trim() },
     { key: PAYMENT_SETTING_KEYS.mpesaAccountLabel, value: settings.mpesaAccountLabel.trim() },
+    {
+      key: PAYMENT_SETTING_KEYS.mpesaStkEnabled,
+      value: settings.mpesaStkEnabled ? 'true' : 'false',
+    },
     { key: PAYMENT_SETTING_KEYS.bankName, value: settings.bankName.trim() },
     { key: PAYMENT_SETTING_KEYS.bankAccount, value: settings.bankAccount.trim() },
     { key: PAYMENT_SETTING_KEYS.bankBranch, value: settings.bankBranch.trim() },
