@@ -43,8 +43,26 @@ export function getMpesaConfig(): MpesaConfig | null {
   };
 }
 
+export function getMpesaStkMissingConfig(): string[] {
+  const missing: string[] = [];
+  if (!process.env.MPESA_CONSUMER_KEY?.trim()) missing.push('MPESA_CONSUMER_KEY');
+  if (!process.env.MPESA_CONSUMER_SECRET?.trim()) missing.push('MPESA_CONSUMER_SECRET');
+  if (!process.env.MPESA_PASSKEY?.trim()) missing.push('MPESA_PASSKEY');
+  if (!process.env.MPESA_SHORTCODE?.trim()) missing.push('MPESA_SHORTCODE');
+
+  const callbackUrl =
+    process.env.MPESA_CALLBACK_URL?.trim() ||
+    (process.env.NEXT_PUBLIC_APP_URL
+      ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')}/api/mpesa/callback`
+      : '');
+
+  if (!callbackUrl) missing.push('MPESA_CALLBACK_URL or NEXT_PUBLIC_APP_URL');
+
+  return missing;
+}
+
 export function isMpesaStkConfigured() {
-  return getMpesaConfig() !== null;
+  return getMpesaStkMissingConfig().length === 0;
 }
 
 export function mpesaTimestamp() {

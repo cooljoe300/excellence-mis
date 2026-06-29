@@ -2,7 +2,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getProfile } from '@/app/actions/dashboard';
 import { getAdmissionNumberFormat, getPaymentSettings } from '@/app/actions/system-settings';
-import { isMpesaStkConfigured } from '@/lib/mpesa';
+import { isMpesaStkConfigured, getMpesaStkMissingConfig } from '@/lib/mpesa';
 import { AdmissionFormatCard } from '@/components/settings/admission-format-card';
 import { PaymentSettingsCard } from '@/components/settings/payment-settings-card';
 import { ExternalLink } from 'lucide-react';
@@ -12,6 +12,7 @@ export default async function SettingsPage() {
   const admissionFormat = profile?.role === 'admin' ? await getAdmissionNumberFormat() : null;
   const paymentSettings = profile?.role === 'admin' ? await getPaymentSettings() : null;
   const stkConfigured = isMpesaStkConfigured();
+  const stkMissingConfig = getMpesaStkMissingConfig();
 
   return (
     <div>
@@ -46,7 +47,11 @@ export default async function SettingsPage() {
         )}
 
         {profile?.role === 'admin' && paymentSettings && (
-          <PaymentSettingsCard initialSettings={paymentSettings} stkConfigured={stkConfigured} />
+          <PaymentSettingsCard
+            initialSettings={paymentSettings}
+            stkConfigured={stkConfigured}
+            stkMissingConfig={stkMissingConfig}
+          />
         )}
 
         <Card>

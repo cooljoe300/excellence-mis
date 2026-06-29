@@ -1,8 +1,13 @@
 -- M-Pesa STK push payment tracking and auto-completion
 
 INSERT INTO public.system_settings(key, value)
-VALUES ('mpesa_stk_enabled', 'false')
+VALUES ('mpesa_stk_enabled', 'true')
 ON CONFLICT (key) DO NOTHING;
+
+-- Turn on STK for existing installs that still have it disabled
+UPDATE public.system_settings
+SET value = 'true'
+WHERE key = 'mpesa_stk_enabled' AND value = 'false';
 
 CREATE TABLE IF NOT EXISTS public.mpesa_stk_push_requests (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

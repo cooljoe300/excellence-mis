@@ -9,9 +9,11 @@ import { setPaymentSettings, type PaymentSettings } from '@/app/actions/system-s
 export function PaymentSettingsCard({
   initialSettings,
   stkConfigured,
+  stkMissingConfig = [],
 }: {
   initialSettings: PaymentSettings;
   stkConfigured: boolean;
+  stkMissingConfig?: string[];
 }) {
   const [settings, setSettings] = useState(initialSettings);
   const [saving, setSaving] = useState(false);
@@ -74,7 +76,7 @@ export function PaymentSettingsCard({
             >
               {stkConfigured
                 ? 'Daraja credentials detected on server.'
-                : 'Daraja credentials not detected — add MPESA_* env vars and redeploy.'}
+                : `Missing on server: ${stkMissingConfig.join(', ') || 'MPESA_* env vars'}`}
             </span>
           </span>
         </label>

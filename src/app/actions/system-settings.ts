@@ -49,7 +49,7 @@ const PAYMENT_SETTING_KEYS = {
 const PAYMENT_DEFAULTS: PaymentSettings = {
   mpesaPaybill: '522522',
   mpesaAccountLabel: 'Use your admission number as account number',
-  mpesaStkEnabled: false,
+  mpesaStkEnabled: true,
   bankName: 'Equity Bank',
   bankAccount: '1234567890',
   bankBranch: 'Nairobi',

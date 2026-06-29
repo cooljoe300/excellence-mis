@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { initiateStkPush, isMpesaStkConfigured } from '@/lib/mpesa';
+import { initiateStkPush, getMpesaStkMissingConfig } from '@/lib/mpesa';
 import { createClient } from '@/lib/supabase/server';
 import { getMyStudentRecord } from '@/app/actions/student-self';
 import { getPaymentSettings } from '@/app/actions/system-settings';
@@ -10,9 +10,11 @@ import type { FeePayment } from '@/lib/types';
 
 export async function getMpesaStkAvailability() {
   const settings = await getPaymentSettings();
+  const missingConfig = getMpesaStkMissingConfig();
   return {
     enabled: settings.mpesaStkEnabled,
-    configured: isMpesaStkConfigured(),
+    configured: missingConfig.length === 0,
+    missingConfig,
   };
 }
 
@@ -26,8 +28,9 @@ export async function initiateMyStkPush(
     return { error: 'M-Pesa STK push is not enabled. Use manual paybill payment instead.' };
   }
   if (!availability.configured) {
+    const missing = availability.missingConfig.join(', ');
     return {
-      error: 'M-Pesa STK push is not configured on the server. Ask admin to add Daraja API credentials.',
+      error: `M-Pesa STK push is not fully configured yet (${missing}). Ask admin to add these in server settings and redeploy.`,
     };
   }
 

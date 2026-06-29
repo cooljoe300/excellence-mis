@@ -63,6 +63,7 @@ function PayFeeModal({
   paymentSettings,
   studentPhone,
   stkConfigured,
+  initialMode = 'manual',
   onClose,
 }: {
   fee: FeePayment;
@@ -70,6 +71,7 @@ function PayFeeModal({
   paymentSettings: PaymentSettings;
   studentPhone: string;
   stkConfigured: boolean;
+  initialMode?: 'stk' | 'manual';
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -77,9 +79,12 @@ function PayFeeModal({
   const pendingAmount = getPendingSubmissionAmount(fee.submissions);
   const availableBalance = getAvailableFeeBalance(fee, fee.submissions);
   const presets = getPartialPaymentPresets(availableBalance);
-  const stkAvailable = paymentSettings.mpesaStkEnabled && stkConfigured;
+  const stkVisible = paymentSettings.mpesaStkEnabled;
+  const stkReady = stkVisible && stkConfigured;
 
-  const [mode, setMode] = useState<'stk' | 'manual'>(stkAvailable ? 'stk' : 'manual');
+  const [mode, setMode] = useState<'stk' | 'manual'>(
+    stkVisible && initialMode === 'stk' ? 'stk' : stkVisible ? 'stk' : 'manual'
+  );
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState(studentPhone);
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
@@ -223,13 +228,13 @@ function PayFeeModal({
       onClose={onClose}
       title="Pay fees"
       description={
-        stkAvailable
+        stkVisible
           ? 'Pay instantly with M-Pesa STK push or submit a manual payment'
           : 'Pay what you have — partial payments are welcome'
       }
       size="md"
     >
-        {stkAvailable && !success && (
+        {stkVisible && !success && (
           <div className="mt-4 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
             {(['stk', 'manual'] as const).map((tab) => (
               <button
@@ -312,6 +317,13 @@ function PayFeeModal({
               </p>
             </div>
 
+            {!stkReady && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                M-Pesa STK push is enabled but not fully set up yet. Ask admin to add the M-Pesa
+                passkey and other Daraja credentials, then redeploy the app.
+              </div>
+            )}
+
             <BalanceSummary
               fee={fee}
               balance={balance}
@@ -374,7 +386,7 @@ function PayFeeModal({
               <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !isValidAmount || !phone.trim()}>
+              <Button type="submit" disabled={loading || !isValidAmount || !phone.trim() || !stkReady}>
                 {loading ? 'Sending prompt...' : 'Send M-Pesa prompt'}
               </Button>
             </div>
@@ -491,7 +503,14 @@ export function StudentFeesClient({
   fromEnrollment?: boolean;
 }) {
   const [payingFee, setPayingFee] = useState<FeePayment | null>(null);
+  const [payMode, setPayMode] = useState<'stk' | 'manual'>('manual');
   const admissionNumber = getAdmissionNumber(student);
+  const stkVisible = paymentSettings.mpesaStkEnabled;
+
+  function openPayModal(fee: FeePayment, mode: 'stk' | 'manual' = 'manual') {
+    setPayMode(mode);
+    setPayingFee(fee);
+  }
 
   return (
     <div className="space-y-6">
@@ -536,12 +555,28 @@ export function StudentFeesClient({
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+          {stkVisible && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:col-span-2">
+              <p className="font-semibold text-emerald-900">M-Pesa STK push</p>
+              <p className="mt-1 text-emerald-800">
+                Pay directly from your phone. Open an invoice and choose{' '}
+                <strong>M-Pesa STK push</strong>, enter your number and amount, then approve the
+                prompt on your phone.
+              </p>
+              {!stkConfigured && (
+                <p className="mt-2 text-xs text-amber-800">
+                  STK is visible but not active yet — admin must complete M-Pesa Daraja setup
+                  (especially MPESA_PASSKEY).
+                </p>
+              )}
+            </div>
+          )}
           <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
             <p className="font-semibold text-slate-900">Partial payments are OK</p>
             <p className="mt-1 text-slate-600">
               If you do not have the full balance, pay what you can today. Your invoice stays open
               until the remainder is cleared.
-              {paymentSettings.mpesaStkEnabled && stkConfigured
+              {paymentSettings.mpesaStkEnabled
                 ? ' Use M-Pesa STK push for an instant payment prompt on your phone.'
                 : ' Submit each M-Pesa or bank payment separately with its confirmation code.'}
             </p>
@@ -629,9 +664,20 @@ export function StudentFeesClient({
                         </Button>
                       </Link>
                       {!isPaid && (
-                        <Button size="sm" onClick={() => setPayingFee(fee)}>
-                          {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
-                        </Button>
+                        <>
+                          {stkVisible && (
+                            <Button size="sm" onClick={() => openPayModal(fee, 'stk')}>
+                              M-Pesa STK
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant={stkVisible ? 'secondary' : undefined}
+                            onClick={() => openPayModal(fee, 'manual')}
+                          >
+                            {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -683,6 +729,7 @@ export function StudentFeesClient({
           paymentSettings={paymentSettings}
           studentPhone={student.phone ?? ''}
           stkConfigured={stkConfigured}
+          initialMode={payMode}
           onClose={() => setPayingFee(null)}
         />
       )}
