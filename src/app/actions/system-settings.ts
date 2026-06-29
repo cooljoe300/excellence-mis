@@ -65,7 +65,9 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     mpesaPaybill: map.get(PAYMENT_SETTING_KEYS.mpesaPaybill) ?? PAYMENT_DEFAULTS.mpesaPaybill,
     mpesaAccountLabel:
       map.get(PAYMENT_SETTING_KEYS.mpesaAccountLabel) ?? PAYMENT_DEFAULTS.mpesaAccountLabel,
-    mpesaStkEnabled: map.get(PAYMENT_SETTING_KEYS.mpesaStkEnabled) === 'true',
+    mpesaStkEnabled:
+      (map.get(PAYMENT_SETTING_KEYS.mpesaStkEnabled) ?? String(PAYMENT_DEFAULTS.mpesaStkEnabled)) ===
+      'true',
     bankName: map.get(PAYMENT_SETTING_KEYS.bankName) ?? PAYMENT_DEFAULTS.bankName,
     bankAccount: map.get(PAYMENT_SETTING_KEYS.bankAccount) ?? PAYMENT_DEFAULTS.bankAccount,
     bankBranch: map.get(PAYMENT_SETTING_KEYS.bankBranch) ?? PAYMENT_DEFAULTS.bankBranch,

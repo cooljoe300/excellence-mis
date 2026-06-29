@@ -63,7 +63,7 @@ function PayFeeModal({
   paymentSettings,
   studentPhone,
   stkConfigured,
-  initialMode = 'manual',
+  initialMode = 'stk',
   onClose,
 }: {
   fee: FeePayment;
@@ -79,12 +79,13 @@ function PayFeeModal({
   const pendingAmount = getPendingSubmissionAmount(fee.submissions);
   const availableBalance = getAvailableFeeBalance(fee, fee.submissions);
   const presets = getPartialPaymentPresets(availableBalance);
-  const stkVisible = paymentSettings.mpesaStkEnabled;
+  const stkVisible = paymentSettings.mpesaStkEnabled || stkConfigured;
   const stkReady = stkVisible && stkConfigured;
 
-  const [mode, setMode] = useState<'stk' | 'manual'>(
-    stkVisible && initialMode === 'stk' ? 'stk' : stkVisible ? 'stk' : 'manual'
-  );
+  const [mode, setMode] = useState<'stk' | 'manual'>(() => {
+    if (!stkVisible) return 'manual';
+    return initialMode === 'manual' ? 'manual' : 'stk';
+  });
   const [amount, setAmount] = useState('');
   const [phone, setPhone] = useState(studentPhone);
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
@@ -503,11 +504,11 @@ export function StudentFeesClient({
   fromEnrollment?: boolean;
 }) {
   const [payingFee, setPayingFee] = useState<FeePayment | null>(null);
-  const [payMode, setPayMode] = useState<'stk' | 'manual'>('manual');
+  const [payMode, setPayMode] = useState<'stk' | 'manual'>('stk');
   const admissionNumber = getAdmissionNumber(student);
-  const stkVisible = paymentSettings.mpesaStkEnabled;
+  const stkVisible = paymentSettings.mpesaStkEnabled || stkConfigured;
 
-  function openPayModal(fee: FeePayment, mode: 'stk' | 'manual' = 'manual') {
+  function openPayModal(fee: FeePayment, mode: 'stk' | 'manual' = 'stk') {
     setPayMode(mode);
     setPayingFee(fee);
   }
@@ -559,9 +560,8 @@ export function StudentFeesClient({
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:col-span-2">
               <p className="font-semibold text-emerald-900">M-Pesa STK push</p>
               <p className="mt-1 text-emerald-800">
-                Pay directly from your phone. Open an invoice and choose{' '}
-                <strong>M-Pesa STK push</strong>, enter your number and amount, then approve the
-                prompt on your phone.
+                Pay directly from your phone. Click <strong>Pay fees</strong>, enter your M-Pesa number
+                and amount, then approve the prompt on your phone.
               </p>
               {!stkConfigured && (
                 <p className="mt-2 text-xs text-amber-800">
@@ -576,7 +576,7 @@ export function StudentFeesClient({
             <p className="mt-1 text-slate-600">
               If you do not have the full balance, pay what you can today. Your invoice stays open
               until the remainder is cleared.
-              {paymentSettings.mpesaStkEnabled
+              {stkVisible
                 ? ' Use M-Pesa STK push for an instant payment prompt on your phone.'
                 : ' Submit each M-Pesa or bank payment separately with its confirmation code.'}
             </p>
@@ -664,20 +664,9 @@ export function StudentFeesClient({
                         </Button>
                       </Link>
                       {!isPaid && (
-                        <>
-                          {stkVisible && (
-                            <Button size="sm" onClick={() => openPayModal(fee, 'stk')}>
-                              M-Pesa STK
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant={stkVisible ? 'secondary' : undefined}
-                            onClick={() => openPayModal(fee, 'manual')}
-                          >
-                            {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
-                          </Button>
-                        </>
+                        <Button size="sm" onClick={() => openPayModal(fee, 'stk')}>
+                          {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
+                        </Button>
                       )}
                     </div>
                   </div>
