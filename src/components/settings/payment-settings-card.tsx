@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { setPaymentSettings, type PaymentSettings } from '@/app/actions/system-settings';
+import { setPaymentSettings } from '@/app/actions/system-settings';
+import type { PaymentSettings } from '@/lib/system-settings';
 
 export function PaymentSettingsCard({
   initialSettings,

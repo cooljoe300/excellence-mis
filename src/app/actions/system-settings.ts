@@ -2,8 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-
-export const DEFAULT_ADMISSION_NUMBER_FORMAT = 'EOC/{CODE}/{SEQ3}/{YY}';
+import {
+  DEFAULT_ADMISSION_NUMBER_FORMAT,
+  type PaymentSettings,
+} from '@/lib/system-settings';
 
 export async function getAdmissionNumberFormat(): Promise<string> {
   const supabase = await createClient();
@@ -32,15 +34,6 @@ export async function setAdmissionNumberFormat(value: string) {
   if (error) return { error: error.message };
   revalidatePath('/dashboard/settings');
   return { success: true };
-}
-
-export interface PaymentSettings {
-  mpesaPaybill: string;
-  mpesaAccountLabel: string;
-  mpesaStkEnabled: boolean;
-  bankName: string;
-  bankAccount: string;
-  bankBranch: string;
 }
 
 const PAYMENT_SETTING_KEYS = {

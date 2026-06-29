@@ -1,6 +1,6 @@
 import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
-import type { PaymentSettings } from '@/app/actions/system-settings';
+import type { PaymentSettings } from '@/lib/system-settings';
 
 export function FeeInvoiceDocument({
   fee,

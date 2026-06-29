@@ -4,10 +4,8 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import {
-  DEFAULT_ADMISSION_NUMBER_FORMAT,
-  setAdmissionNumberFormat,
-} from '@/app/actions/system-settings';
+import { setAdmissionNumberFormat } from '@/app/actions/system-settings';
+import { DEFAULT_ADMISSION_NUMBER_FORMAT } from '@/lib/system-settings';
 import type { Program } from '@/lib/types';
 
 function previewAdmissionNumber(format: string, code: string) {
