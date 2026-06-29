@@ -15,9 +15,14 @@ export async function getPrograms() {
 
 export async function createProgram(formData: FormData) {
   const supabase = await createClient();
+  const code = (formData.get('code') as string).trim();
+  const admissionPrefix =
+    (formData.get('admission_prefix') as string)?.trim().toUpperCase() || code.toUpperCase();
+
   const { error } = await supabase.from('programs').insert({
     name: formData.get('name') as string,
-    code: formData.get('code') as string,
+    code,
+    admission_prefix: admissionPrefix,
     description: (formData.get('description') as string) || null,
     duration_months: parseInt(formData.get('duration_months') as string) || 12,
     tuition_fee: parseFloat(formData.get('tuition_fee') as string) || 0,
@@ -25,16 +30,22 @@ export async function createProgram(formData: FormData) {
   });
   if (error) return { error: error.message };
   revalidatePath('/dashboard/programs');
+  revalidatePath('/dashboard/settings');
   return { success: true };
 }
 
 export async function updateProgram(id: string, formData: FormData) {
   const supabase = await createClient();
+  const code = (formData.get('code') as string).trim();
+  const admissionPrefix =
+    (formData.get('admission_prefix') as string)?.trim().toUpperCase() || code.toUpperCase();
+
   const { error } = await supabase
     .from('programs')
     .update({
       name: formData.get('name') as string,
-      code: formData.get('code') as string,
+      code,
+      admission_prefix: admissionPrefix,
       description: (formData.get('description') as string) || null,
       duration_months: parseInt(formData.get('duration_months') as string) || 12,
       tuition_fee: parseFloat(formData.get('tuition_fee') as string) || 0,
@@ -43,6 +54,7 @@ export async function updateProgram(id: string, formData: FormData) {
     .eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/dashboard/programs');
+  revalidatePath('/dashboard/settings');
   return { success: true };
 }
 

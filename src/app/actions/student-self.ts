@@ -74,6 +74,11 @@ export async function createMyStudentRecord(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) return { error: 'You must be signed in.' };
 
+  const programId = (formData.get('program_id') as string)?.trim();
+  if (!programId) {
+    return { error: 'Please select a program. Your admission number is based on your program.' };
+  }
+
   const { data, error } = await supabase
     .from('students')
     .insert({
@@ -90,7 +95,7 @@ export async function createMyStudentRecord(formData: FormData) {
       country: (formData.get('country') as string) || 'Kenya',
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-      program_id: (formData.get('program_id') as string) || null,
+      program_id: programId,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||
         new Date().toISOString().split('T')[0],

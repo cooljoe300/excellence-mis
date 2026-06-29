@@ -50,7 +50,18 @@ export function ProgramFormModal({ onClose, program }: { onClose: () => void; pr
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input name="name" label="Program name" defaultValue={program?.name} required />
-        <Input name="code" label="Code" placeholder="DIT" defaultValue={program?.code} required />
+        <Input name="code" label="Program code" placeholder="CIFA" defaultValue={program?.code} required />
+        <Input
+          name="admission_prefix"
+          label="Admission prefix"
+          placeholder={program?.code ?? 'CIFA'}
+          defaultValue={program?.admission_prefix ?? program?.code ?? ''}
+          required
+        />
+        <p className="text-xs text-slate-500 -mt-2">
+          Used in admission numbers as {'{CODE}'} — e.g. CIFA → EOC/CIFA/001/26, CPAF →
+          EOC/CPAF/001/26
+        </p>
         <Textarea
           name="description"
           label="Description"

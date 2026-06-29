@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
+export const DEFAULT_ADMISSION_NUMBER_FORMAT = 'EOC/{CODE}/{SEQ3}/{YY}';
+
 export async function getAdmissionNumberFormat(): Promise<string> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -11,20 +13,24 @@ export async function getAdmissionNumberFormat(): Promise<string> {
     .eq('key', 'admission_number_format')
     .maybeSingle();
 
-  if (error) return 'ADM-{YYYY}-{SEQ4}';
-  return data?.value ?? 'ADM-{YYYY}-{SEQ4}';
+  if (error) return DEFAULT_ADMISSION_NUMBER_FORMAT;
+  return data?.value ?? DEFAULT_ADMISSION_NUMBER_FORMAT;
 }
 
 export async function setAdmissionNumberFormat(value: string) {
   const supabase = await createClient();
   const trimmed = value.trim();
   if (!trimmed) return { error: 'Format cannot be empty.' };
+  if (!trimmed.includes('{CODE}')) {
+    return { error: 'Format must include {CODE} — the program admission prefix (e.g. CIFA, CPAF).' };
+  }
 
   const { error } = await supabase
     .from('system_settings')
     .upsert({ key: 'admission_number_format', value: trimmed }, { onConflict: 'key' });
 
   if (error) return { error: error.message };
+  revalidatePath('/dashboard/settings');
   return { success: true };
 }
 

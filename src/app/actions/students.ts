@@ -35,6 +35,11 @@ export async function getStudent(id: string) {
 
 export async function createStudent(formData: FormData) {
   const supabase = await createClient();
+  const programId = (formData.get('program_id') as string)?.trim();
+  if (!programId) {
+    return { error: 'Please select a program. Admission numbers are based on the student program.' };
+  }
+
   const { data, error } = await supabase
     .from('students')
     .insert({
@@ -50,7 +55,7 @@ export async function createStudent(formData: FormData) {
       country: (formData.get('country') as string) || 'Kenya',
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-      program_id: (formData.get('program_id') as string) || null,
+      program_id: programId,
       intake_id: (formData.get('intake_id') as string) || null,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||

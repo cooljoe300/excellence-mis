@@ -220,7 +220,13 @@ export function StudentForm({
             value={programId}
             onChange={(e) => setProgramId(e.target.value)}
             options={programOptions}
+            required={!student}
           />
+          {!student && (
+            <p className="sm:col-span-2 text-xs text-slate-500 -mt-2">
+              Admission number is generated from the program (e.g. EOC/CIFA/001/26).
+            </p>
+          )}
           <Select
             name="intake_id"
             label="Intake"

@@ -42,6 +42,7 @@ export interface Program {
   id: string;
   name: string;
   code: string;
+  admission_prefix: string | null;
   description: string | null;
   duration_months: number;
   tuition_fee: number;

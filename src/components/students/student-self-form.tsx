@@ -170,7 +170,11 @@ export function StudentSelfForm({
             defaultValue={existingStudent?.program_id ?? ''}
             options={programOptions}
             onChange={(e) => setSelectedProgramId(e.target.value)}
+            required
           />
+          <p className="sm:col-span-2 text-xs text-slate-500 -mt-2">
+            Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
+          </p>
           <Input
             name="enrollment_date"
             label="Enrollment date"

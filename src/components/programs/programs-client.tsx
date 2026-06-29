@@ -58,6 +58,7 @@ export function ProgramsClient({ programs }: { programs: Program[] }) {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>Code</TableHead>
+                <TableHead>Admission prefix</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Tuition</TableHead>
@@ -69,6 +70,9 @@ export function ProgramsClient({ programs }: { programs: Program[] }) {
               {programs.map((program) => (
                 <TableRow key={program.id}>
                   <TableCell className="font-mono text-xs font-medium">{program.code}</TableCell>
+                  <TableCell className="font-mono text-xs text-blue-700">
+                    {(program.admission_prefix || program.code).toUpperCase()}
+                  </TableCell>
                   <TableCell className="font-medium text-slate-900">{program.name}</TableCell>
                   <TableCell className="text-muted">{program.duration_months} months</TableCell>
                   <TableCell className="text-muted">{formatCurrency(program.tuition_fee)}</TableCell>
