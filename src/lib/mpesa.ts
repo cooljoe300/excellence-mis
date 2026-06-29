@@ -10,6 +10,20 @@ export interface MpesaConfig {
   environment: MpesaEnvironment;
 }
 
+export type MpesaAccountType = 'paybill' | 'till';
+
+export function getMpesaAccountType(): MpesaAccountType {
+  const accountType = process.env.MPESA_ACCOUNT_TYPE?.trim().toLowerCase();
+  if (accountType === 'till' || accountType === 'buygoods' || accountType === 'buy_goods') {
+    return 'till';
+  }
+  return 'paybill';
+}
+
+export function getMpesaTransactionType(): 'CustomerPayBillOnline' | 'CustomerBuyGoodsOnline' {
+  return getMpesaAccountType() === 'till' ? 'CustomerBuyGoodsOnline' : 'CustomerPayBillOnline';
+}
+
 export function getMpesaConfig(): MpesaConfig | null {
   const consumerKey = process.env.MPESA_CONSUMER_KEY?.trim();
   const consumerSecret = process.env.MPESA_CONSUMER_SECRET?.trim();
@@ -166,7 +180,7 @@ export async function initiateStkPush(params: {
       BusinessShortCode: config.shortcode,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: 'CustomerPayBillOnline',
+      TransactionType: getMpesaTransactionType(),
       Amount: amount,
       PartyA: phone,
       PartyB: config.shortcode,
