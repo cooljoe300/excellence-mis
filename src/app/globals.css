@@ -125,13 +125,62 @@ body {
     -webkit-print-color-adjust: exact;
   }
 
-  .student-id-card-page {
+  @page id-card {
+    size: 85.6mm 53.98mm;
+    margin: 0;
+  }
+
+  body.print-id-card {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  body.print-id-card > *:not(#student-id-card-print-root) {
+    display: none !important;
+  }
+
+  body.print-id-card #student-id-card-print-root {
+    display: block !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.print-id-card #student-id-card {
+    display: flex !important;
+    flex-direction: column;
+    width: 85.6mm;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    gap: 0;
+  }
+
+  body.print-id-card .student-id-card-page {
+    page: id-card;
+    width: 85.6mm;
+    height: 53.98mm;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
-  .student-id-card-page:not(:last-child) {
+  body.print-id-card .student-id-card-page:not(:last-child) {
     break-after: page;
     page-break-after: always;
+  }
+
+  body.print-id-card .student-id-card-face {
+    width: 85.6mm !important;
+    height: 53.98mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border-radius: 2mm !important;
+    aspect-ratio: auto !important;
+    box-shadow: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }

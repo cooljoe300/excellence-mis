@@ -8,7 +8,7 @@ import {
 import type { Student } from '@/lib/types';
 
 const CARD_CLASS =
-  'mx-auto w-[340px] overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-xl print:shadow-none print:border-slate-400';
+  'student-id-card-face mx-auto w-[340px] overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-xl print:shadow-none print:border-slate-400';
 const CARD_STYLE = { aspectRatio: '1.586 / 1' as const };
 
 const PROPERTY_NOTICE =
