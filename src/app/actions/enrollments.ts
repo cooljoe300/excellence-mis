@@ -64,7 +64,8 @@ export async function getStudentCourseIdsForTerm(studentId: string, termId: stri
     .from('enrollments')
     .select('course_id')
     .eq('student_id', studentId)
-    .eq('term_id', termId);
+    .eq('term_id', termId)
+    .in('status', ['active', 'pending']);
 
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => r.course_id as string);
@@ -82,7 +83,8 @@ export async function setStudentEnrollmentsForTerm(
     .from('enrollments')
     .select('id, course_id, grade, score')
     .eq('student_id', studentId)
-    .eq('term_id', termId);
+    .eq('term_id', termId)
+    .in('status', ['active', 'pending']);
 
   if (existingError) return { error: existingError.message };
 
@@ -114,6 +116,15 @@ export async function setStudentEnrollmentsForTerm(
   }
 
   if (toAdd.length > 0) {
+    // Remove stale dropped rows so UNIQUE(student_id, course_id, term_id) allows re-enrollment.
+    await supabase
+      .from('enrollments')
+      .delete()
+      .eq('student_id', studentId)
+      .eq('term_id', termId)
+      .in('course_id', toAdd)
+      .eq('status', 'dropped');
+
     const { error: insertError } = await supabase.from('enrollments').insert(
       toAdd.map((courseId) => ({
         student_id: studentId,

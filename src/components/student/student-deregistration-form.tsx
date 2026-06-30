@@ -286,8 +286,9 @@ export function StudentDeregistrationForm({
               type="submit"
               disabled={
                 loading ||
-                (requestType === 'units' && selectedIds.length === 0) ||
-                deregisterableUnits.length === 0
+                (requestType === 'units' &&
+                  (selectedIds.length === 0 || deregisterableUnits.length === 0)) ||
+                (requestType === 'full_withdrawal' && enrolledUnits.length === 0)
               }
             >
               {loading ? 'Submitting...' : 'Submit request'}

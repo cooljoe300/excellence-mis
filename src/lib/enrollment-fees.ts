@@ -30,7 +30,8 @@ export async function getUnbilledEnrollmentsForCourses(
     .select('id, course_id, course:courses(code, name, unit_fee)')
     .eq('student_id', studentId)
     .eq('term_id', termId)
-    .in('course_id', courseIds);
+    .in('course_id', courseIds)
+    .in('status', ['active', 'pending']);
 
   if (error || !enrollments?.length) return [];
 

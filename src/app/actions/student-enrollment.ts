@@ -129,7 +129,8 @@ export async function enrollMyUnits(courseIds: string[]) {
     .from('enrollments')
     .select('id, course_id, grade, score')
     .eq('student_id', student.id)
-    .eq('term_id', termId);
+    .eq('term_id', termId)
+    .in('status', ['active', 'pending']);
 
   if (existingError) return { error: existingError.message };
 

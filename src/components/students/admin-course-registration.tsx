@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
-import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import {
   getCurrentAcademicTermId,
   getProgramCourses,

@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import {
   getCurrentAcademicTermId,
-  getStudentCourseIdsForTerm,
   setStudentEnrollmentsForTerm,
 } from '@/app/actions/enrollments';
 import { getMyStudentRecord } from '@/app/actions/student-self';
@@ -283,7 +282,30 @@ export async function approveDeregistrationRequest(requestId: string, reviewNote
   } else {
     if (!termId) return { error: 'Request is missing an academic term.' };
 
-    const enrolled = await getStudentCourseIdsForTerm(request.student_id as string, termId);
+    const { data: enrollments, error: enrollmentsError } = await supabase
+      .from('enrollments')
+      .select('course_id, grade, score')
+      .eq('student_id', request.student_id as string)
+      .eq('term_id', termId)
+      .in('status', ['active', 'pending']);
+
+    if (enrollmentsError) return { error: enrollmentsError.message };
+
+    const enrolled = (enrollments ?? []).map((e) => e.course_id as string);
+    const gradedCourseIds = new Set(
+      (enrollments ?? [])
+        .filter((e) => e.grade != null || e.score != null)
+        .map((e) => e.course_id as string)
+    );
+
+    const gradedRequested = courseIds.filter((id) => gradedCourseIds.has(id));
+    if (gradedRequested.length > 0) {
+      return {
+        error:
+          'One or more requested units now have grades recorded. Reject this request or remove grades first.',
+      };
+    }
+
     const removeSet = new Set(courseIds);
     const remaining = enrolled.filter((id) => !removeSet.has(id));
 
@@ -293,6 +315,13 @@ export async function approveDeregistrationRequest(requestId: string, reviewNote
       remaining
     );
     if (result.error) return { error: result.error };
+
+    if ((result.unitsRemoved ?? 0) < courseIds.length) {
+      return {
+        error:
+          'Could not remove all requested units. The student registration may have changed — refresh and try again.',
+      };
+    }
   }
 
   const { error: updateError } = await supabase

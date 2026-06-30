@@ -36,7 +36,7 @@ export async function recalculateFeePaymentAfterDeregistration(
 ): Promise<{ success: true } | { error: string }> {
   const { data: fee, error: feeError } = await supabase
     .from('fee_payments')
-    .select('id, amount, amount_paid, status, description')
+    .select('id, amount, amount_paid, status, description, paid_date')
     .eq('id', feePaymentId)
     .single();
 
@@ -153,10 +153,7 @@ export async function deregisterStudentEnrollmentsAndFees(
     if ('error' in feeResult) return feeResult;
     adjustedInvoiceIds = feeResult.adjustedInvoiceIds;
 
-    const { error: dropError } = await supabase
-      .from('enrollments')
-      .update({ status: 'dropped' })
-      .in('id', enrollmentIds);
+    const { error: dropError } = await supabase.from('enrollments').delete().in('id', enrollmentIds);
 
     if (dropError) return { error: dropError.message };
   }
