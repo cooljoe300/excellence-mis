@@ -1,39 +1,33 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { processPesapalOrder } from '@/app/actions/pesapal';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 
-export default async function PesapalPaymentReturnPage({
+export default async function PesapalPaymentResultPage({
   searchParams,
 }: {
   searchParams: Promise<{
-    OrderTrackingId?: string;
-    OrderMerchantReference?: string;
+    status?: string;
+    amount?: string;
+    confirmationCode?: string;
+    error?: string;
+    orderTrackingId?: string;
   }>;
 }) {
   const params = await searchParams;
-  const orderTrackingId = params.OrderTrackingId;
+  const status = params.status;
+  const orderTrackingId = params.orderTrackingId;
 
-  if (!orderTrackingId) {
+  if (!status || !orderTrackingId) {
     redirect('/student/fees');
   }
 
-  let result;
-  try {
-    result = await processPesapalOrder(orderTrackingId);
-  } catch (error) {
-    result = {
-      error: error instanceof Error ? error.message : 'Could not verify payment.',
-    };
-  }
-
-  const completed = 'success' in result && result.success && result.statusCode === 1;
-  const failed =
-    ('error' in result && !!result.error) ||
-    ('success' in result && result.success && (result.statusCode === 2 || result.statusCode === 0));
-  const pending = !completed && !failed;
+  const completed = status === 'success';
+  const failed = status === 'failed';
+  const pending = status === 'pending';
+  const amount = params.amount ? Number(params.amount) : 0;
+  const errorMessage = params.error;
 
   return (
     <div className="mx-auto max-w-lg py-8">
@@ -52,16 +46,16 @@ export default async function PesapalPaymentReturnPage({
 
         <p className="mt-2 text-sm text-slate-600">
           {completed
-            ? `Your payment of ${formatCurrency(result.amount ?? 0)} has been received and applied to your invoice.`
+            ? `Your payment of ${formatCurrency(amount)} has been received and applied to your invoice.`
             : failed
-              ? ('error' in result ? result.error : result.status) ||
+              ? errorMessage ||
                 'The payment was not completed. You can try again from your fees page.'
               : 'We are confirming your payment with PesaPal. Refresh this page in a moment if it does not update.'}
         </p>
 
-        {('confirmationCode' in result && result.confirmationCode) && (
+        {params.confirmationCode && (
           <p className="mt-3 font-mono text-sm text-slate-700">
-            Reference: {result.confirmationCode}
+            Reference: {params.confirmationCode}
           </p>
         )}
 
