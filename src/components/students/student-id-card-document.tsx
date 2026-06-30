@@ -102,33 +102,28 @@ function StudentIdCardFront({
 
 function StudentIdCardBack() {
   return (
-    <div className={`${CARD_CLASS} flex flex-col`} style={CARD_STYLE}>
-      <div className="bg-gradient-to-r from-[#003380] to-[#004a99] px-5 py-2 text-center text-white">
-        <p className="text-[10px] font-medium uppercase tracking-widest text-[#e1a916]">
+    <div className={`${CARD_CLASS} flex h-full flex-col`} style={CARD_STYLE}>
+      <div className="shrink-0 bg-gradient-to-r from-[#003380] to-[#004a99] px-4 py-1.5 text-center text-white">
+        <p className="text-[9px] font-medium uppercase tracking-widest text-[#e1a916]">
           Official College Information
         </p>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-5 text-center">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-2 text-center">
         <Image
           src="/logo.png"
           alt={SCHOOL_NAME}
-          width={72}
-          height={64}
-          className="h-16 w-auto object-contain"
+          width={56}
+          height={50}
+          className="h-10 w-auto object-contain"
         />
-        <p className="mt-3 text-base font-bold leading-tight text-[#003380]">{SCHOOL_NAME}</p>
-        <p className="mt-2 text-xs text-slate-600">{SCHOOL_ADDRESS}</p>
-        <p className="mt-1 text-xs text-slate-600">{SCHOOL_WEBSITE}</p>
-        <p className="mt-4 max-w-[260px] text-[10px] leading-relaxed text-slate-500">
-          Excellence Online College is a registered institution offering quality online education.
-          This card verifies student identity and must be presented when required by college
-          authorities.
-        </p>
+        <p className="mt-1.5 text-sm font-bold leading-tight text-[#003380]">{SCHOOL_NAME}</p>
+        <p className="mt-1 text-[10px] text-slate-600">{SCHOOL_ADDRESS}</p>
+        <p className="text-[10px] text-slate-600">{SCHOOL_WEBSITE}</p>
       </div>
 
-      <div className="border-t border-slate-100 px-5 py-4">
-        <p className="text-center text-[10px] font-semibold leading-relaxed text-red-600">
+      <div className="student-id-card-property-notice shrink-0 border-t border-slate-200 bg-white px-3 py-2">
+        <p className="text-center text-[9px] font-semibold leading-snug text-red-600">
           {PROPERTY_NOTICE}
         </p>
       </div>
