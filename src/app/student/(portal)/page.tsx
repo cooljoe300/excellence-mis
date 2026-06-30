@@ -85,9 +85,16 @@ export default async function StudentPortalPage() {
               <BookOpen className="h-5 w-5 text-blue-700" />
               My Units
             </CardTitle>
-            <Link href="/student/enroll">
-              <Button size="sm">Register units</Button>
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/student/deregister">
+                <Button size="sm" variant="secondary">
+                  Request deregistration
+                </Button>
+              </Link>
+              <Link href="/student/enroll">
+                <Button size="sm">Register units</Button>
+              </Link>
+            </div>
           </CardHeader>
           <CardContent>
             {(enrollmentData?.enrollments.length ?? 0) === 0 ? (

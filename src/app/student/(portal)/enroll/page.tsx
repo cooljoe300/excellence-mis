@@ -35,6 +35,15 @@ export default async function StudentEnrollPage() {
       <PageHeader
         title="Register units"
         description={`Select units for ${data.programName ?? 'your program'} — each unit is billed separately`}
+        action={
+          data.enrolledUnitIds.length > 0 ? (
+            <Link href="/student/deregister">
+              <Button variant="secondary" size="sm">
+                Request deregistration
+              </Button>
+            </Link>
+          ) : undefined
+        }
       />
       {data.error && (
         <div className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">

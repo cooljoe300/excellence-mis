@@ -78,29 +78,31 @@ export function StudentShell({
           </div>
         </div>
 
-        {/* Desktop nav */}
-        <nav className="mx-auto hidden max-w-5xl gap-1 px-6 pb-3 sm:flex">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== '/student' && pathname.startsWith(item.href));
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
-                  isActive
-                    ? 'bg-primary-light text-primary'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        {/* Tablet / desktop nav */}
+        <nav className="mx-auto hidden max-w-5xl overflow-x-auto px-4 pb-3 sm:block sm:px-6">
+          <div className="flex min-w-max flex-wrap gap-1 lg:min-w-0">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== '/student' && pathname.startsWith(item.href));
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
+                    isActive
+                      ? 'bg-primary-light text-primary'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* Mobile nav dropdown */}
