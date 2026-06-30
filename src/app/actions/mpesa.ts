@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getMyStudentRecord } from '@/app/actions/student-self';
 import { getPaymentSettings } from '@/app/actions/system-settings';
 import { getAdmissionNumber, getAvailableFeeBalance } from '@/lib/utils';
+import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import type { FeePayment } from '@/lib/types';
 
 export async function getMpesaStkAvailability() {
@@ -36,6 +37,12 @@ export async function initiateMyStkPush(
 
   const student = await getMyStudentRecord();
   if (!student) return { error: 'Student record not found.' };
+  if (isRestrictedStudentStatus(student.status)) {
+    return {
+      error:
+        'Your student account is not active. Contact the college administration about your fees.',
+    };
+  }
 
   const paidAmount = Math.round(amount);
   if (!Number.isFinite(paidAmount) || paidAmount < 1) {

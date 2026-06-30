@@ -13,6 +13,7 @@ import type { PaymentSettings } from '@/lib/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
 import { initiateMyPesapalPayment } from '@/app/actions/pesapal';
 import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus, cn } from '@/lib/utils';
+import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import { Modal } from '@/components/ui/modal';
 import { CreditCard, Smartphone, Building2, CheckCircle2, Info } from 'lucide-react';
 
@@ -446,15 +447,27 @@ export function StudentFeesClient({
   const [payMode, setPayMode] = useState<'online' | 'manual'>('online');
   const admissionNumber = getAdmissionNumber(student);
   const onlineVisible = paymentSettings.pesapalEnabled || pesapalConfigured;
+  const paymentsBlocked = isRestrictedStudentStatus(student.status);
 
   function openPayModal(fee: FeePayment, mode: 'online' | 'manual' = 'online') {
+    if (paymentsBlocked) return;
     setPayMode(mode);
     setPayingFee(fee);
   }
 
   return (
     <div className="space-y-6">
-      {fromEnrollment && (
+      {paymentsBlocked && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p className="font-semibold">Account not active</p>
+          <p className="mt-1">
+            Your student account is {student.status}. You cannot make new fee payments here.
+            Contact the college administration if you have questions about your fee balance.
+          </p>
+        </div>
+      )}
+
+      {fromEnrollment && !paymentsBlocked && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
           <div className="flex items-center gap-2 text-emerald-800">
             <CheckCircle2 className="h-5 w-5 shrink-0" />
@@ -602,7 +615,7 @@ export function StudentFeesClient({
                           Invoice
                         </Button>
                       </Link>
-                      {!isPaid && (
+                      {!isPaid && !paymentsBlocked && (
                         <Button size="sm" onClick={() => openPayModal(fee, 'online')}>
                           {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
                         </Button>

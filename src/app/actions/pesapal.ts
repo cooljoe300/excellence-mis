@@ -13,6 +13,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getMyStudentRecord } from '@/app/actions/student-self';
 import { getPaymentSettings } from '@/app/actions/system-settings';
 import { getAdmissionNumber, getAvailableFeeBalance } from '@/lib/utils';
+import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import type { FeePayment } from '@/lib/types';
 
 const PESAPAL_IPN_SETTING_KEY = 'pesapal_ipn_id';
@@ -101,6 +102,12 @@ export async function initiateMyPesapalPayment(feePaymentId: string, amount: num
 
   const student = await getMyStudentRecord();
   if (!student) return { error: 'Student record not found.' };
+  if (isRestrictedStudentStatus(student.status)) {
+    return {
+      error:
+        'Your student account is not active. Contact the college administration about your fees.',
+    };
+  }
 
   const paidAmount = Math.round(amount);
   if (!Number.isFinite(paidAmount) || paidAmount < 1) {

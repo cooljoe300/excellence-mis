@@ -234,7 +234,16 @@ export function StudentForm({
             options={intakeOptions}
           />
           <Input name="enrollment_date" label="Enrollment date" type="date" defaultValue={student?.enrollment_date ?? new Date().toISOString().split('T')[0]} />
-          <Select name="status" label="Status" defaultValue={student?.status ?? 'active'} options={statusOptions} />
+          <div>
+            <Select name="status" label="Status" defaultValue={student?.status ?? 'active'} options={statusOptions} />
+            {student && (
+              <p className="mt-1 text-xs text-slate-500">
+                Setting status to Withdrawn, Inactive, or Suspended deregisters open units, adjusts
+                unpaid fee invoices, rejects pending payments, and blocks new student payments.
+                Fees already paid are kept on record.
+              </p>
+            )}
+          </div>
           <Input name="emergency_contact_name" label="Emergency contact name" defaultValue={student?.emergency_contact_name ?? ''} />
           <Input name="emergency_contact_phone" label="Emergency contact phone" defaultValue={student?.emergency_contact_phone ?? ''} />
           <div className="sm:col-span-2">

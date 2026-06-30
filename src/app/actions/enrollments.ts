@@ -7,6 +7,7 @@ import {
   createFeeInvoiceForEnrollments,
   getUnbilledEnrollmentsForCourses,
 } from '@/lib/enrollment-fees';
+import { adjustFeesForDroppedEnrollments } from '@/lib/student-deregistration-fees';
 
 export async function getCurrentAcademicTermId(): Promise<string | null> {
   const supabase = await createClient();
@@ -92,16 +93,23 @@ export async function setStudentEnrollmentsForTerm(
   const toRemove = (existing ?? [])
     .filter((e) => !desiredCourseIds.has(e.course_id as string))
     // Don't remove anything that already has grades/scores entered.
-    .filter((e) => e.grade == null && e.score == null)
-    .map((e) => e.course_id as string);
+    .filter((e) => e.grade == null && e.score == null);
 
-  if (toRemove.length > 0) {
+  const toRemoveIds = toRemove.map((e) => e.id as string);
+  const toRemoveCourseIds = toRemove.map((e) => e.course_id as string);
+
+  if (toRemoveIds.length > 0) {
+    const feeResult = await adjustFeesForDroppedEnrollments(supabase, toRemoveIds);
+    if ('error' in feeResult) return { error: feeResult.error };
+  }
+
+  if (toRemoveCourseIds.length > 0) {
     const { error: deleteError } = await supabase
       .from('enrollments')
       .delete()
       .eq('student_id', studentId)
       .eq('term_id', termId)
-      .in('course_id', toRemove);
+      .in('course_id', toRemoveCourseIds);
     if (deleteError) return { error: deleteError.message };
   }
 
@@ -145,7 +153,11 @@ export async function setStudentEnrollmentsForTerm(
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
-  return { success: true, feePaymentId };
+  return {
+    success: true,
+    feePaymentId,
+    unitsRemoved: toRemoveIds.length,
+  };
 }
 
 export async function getEnrollments() {
@@ -214,9 +226,31 @@ export async function updateEnrollment(id: string, formData: FormData) {
 
 export async function deleteEnrollment(id: string) {
   const supabase = await createClient();
+
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('enrollments')
+    .select('id, student_id, grade, score')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (enrollmentError) return { error: enrollmentError.message };
+  if (!enrollment) return { error: 'Enrollment not found.' };
+  if (enrollment.grade != null || enrollment.score != null) {
+    return { error: 'Cannot remove an enrollment that already has grades recorded.' };
+  }
+
+  const feeResult = await adjustFeesForDroppedEnrollments(supabase, [id]);
+  if ('error' in feeResult) return { error: feeResult.error };
+
   const { error } = await supabase.from('enrollments').delete().eq('id', id);
   if (error) return { error: error.message };
+
   revalidatePath('/dashboard/enrollments');
+  revalidatePath('/dashboard/fees');
+  revalidatePath(`/dashboard/students/${enrollment.student_id}`);
+  revalidatePath(`/dashboard/students/${enrollment.student_id}/fees`);
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
   return { success: true };
 }
 

@@ -2,6 +2,10 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import {
+  deregisterStudentEnrollmentsAndFees,
+  isRestrictedStudentStatus,
+} from '@/lib/student-deregistration-fees';
 import type { StudentStatus } from '@/lib/types';
 
 export async function getStudents(search?: string) {
@@ -80,6 +84,24 @@ export async function createStudent(formData: FormData) {
 
 export async function updateStudent(id: string, formData: FormData) {
   const supabase = await createClient();
+  const newStatus = formData.get('status') as StudentStatus;
+
+  const { data: existing, error: existingError } = await supabase
+    .from('students')
+    .select('status')
+    .eq('id', id)
+    .single();
+
+  if (existingError) return { error: existingError.message };
+
+  const becomingRestricted =
+    isRestrictedStudentStatus(newStatus) && !isRestrictedStudentStatus(existing.status);
+
+  if (becomingRestricted) {
+    const deregistration = await deregisterStudentEnrollmentsAndFees(supabase, id);
+    if ('error' in deregistration) return { error: deregistration.error };
+  }
+
   const { error } = await supabase
     .from('students')
     .update({
@@ -97,20 +119,56 @@ export async function updateStudent(id: string, formData: FormData) {
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: (formData.get('program_id') as string) || null,
       intake_id: (formData.get('intake_id') as string) || null,
-      status: formData.get('status') as StudentStatus,
+      status: newStatus,
       notes: (formData.get('notes') as string) || null,
     })
     .eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/dashboard/students');
   revalidatePath(`/dashboard/students/${id}`);
+  revalidatePath(`/dashboard/students/${id}/fees`);
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
   return { success: true };
 }
 
 export async function deleteStudent(id: string) {
   const supabase = await createClient();
+
+  const { data: paidFees, error: paidFeesError } = await supabase
+    .from('fee_payments')
+    .select('id')
+    .eq('student_id', id)
+    .gt('amount_paid', 0)
+    .limit(1);
+
+  if (paidFeesError) return { error: paidFeesError.message };
+  if (paidFees?.length) {
+    return {
+      error:
+        'Cannot delete a student with payment history. Set their status to Withdrawn instead — fees already paid are kept for records.',
+    };
+  }
+
+  const { data: pendingSubmissions, error: pendingError } = await supabase
+    .from('fee_payment_submissions')
+    .select('id')
+    .eq('student_id', id)
+    .eq('status', 'pending')
+    .limit(1);
+
+  if (pendingError) return { error: pendingError.message };
+  if (pendingSubmissions?.length) {
+    return {
+      error:
+        'Cannot delete a student with pending fee payments. Reject or approve them first, or set status to Withdrawn.',
+    };
+  }
+
   const { error } = await supabase.from('students').delete().eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/dashboard/students');
+  revalidatePath('/dashboard/fees');
   return { success: true };
 }

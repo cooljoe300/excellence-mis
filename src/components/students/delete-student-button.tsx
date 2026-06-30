@@ -36,7 +36,7 @@ export function DeleteStudentButton({ id, name }: { id: string; name: string }) 
         onClose={() => setOpen(false)}
         onConfirm={handleDelete}
         title="Delete student"
-        description={`Are you sure you want to delete "${name}"? This action cannot be undone.`}
+        description={`Are you sure you want to delete "${name}"? Students with payment history cannot be deleted — use Withdrawn status instead. This action cannot be undone.`}
         confirmLabel="Delete student"
         loading={loading}
       />

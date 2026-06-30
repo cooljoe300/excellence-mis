@@ -7,6 +7,7 @@ import { getMyStudentRecord } from '@/app/actions/student-self';
 import { getFeePayment } from '@/app/actions/fees';
 import type { FeePayment } from '@/lib/types';
 import { getFeeBalance } from '@/lib/utils';
+import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 
 export async function getMyFeesPageData() {
   const student = await getMyStudentRecord();
@@ -56,6 +57,15 @@ export async function submitMyFeePayment(
   paymentMethod: string,
   referenceNumber: string
 ) {
+  const student = await getMyStudentRecord();
+  if (!student) return { error: 'Student record not found.' };
+  if (isRestrictedStudentStatus(student.status)) {
+    return {
+      error:
+        'Your student account is not active. Contact the college administration about your fees.',
+    };
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc('submit_student_fee_payment', {
     p_fee_payment_id: feePaymentId,

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
+import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import {
   getCurrentAcademicTermId,
   getProgramCourses,
@@ -98,10 +99,6 @@ export function AdminCourseRegistration({ student }: { student: Student }) {
       setError('No current academic term is set.');
       return;
     }
-    if (selectedIds.length === 0) {
-      setError('Select at least one unit.');
-      return;
-    }
 
     setLoading(true);
     setError(null);
@@ -114,10 +111,15 @@ export function AdminCourseRegistration({ student }: { student: Student }) {
       return;
     }
 
+    const unitsRemoved = result.unitsRemoved ?? 0;
     setSuccess(
       result.feePaymentId
         ? 'Units registered and a fee invoice has been generated.'
-        : 'Course registration updated successfully.'
+        : unitsRemoved > 0
+          ? `Deregistered ${unitsRemoved} unit${unitsRemoved === 1 ? '' : 's'}. Related fee invoices were updated and pending payments were cancelled.`
+          : selectedIds.length === 0
+            ? 'All units deregistered for this term. Outstanding fee balances were waived where applicable.'
+            : 'Course registration updated successfully.'
     );
     setInvoiceId(result.feePaymentId ?? null);
     setLoading(false);
@@ -213,7 +215,11 @@ export function AdminCourseRegistration({ student }: { student: Student }) {
       )}
 
       <Button type="submit" disabled={loading || units.length === 0}>
-        {loading ? 'Saving...' : 'Save course registration'}
+        {loading
+          ? 'Saving...'
+          : selectedIds.length === 0
+            ? 'Deregister all units'
+            : 'Save course registration'}
       </Button>
     </form>
   );
