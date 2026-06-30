@@ -42,7 +42,7 @@ export default async function IdCardPage({
       <StudentIdCardDocument student={student as Student} qrDataUrl={qrDataUrl} />
 
       <p className="mx-auto mt-4 max-w-md text-center text-xs text-slate-500 print:hidden">
-        Card auto-generated on registration. Use Print to produce a physical ID card.
+        Card auto-generated on registration. Print both sides for a physical ID card.
       </p>
     </div>
   );

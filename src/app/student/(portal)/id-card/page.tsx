@@ -49,7 +49,7 @@ export default async function StudentIdCardPage() {
       <StudentIdCardDocument student={student as Student} qrDataUrl={qrDataUrl} />
 
       <p className="mx-auto mt-4 max-w-md text-center text-xs text-slate-500 print:hidden">
-        Use Print to download or print your student ID card.
+        The card has a front and back. Use Print to download or print both sides.
       </p>
     </div>
   );

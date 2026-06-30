@@ -42,7 +42,7 @@ export function StudentIdCardPreview({
       <p className="text-sm font-medium text-slate-700">ID card preview</p>
       <StudentIdCardDocument student={previewStudent} />
       <p className="text-xs text-slate-500">
-        This is how your student ID card will look. Save your details after uploading a photo.
+        Front and back of your student ID card. Save your details after uploading a photo.
       </p>
     </div>
   );

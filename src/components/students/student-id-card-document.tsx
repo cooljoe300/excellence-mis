@@ -1,8 +1,20 @@
 import Image from 'next/image';
 import { formatDate, getAdmissionNumber, getInitials } from '@/lib/utils';
+import {
+  SCHOOL_ADDRESS,
+  SCHOOL_NAME,
+  SCHOOL_WEBSITE,
+} from '@/components/documents/document-letterhead';
 import type { Student } from '@/lib/types';
 
-export function StudentIdCardDocument({
+const CARD_CLASS =
+  'mx-auto w-[340px] overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-xl print:shadow-none print:border-slate-400';
+const CARD_STYLE = { aspectRatio: '1.586 / 1' as const };
+
+const PROPERTY_NOTICE =
+  'This Card is the property of Excellence Online College and should be surrendered on expiry or on demand';
+
+function StudentIdCardFront({
   student,
   qrDataUrl,
 }: {
@@ -15,22 +27,18 @@ export function StudentIdCardDocument({
   const fullName = `${student.first_name} ${student.last_name}`;
 
   return (
-    <div
-      id="student-id-card"
-      className="mx-auto w-[340px] overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-xl print:shadow-none print:border-slate-400"
-      style={{ aspectRatio: '1.586 / 1' }}
-    >
+    <div className={CARD_CLASS} style={CARD_STYLE}>
       <div className="bg-gradient-to-r from-[#003380] to-[#004a99] px-5 py-3 text-white">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-widest text-[#e1a916]">
-              Excellence Online College
+              {SCHOOL_NAME}
             </p>
             <p className="text-sm font-bold">Student Identification Card</p>
           </div>
           <Image
             src="/logo.png"
-            alt="Excellence Online College"
+            alt={SCHOOL_NAME}
             width={48}
             height={42}
             className="h-9 w-auto rounded bg-white px-1 py-0.5 object-contain"
@@ -87,6 +95,68 @@ export function StudentIdCardDocument({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={qrDataUrl} alt="Student QR code" className="h-14 w-14" />
         )}
+      </div>
+    </div>
+  );
+}
+
+function StudentIdCardBack() {
+  return (
+    <div className={`${CARD_CLASS} flex flex-col`} style={CARD_STYLE}>
+      <div className="bg-gradient-to-r from-[#003380] to-[#004a99] px-5 py-2 text-center text-white">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-[#e1a916]">
+          Official College Information
+        </p>
+      </div>
+
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-5 text-center">
+        <Image
+          src="/logo.png"
+          alt={SCHOOL_NAME}
+          width={72}
+          height={64}
+          className="h-16 w-auto object-contain"
+        />
+        <p className="mt-3 text-base font-bold leading-tight text-[#003380]">{SCHOOL_NAME}</p>
+        <p className="mt-2 text-xs text-slate-600">{SCHOOL_ADDRESS}</p>
+        <p className="mt-1 text-xs text-slate-600">{SCHOOL_WEBSITE}</p>
+        <p className="mt-4 max-w-[260px] text-[10px] leading-relaxed text-slate-500">
+          Excellence Online College is a registered institution offering quality online education.
+          This card verifies student identity and must be presented when required by college
+          authorities.
+        </p>
+      </div>
+
+      <div className="border-t border-slate-100 px-5 py-4">
+        <p className="text-center text-[10px] font-semibold leading-relaxed text-red-600">
+          {PROPERTY_NOTICE}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function StudentIdCardDocument({
+  student,
+  qrDataUrl,
+}: {
+  student: Student;
+  qrDataUrl?: string | null;
+}) {
+  return (
+    <div id="student-id-card" className="mx-auto flex max-w-[340px] flex-col gap-6">
+      <div className="student-id-card-page print:break-after-page">
+        <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-slate-400 print:hidden">
+          Front
+        </p>
+        <StudentIdCardFront student={student} qrDataUrl={qrDataUrl} />
+      </div>
+
+      <div className="student-id-card-page">
+        <p className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-slate-400 print:hidden">
+          Back
+        </p>
+        <StudentIdCardBack />
       </div>
     </div>
   );

@@ -124,4 +124,14 @@ body {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
+
+  .student-id-card-page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .student-id-card-page:not(:last-child) {
+    break-after: page;
+    page-break-after: always;
+  }
 }
