@@ -7,6 +7,8 @@ export function GET() {
     short_name: 'EOC Student',
     description:
       'Excellence Online College student portal — register units, pay fees, view your ID card, and manage your profile.',
+    lang: 'en',
+    dir: 'ltr',
     start_url: '/student?source=pwa',
     scope: '/student',
     display: 'standalone',

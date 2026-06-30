@@ -1,6 +1,6 @@
 'use client';
 
-import { Share, PlusSquare, MoreVertical, Download } from 'lucide-react';
+import { Share, PlusSquare, MoreVertical, Download, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 
@@ -8,10 +8,12 @@ export function InstallAppIosModal({
   open,
   onClose,
   platform = 'ios',
+  pending = false,
 }: {
   open: boolean;
   onClose: () => void;
   platform?: 'ios' | 'android';
+  pending?: boolean;
 }) {
   const isIos = platform === 'ios';
 
@@ -19,11 +21,31 @@ export function InstallAppIosModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={isIos ? 'Install on iPhone or iPad' : 'Install on Android'}
-      description="Add the student portal to your home screen for quick access."
+      title={
+        pending
+          ? 'Preparing install'
+          : isIos
+            ? 'Install on iPhone or iPad'
+            : 'Install on Android'
+      }
+      description={
+        pending
+          ? 'Chrome is getting the app ready to install.'
+          : isIos
+            ? 'Add the student portal to your home screen for quick access.'
+            : 'Use Chrome to install the app directly on your phone.'
+      }
       size="sm"
     >
-      {isIos ? (
+      {pending ? (
+        <div className="flex flex-col items-center gap-4 py-4 text-center text-sm text-slate-700">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p>
+            If the install dialog does not appear, refresh this page and tap{' '}
+            <strong>Install</strong> again.
+          </p>
+        </div>
+      ) : isIos ? (
         <ol className="space-y-4 text-sm text-slate-700">
           <li className="flex gap-3">
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-bold text-primary">
@@ -48,7 +70,8 @@ export function InstallAppIosModal({
               3
             </span>
             <span>
-              Tap <strong>Add</strong>. The Excellence Online College app will appear on your home screen with the college logo.
+              Tap <strong>Add</strong>. The Excellence Online College app will appear on your home
+              screen with the college logo.
             </span>
           </li>
         </ol>
@@ -68,7 +91,7 @@ export function InstallAppIosModal({
             </span>
             <span>
               Tap the menu <MoreVertical className="inline h-4 w-4 text-primary" /> (top right),
-              then choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.
+              then choose <strong>Install app</strong>.
             </span>
           </li>
           <li className="flex gap-3">
@@ -76,8 +99,8 @@ export function InstallAppIosModal({
               3
             </span>
             <span>
-              Tap <Download className="inline h-4 w-4 text-primary" /> <strong>Install</strong>.
-              Excellence Online College will appear on your home screen with the college logo.
+              Tap <Download className="inline h-4 w-4 text-primary" /> <strong>Install</strong> in
+              the browser dialog. The app will be added to your phone like a normal app.
             </span>
           </li>
         </ol>

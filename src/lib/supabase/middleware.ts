@@ -53,7 +53,12 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/signup');
   const isDashboard = pathname.startsWith('/dashboard');
   const isStudentSignup = pathname.startsWith('/student/signup');
-  const isStudentPortal = pathname.startsWith('/student') && !isStudentSignup;
+  const isStudentPwaAsset =
+    pathname === '/student/manifest.webmanifest' ||
+    pathname === '/student/sw.js' ||
+    pathname === '/sw-student.js';
+  const isStudentPortal =
+    pathname.startsWith('/student') && !isStudentSignup && !isStudentPwaAsset;
   const isHome = pathname === '/';
 
   if (!user && isHome) {

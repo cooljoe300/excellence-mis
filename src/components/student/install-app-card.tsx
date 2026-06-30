@@ -16,9 +16,12 @@ export function InstallAppCard() {
   const {
     installed,
     ios,
+    androidChrome,
     canOneClickInstall,
+    canNativeInstall,
+    installPending,
     showInstallGuide,
-    setShowInstallGuide,
+    dismissInstallFlow,
     handleInstall,
   } = useInstallApp();
 
@@ -44,12 +47,14 @@ export function InstallAppCard() {
               </p>
               <h2 className="mt-1 text-lg font-bold">Install Excellence Online College on your phone</h2>
               <p className="mt-1 text-sm text-blue-100">
-                Add the student portal as an app on your home screen — the college logo appears as the app icon.
+                {androidChrome
+                  ? 'Install the student portal as an app on your phone — tap Install to use Chrome’s direct install.'
+                  : 'Add the student portal as an app on your home screen — the college logo appears as the app icon.'}
               </p>
             </div>
           </div>
 
-          {canOneClickInstall ? (
+          {canOneClickInstall || androidChrome ? (
             <Button
               type="button"
               onClick={handleInstall}
@@ -75,18 +80,26 @@ export function InstallAppCard() {
           ))}
         </ul>
 
-        {!canOneClickInstall && (
+        {!canOneClickInstall && !androidChrome && (
           <p className="border-t border-white/10 px-6 py-3 text-xs text-blue-200">
-            On Android, use Chrome. On iPhone, use Safari — then tap Install when prompted, or use
-            Share → Add to Home Screen.
+            On Android, use Chrome for direct install. On iPhone, use Safari — then tap Install when
+            prompted, or use Share → Add to Home Screen.
+          </p>
+        )}
+
+        {androidChrome && !canNativeInstall && (
+          <p className="border-t border-white/10 px-6 py-3 text-xs text-blue-200">
+            Use Chrome on your phone, then tap Install. The app will be added directly — no manual home
+            screen step needed.
           </p>
         )}
       </div>
 
       <InstallAppIosModal
-        open={showInstallGuide}
-        onClose={() => setShowInstallGuide(false)}
+        open={showInstallGuide || installPending}
+        onClose={dismissInstallFlow}
         platform={ios ? 'ios' : 'android'}
+        pending={installPending && androidChrome && !canNativeInstall}
       />
     </>
   );

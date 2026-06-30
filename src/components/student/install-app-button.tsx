@@ -6,10 +6,19 @@ import { useInstallApp } from '@/components/student/use-install-app';
 import { InstallAppIosModal } from '@/components/student/install-app-ios-modal';
 
 export function InstallAppButton({ className }: { className?: string }) {
-  const { installed, canOneClickInstall, showInstallGuide, setShowInstallGuide, handleInstall, ios } =
-    useInstallApp();
+  const {
+    installed,
+    canOneClickInstall,
+    androidChrome,
+    canNativeInstall,
+    installPending,
+    showInstallGuide,
+    dismissInstallFlow,
+    handleInstall,
+    ios,
+  } = useInstallApp();
 
-  if (installed || !canOneClickInstall) return null;
+  if (installed || (!canOneClickInstall && !androidChrome)) return null;
 
   return (
     <>
@@ -25,9 +34,10 @@ export function InstallAppButton({ className }: { className?: string }) {
         <span className="sm:hidden">Install</span>
       </Button>
       <InstallAppIosModal
-        open={showInstallGuide}
-        onClose={() => setShowInstallGuide(false)}
+        open={showInstallGuide || installPending}
+        onClose={dismissInstallFlow}
         platform={ios ? 'ios' : 'android'}
+        pending={installPending && androidChrome && !canNativeInstall}
       />
     </>
   );

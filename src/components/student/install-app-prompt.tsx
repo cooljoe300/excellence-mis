@@ -16,10 +16,13 @@ export function InstallAppPrompt() {
     installed,
     ios,
     android,
+    androidChrome,
     mobile,
     canInstall,
+    canNativeInstall,
+    installPending,
     showInstallGuide,
-    setShowInstallGuide,
+    dismissInstallFlow,
     handleInstall,
   } = useInstallApp();
 
@@ -66,7 +69,11 @@ export function InstallAppPrompt() {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold leading-tight">Install Excellence Online College</p>
             <p className="mt-0.5 text-xs text-blue-100">
-              Add the college app to your home screen with the EOC logo — fees, units, and your ID card in one tap.
+              {canNativeInstall
+                ? 'Install the college app on your phone — fees, units, and your ID card in one tap.'
+                : androidChrome
+                  ? 'Tap Install to add the app directly from Chrome.'
+                  : 'Add the college app to your home screen with the EOC logo — fees, units, and your ID card in one tap.'}
             </p>
           </div>
           <Button
@@ -91,9 +98,10 @@ export function InstallAppPrompt() {
       )}
 
       <InstallAppIosModal
-        open={showInstallGuide}
-        onClose={() => setShowInstallGuide(false)}
+        open={showInstallGuide || installPending}
+        onClose={dismissInstallFlow}
         platform={ios ? 'ios' : 'android'}
+        pending={installPending && androidChrome && !canNativeInstall}
       />
     </>
   );
