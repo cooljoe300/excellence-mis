@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, LogOut, User, ExternalLink, BookOpen, CreditCard, IdCard, Menu, X } from 'lucide-react';
+import { GraduationCap, LogOut, User, ExternalLink, BookOpen, CreditCard, IdCard, Menu, X, UserMinus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,7 @@ import { useState } from 'react';
 const navItems = [
   { href: '/student', label: 'My Portal', icon: GraduationCap },
   { href: '/student/enroll', label: 'Register Units', icon: BookOpen },
+  { href: '/student/deregister', label: 'Deregister', icon: UserMinus },
   { href: '/student/fees', label: 'Pay Fees', icon: CreditCard },
   { href: '/student/id-card', label: 'My ID Card', icon: IdCard },
   { href: '/student/register', label: 'My Details', icon: User },

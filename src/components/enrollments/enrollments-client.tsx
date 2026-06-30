@@ -11,7 +11,8 @@ import { Modal } from '@/components/ui/modal';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
 import { createEnrollment } from '@/app/actions/enrollments';
-import type { AcademicTerm, Course, Enrollment, Student } from '@/lib/types';
+import { DeregistrationRequestsPanel } from '@/components/enrollments/deregistration-requests-panel';
+import type { AcademicTerm, Course, Enrollment, Student, StudentDeregistrationRequest } from '@/lib/types';
 import { formatCurrency, formatDate, getAdmissionNumber } from '@/lib/utils';
 import { ClipboardList } from 'lucide-react';
 
@@ -152,11 +153,15 @@ export function EnrollmentsClient({
   students,
   courses,
   terms,
+  pendingDeregistrations = [],
+  deregistrationCourseMap = {},
 }: {
   enrollments: Enrollment[];
   students: Student[];
   courses: Course[];
   terms: AcademicTerm[];
+  pendingDeregistrations?: StudentDeregistrationRequest[];
+  deregistrationCourseMap?: Record<string, { code: string; name: string }>;
 }) {
   const [showForm, setShowForm] = useState(false);
   const grouped = useMemo(() => groupEnrollmentsByStudent(enrollments), [enrollments]);
@@ -168,6 +173,13 @@ export function EnrollmentsClient({
         description="One record per student showing all registered units"
         action={<Button onClick={() => setShowForm(true)}>+ New Enrollment</Button>}
       />
+
+      <div className="mb-6">
+        <DeregistrationRequestsPanel
+          requests={pendingDeregistrations}
+          courseMap={deregistrationCourseMap}
+        />
+      </div>
 
       {grouped.length === 0 ? (
         <EmptyState

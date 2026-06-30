@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -151,8 +152,11 @@ export function StudentUnitEnrollment({
             <div className="space-y-2">
               <p className="mb-4 text-sm text-slate-600">
                 Tick the units you want to register. Each unit has its own fee — your total is
-                calculated automatically. Once registered, a unit cannot be removed by you; contact
-                the college administration if you need to deregister.
+                calculated automatically. To remove a registered unit, submit a{' '}
+                <Link href="/student/deregister" className="font-medium text-blue-700 hover:underline">
+                  deregistration request
+                </Link>{' '}
+                for admin approval.
               </p>
               {units.map((unit) => {
                 const checked = selectedSet.has(unit.id);
@@ -181,7 +185,15 @@ export function StudentUnitEnrollment({
                         </p>
                         <p className="text-xs text-slate-500">{unit.credits} credits</p>
                         {alreadyEnrolled && (
-                          <p className="text-xs text-emerald-600">Registered — contact admin to deregister</p>
+                          <p className="text-xs text-emerald-600">
+                            Registered —{' '}
+                            <Link
+                              href="/student/deregister"
+                              className="font-medium text-blue-700 hover:underline"
+                            >
+                              request deregistration
+                            </Link>
+                          </p>
                         )}
                       </div>
                     </div>

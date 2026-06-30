@@ -4,6 +4,8 @@ export type EnrollmentStatus = 'pending' | 'active' | 'completed' | 'dropped';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 export type PaymentStatus = 'pending' | 'paid' | 'partial' | 'overdue' | 'waived';
 export type PaymentSubmissionStatus = 'pending' | 'approved' | 'rejected';
+export type DeregistrationRequestType = 'units' | 'full_withdrawal';
+export type DeregistrationRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 export type LmsSyncStatus = 'not_synced' | 'synced' | 'failed';
 
 export interface Profile {
@@ -169,6 +171,23 @@ export interface FeePaymentSubmission {
   reviewed_at: string | null;
   reviewed_by: string | null;
   created_at: string;
+}
+
+export interface StudentDeregistrationRequest {
+  id: string;
+  student_id: string;
+  term_id: string | null;
+  request_type: DeregistrationRequestType;
+  course_ids: string[];
+  reason: string;
+  status: DeregistrationRequestStatus;
+  review_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  student?: Student;
+  term?: AcademicTerm;
 }
 
 export interface DashboardStats {
