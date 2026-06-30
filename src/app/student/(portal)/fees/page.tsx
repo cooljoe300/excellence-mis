@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getMyFeesPageData } from '@/app/actions/student-fees';
-import { getMpesaStkAvailability } from '@/app/actions/mpesa';
+import { getPesapalAvailability } from '@/app/actions/pesapal';
 import { StudentFeesClient } from '@/components/students/student-fees-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -42,19 +42,19 @@ export default async function StudentFeesPage({
     redirect('/student/register');
   }
 
-  const stkAvailability = await getMpesaStkAvailability();
+  const pesapalAvailability = await getPesapalAvailability();
 
   return (
     <div>
       <PageHeader
         title="Fees & Payments"
-        description="Pay any amount you can via M-Pesa or bank — partial payments are accepted"
+        description="Pay any amount you can via PesaPal, M-Pesa, or bank — partial payments are accepted"
       />
       <StudentFeesClient
         student={data.student}
         fees={data.fees}
         paymentSettings={data.paymentSettings}
-        stkConfigured={stkAvailability.configured}
+        pesapalConfigured={pesapalAvailability.configured}
         totalDue={data.totalDue}
         totalPaid={data.totalPaid}
         totalBilled={data.totalBilled}

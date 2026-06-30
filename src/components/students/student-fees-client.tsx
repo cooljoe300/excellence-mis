@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,10 +11,10 @@ import { Select } from '@/components/ui/select';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/lib/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
-import { getMyStkPushStatus, initiateMyStkPush } from '@/app/actions/mpesa';
+import { initiateMyPesapalPayment } from '@/app/actions/pesapal';
 import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus, cn } from '@/lib/utils';
 import { Modal } from '@/components/ui/modal';
-import { CreditCard, Smartphone, Building2, CheckCircle2, Info, Loader2 } from 'lucide-react';
+import { CreditCard, Smartphone, Building2, CheckCircle2, Info } from 'lucide-react';
 
 function BalanceSummary({
   fee,
@@ -61,17 +61,15 @@ function PayFeeModal({
   fee,
   admissionNumber,
   paymentSettings,
-  studentPhone,
-  stkConfigured,
-  initialMode = 'stk',
+  pesapalConfigured,
+  initialMode = 'online',
   onClose,
 }: {
   fee: FeePayment;
   admissionNumber: string;
   paymentSettings: PaymentSettings;
-  studentPhone: string;
-  stkConfigured: boolean;
-  initialMode?: 'stk' | 'manual';
+  pesapalConfigured: boolean;
+  initialMode?: 'online' | 'manual';
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -79,23 +77,20 @@ function PayFeeModal({
   const pendingAmount = getPendingSubmissionAmount(fee.submissions);
   const availableBalance = getAvailableFeeBalance(fee, fee.submissions);
   const presets = getPartialPaymentPresets(availableBalance);
-  const stkVisible = paymentSettings.mpesaStkEnabled || stkConfigured;
-  const stkReady = stkVisible && stkConfigured;
+  const onlineVisible = paymentSettings.pesapalEnabled || pesapalConfigured;
+  const onlineReady = onlineVisible && pesapalConfigured;
 
-  const [mode, setMode] = useState<'stk' | 'manual'>(() => {
-    if (!stkVisible) return 'manual';
-    return initialMode === 'manual' ? 'manual' : 'stk';
+  const [mode, setMode] = useState<'online' | 'manual'>(() => {
+    if (!onlineVisible) return 'manual';
+    return initialMode === 'manual' ? 'manual' : 'online';
   });
   const [amount, setAmount] = useState('');
-  const [phone, setPhone] = useState(studentPhone);
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
-  const [stkRequestId, setStkRequestId] = useState<string | null>(null);
-  const [stkWaiting, setStkWaiting] = useState(false);
 
   const parsedAmount = parseFloat(amount);
   const isValidAmount = Number.isFinite(parsedAmount) && parsedAmount > 0;
@@ -104,51 +99,7 @@ function PayFeeModal({
     ? Math.max(0, availableBalance - parsedAmount)
     : availableBalance;
 
-  useEffect(() => {
-    if (!stkRequestId || !stkWaiting) return;
-
-    let cancelled = false;
-    const poll = async () => {
-      const result = await getMyStkPushStatus(stkRequestId);
-      if (cancelled || 'error' in result) return;
-
-      if (result.status === 'completed') {
-        setStkWaiting(false);
-        setSuccess(
-          result.amount < availableBalance
-            ? `M-Pesa payment of ${formatCurrency(result.amount)} received. Remaining balance will update shortly — you can pay the rest anytime.`
-            : `M-Pesa payment of ${formatCurrency(result.amount)} received and applied to your invoice.`
-        );
-        setReceiptId(result.submissionId ?? null);
-        router.refresh();
-        return;
-      }
-
-      if (result.status === 'failed' || result.status === 'cancelled') {
-        setStkWaiting(false);
-        setError(result.resultDesc || 'M-Pesa payment was not completed.');
-        setStkRequestId(null);
-      }
-    };
-
-    const interval = window.setInterval(poll, 3000);
-    poll();
-
-    const timeout = window.setTimeout(() => {
-      if (!cancelled) {
-        setStkWaiting(false);
-        setError('Payment timed out. If you completed M-Pesa on your phone, refresh this page in a moment.');
-      }
-    }, 120000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      window.clearTimeout(timeout);
-    };
-  }, [stkRequestId, stkWaiting, availableBalance, router]);
-
-  async function handleStkSubmit(e: React.FormEvent) {
+  async function handlePesapalSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -166,16 +117,19 @@ function PayFeeModal({
       return;
     }
 
-    const result = await initiateMyStkPush(fee.id, paidAmount, phone.trim());
+    const result = await initiateMyPesapalPayment(fee.id, paidAmount);
     if (result.error) {
       setError(result.error);
       setLoading(false);
       return;
     }
 
-    setStkRequestId(result.requestId ?? null);
-    setStkWaiting(true);
-    setSuccess('Check your phone — enter your M-Pesa PIN when Safaricom prompts you.');
+    if (result.redirectUrl) {
+      window.location.href = result.redirectUrl;
+      return;
+    }
+
+    setError('PesaPal did not return a payment page.');
     setLoading(false);
   }
 
@@ -229,15 +183,15 @@ function PayFeeModal({
       onClose={onClose}
       title="Pay fees"
       description={
-        stkVisible
-          ? 'Pay instantly with M-Pesa STK push or submit a manual payment'
+        onlineVisible
+          ? 'Pay online with PesaPal (M-Pesa, card) or submit a manual payment'
           : 'Pay what you have — partial payments are welcome'
       }
       size="md"
     >
-        {stkVisible && !success && (
+        {onlineVisible && !success && (
           <div className="mt-4 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
-            {(['stk', 'manual'] as const).map((tab) => (
+            {(['online', 'manual'] as const).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -250,7 +204,7 @@ function PayFeeModal({
                   mode === tab ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'
                 )}
               >
-                {tab === 'stk' ? 'M-Pesa STK push' : 'Manual payment'}
+                {tab === 'online' ? 'Pay online (PesaPal)' : 'Manual payment'}
               </button>
             ))}
           </div>
@@ -288,40 +242,34 @@ function PayFeeModal({
         {success ? (
           <div className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             <div className="flex items-start gap-2">
-              {stkWaiting ? (
-                <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
-              ) : (
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              )}
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{success}</span>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              {receiptId && !stkWaiting && (
+              {receiptId && (
                 <Link href={`/student/fees/receipt/${receiptId}`} target="_blank">
                   <Button>Download receipt</Button>
                 </Link>
               )}
-              {!stkWaiting && (
-                <Button variant="secondary" onClick={onClose}>
-                  Close
-                </Button>
-              )}
+              <Button variant="secondary" onClick={onClose}>
+                Close
+              </Button>
             </div>
           </div>
-        ) : mode === 'stk' ? (
-          <form onSubmit={handleStkSubmit} className="mt-4 space-y-4">
+        ) : mode === 'online' ? (
+          <form onSubmit={handlePesapalSubmit} className="mt-4 space-y-4">
             <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
-              <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+              <CreditCard className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                Enter your M-Pesa number and amount. You will get a prompt on your phone to enter your
-                PIN — no paybill steps or confirmation code needed.
+                Enter the amount and continue to PesaPal to pay with M-Pesa, card, or other methods.
+                You will be returned here after payment.
               </p>
             </div>
 
-            {!stkReady && (
+            {!onlineReady && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-                M-Pesa STK push is enabled but not fully set up yet. Ask admin to add the M-Pesa
-                passkey and other Daraja credentials, then redeploy the app.
+                PesaPal is enabled but not fully set up yet. Ask admin to add PESAPAL_CONSUMER_KEY and
+                PESAPAL_CONSUMER_SECRET on the server, then redeploy.
               </div>
             )}
 
@@ -330,15 +278,6 @@ function PayFeeModal({
               balance={balance}
               pendingAmount={pendingAmount}
               availableBalance={availableBalance}
-            />
-
-            <Input
-              label="M-Pesa phone number"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="e.g. 0712 345 678"
-              required
             />
 
             <div className="space-y-2">
@@ -387,8 +326,8 @@ function PayFeeModal({
               <Button type="button" variant="secondary" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !isValidAmount || !phone.trim() || !stkReady}>
-                {loading ? 'Sending prompt...' : 'Send M-Pesa prompt'}
+              <Button type="submit" disabled={loading || !isValidAmount || !onlineReady}>
+                {loading ? 'Redirecting...' : 'Continue to PesaPal'}
               </Button>
             </div>
           </form>
@@ -488,7 +427,7 @@ export function StudentFeesClient({
   student,
   fees,
   paymentSettings,
-  stkConfigured,
+  pesapalConfigured,
   totalDue,
   totalPaid,
   totalBilled,
@@ -497,18 +436,18 @@ export function StudentFeesClient({
   student: Student;
   fees: FeePayment[];
   paymentSettings: PaymentSettings;
-  stkConfigured: boolean;
+  pesapalConfigured: boolean;
   totalDue: number;
   totalPaid: number;
   totalBilled: number;
   fromEnrollment?: boolean;
 }) {
   const [payingFee, setPayingFee] = useState<FeePayment | null>(null);
-  const [payMode, setPayMode] = useState<'stk' | 'manual'>('stk');
+  const [payMode, setPayMode] = useState<'online' | 'manual'>('online');
   const admissionNumber = getAdmissionNumber(student);
-  const stkVisible = paymentSettings.mpesaStkEnabled || stkConfigured;
+  const onlineVisible = paymentSettings.pesapalEnabled || pesapalConfigured;
 
-  function openPayModal(fee: FeePayment, mode: 'stk' | 'manual' = 'stk') {
+  function openPayModal(fee: FeePayment, mode: 'online' | 'manual' = 'online') {
     setPayMode(mode);
     setPayingFee(fee);
   }
@@ -556,17 +495,17 @@ export function StudentFeesClient({
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
-          {stkVisible && (
+          {onlineVisible && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:col-span-2">
-              <p className="font-semibold text-emerald-900">M-Pesa STK push</p>
+              <p className="font-semibold text-emerald-900">Pay online with PesaPal</p>
               <p className="mt-1 text-emerald-800">
-                Pay directly from your phone. Click <strong>Pay fees</strong>, enter your M-Pesa number
-                and amount, then approve the prompt on your phone.
+                Click <strong>Pay fees</strong>, enter your amount, then pay with M-Pesa or card on
+                the secure PesaPal page.
               </p>
-              {!stkConfigured && (
+              {!pesapalConfigured && (
                 <p className="mt-2 text-xs text-amber-800">
-                  STK is visible but not active yet — admin must complete M-Pesa Daraja setup
-                  (especially MPESA_PASSKEY).
+                  PesaPal is visible but not active yet — admin must add PesaPal credentials on the
+                  server.
                 </p>
               )}
             </div>
@@ -576,8 +515,8 @@ export function StudentFeesClient({
             <p className="mt-1 text-slate-600">
               If you do not have the full balance, pay what you can today. Your invoice stays open
               until the remainder is cleared.
-              {stkVisible
-                ? ' Use M-Pesa STK push for an instant payment prompt on your phone.'
+              {onlineVisible
+                ? ' Use PesaPal for instant online payment.'
                 : ' Submit each M-Pesa or bank payment separately with its confirmation code.'}
             </p>
           </div>
@@ -664,7 +603,7 @@ export function StudentFeesClient({
                         </Button>
                       </Link>
                       {!isPaid && (
-                        <Button size="sm" onClick={() => openPayModal(fee, 'stk')}>
+                        <Button size="sm" onClick={() => openPayModal(fee, 'online')}>
                           {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
                         </Button>
                       )}
@@ -716,8 +655,7 @@ export function StudentFeesClient({
           fee={payingFee}
           admissionNumber={admissionNumber}
           paymentSettings={paymentSettings}
-          studentPhone={student.phone ?? ''}
-          stkConfigured={stkConfigured}
+          pesapalConfigured={pesapalConfigured}
           initialMode={payMode}
           onClose={() => setPayingFee(null)}
         />

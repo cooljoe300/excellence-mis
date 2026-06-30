@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getProfile } from '@/app/actions/dashboard';
 import { getAdmissionNumberFormat, getPaymentSettings } from '@/app/actions/system-settings';
 import { getPrograms } from '@/app/actions/programs';
-import { isMpesaStkConfigured, getMpesaStkMissingConfig } from '@/lib/mpesa';
+import { isPesapalConfigured, getPesapalMissingConfig } from '@/lib/pesapal';
 import { AdmissionFormatCard } from '@/components/settings/admission-format-card';
 import { PaymentSettingsCard } from '@/components/settings/payment-settings-card';
 import { ExternalLink } from 'lucide-react';
@@ -13,8 +13,8 @@ export default async function SettingsPage() {
   const admissionFormat = profile?.role === 'admin' ? await getAdmissionNumberFormat() : null;
   const programs = profile?.role === 'admin' ? await getPrograms() : [];
   const paymentSettings = profile?.role === 'admin' ? await getPaymentSettings() : null;
-  const stkConfigured = isMpesaStkConfigured();
-  const stkMissingConfig = getMpesaStkMissingConfig();
+  const pesapalConfigured = isPesapalConfigured();
+  const pesapalMissingConfig = getPesapalMissingConfig();
 
   return (
     <div>
@@ -51,8 +51,8 @@ export default async function SettingsPage() {
         {profile?.role === 'admin' && paymentSettings && (
           <PaymentSettingsCard
             initialSettings={paymentSettings}
-            stkConfigured={stkConfigured}
-            stkMissingConfig={stkMissingConfig}
+            pesapalConfigured={pesapalConfigured}
+            pesapalMissingConfig={pesapalMissingConfig}
           />
         )}
 
