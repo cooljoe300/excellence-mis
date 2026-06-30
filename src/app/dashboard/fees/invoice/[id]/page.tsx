@@ -24,8 +24,8 @@ export default async function AdminFeeInvoicePage({
 
   return (
     <div className="bg-slate-100 p-6 print:bg-white print:p-0">
-      <div className="mx-auto mb-6 max-w-2xl print:hidden">
-        <PrintInvoiceButton />
+      <div className="mx-auto mb-6 max-w-2xl no-print">
+        <PrintInvoiceButton label="Save as PDF" />
       </div>
       <FeeInvoiceDocument
         fee={fee as FeePayment}

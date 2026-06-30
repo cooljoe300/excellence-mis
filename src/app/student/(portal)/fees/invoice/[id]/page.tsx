@@ -26,13 +26,13 @@ export default async function StudentFeeInvoicePage({
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 no-print">
         <Link href="/student/fees">
           <Button variant="secondary" size="sm">
             Back to fees
           </Button>
         </Link>
-        <PrintInvoiceButton />
+        <PrintInvoiceButton label="Save as PDF" />
       </div>
       <FeeInvoiceDocument
         fee={data.fee as FeePayment}

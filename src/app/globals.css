@@ -87,9 +87,14 @@ body {
 }
 
 @media print {
+  @page {
+    margin: 1.2cm;
+    size: A4;
+  }
+
   aside,
   nav,
-  header,
+  header:not(.document-letterhead),
   .no-print {
     display: none !important;
   }
@@ -101,5 +106,22 @@ body {
 
   body {
     background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-document {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .document-letterhead img {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }

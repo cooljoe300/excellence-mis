@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMemo, useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/utils';
+import { PrintDocumentButton } from '@/components/documents/print-document-button';
+import { ReportPrintDocument } from '@/components/reports/report-print-document';
 import { downloadCsv, reportFilename } from '@/lib/reports/csv';
 import {
   buildAttendanceCsv,
@@ -18,285 +19,234 @@ import {
   buildStudentsByProgramCsv,
   buildStudentsByStatusCsv,
 } from '@/lib/reports/serializers';
+import {
+  DEFAULT_REPORT_FILTERS,
+  REPORT_OPTIONS,
+  buildReportTable,
+  filterAttendance,
+  filterCourses,
+  filterEnrollments,
+  filterFees,
+  filterStudents,
+  getTermOptions,
+  type ReportFilters,
+  type ReportKey,
+} from '@/lib/reports/build-report-table';
 import type { ReportsBundle } from '@/app/actions/reports';
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { Download } from 'lucide-react';
 
-type ReportKey =
-  | 'executive-summary'
-  | 'students-by-status'
-  | 'students-by-program'
-  | 'student-register'
-  | 'fee-summary'
-  | 'fee-ledger'
-  | 'programs'
-  | 'courses'
-  | 'enrollments'
-  | 'attendance';
+function buildFilteredCsv(key: ReportKey, data: ReportsBundle, filters: ReportFilters) {
+  const students = filterStudents(data.students, filters);
+  const fees = filterFees(data.fees, filters);
+  const courses = filterCourses(data.courses, filters);
+  const enrollments = filterEnrollments(data.enrollments, filters);
+  const attendance = filterAttendance(data.attendance, filters);
 
-const REPORTS: {
-  key: ReportKey;
-  title: string;
-  description: string;
-  build: (data: ReportsBundle) => string[][];
-}[] = [
-  {
-    key: 'executive-summary',
-    title: 'Executive Summary',
-    description: 'Key institutional metrics and fee collection totals.',
-    build: (data) => buildExecutiveSummaryCsv(data.stats, data.generatedAt),
-  },
-  {
-    key: 'students-by-status',
-    title: 'Students by Status',
-    description: 'Count of students grouped by active, graduated, suspended, and other statuses.',
-    build: (data) => buildStudentsByStatusCsv(data.byStatus, data.generatedAt),
-  },
-  {
-    key: 'students-by-program',
-    title: 'Students by Program',
-    description: 'Enrollment distribution across academic programs.',
-    build: (data) => buildStudentsByProgramCsv(data.byProgram, data.generatedAt),
-  },
-  {
-    key: 'student-register',
-    title: 'Full Student Register',
-    description: 'Complete student list with admission numbers, contact details, and LMS status.',
-    build: (data) => buildStudentRegisterCsv(data.students, data.generatedAt),
-  },
-  {
-    key: 'fee-summary',
-    title: 'Fee Collection Summary',
-    description: 'Revenue collected and invoice counts by payment status.',
-    build: (data) => buildFeeSummaryCsv(data.stats, data.feeSummary, data.generatedAt),
-  },
-  {
-    key: 'fee-ledger',
-    title: 'Fee Payments Ledger',
-    description: 'Detailed fee invoices with amounts paid, balances, and references.',
-    build: (data) => buildFeeLedgerCsv(data.fees, data.generatedAt),
-  },
-  {
-    key: 'programs',
-    title: 'Programs Overview',
-    description: 'All programs with tuition fees and duration.',
-    build: (data) => buildProgramsCsv(data.programs, data.generatedAt),
-  },
-  {
-    key: 'courses',
-    title: 'Courses Catalog',
-    description: 'All courses with unit fees, programs, and instructors.',
-    build: (data) => buildCoursesCsv(data.courses, data.generatedAt),
-  },
-  {
-    key: 'enrollments',
-    title: 'Enrollments Report',
-    description: 'Student unit registrations by term and course.',
-    build: (data) => buildEnrollmentsCsv(data.enrollments, data.generatedAt),
-  },
-  {
-    key: 'attendance',
-    title: 'Attendance Report',
-    description: 'Attendance records by student, course, and date.',
-    build: (data) => buildAttendanceCsv(data.attendance, data.generatedAt),
-  },
-];
+  const byStatus = students.reduce(
+    (acc, s) => {
+      acc[s.status] = (acc[s.status] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
-function downloadReport(key: ReportKey, data: ReportsBundle) {
-  const report = REPORTS.find((item) => item.key === key);
-  if (!report) return;
-  downloadCsv(reportFilename(report.key), report.build(data));
+  const byProgram = students.reduce(
+    (acc, s) => {
+      const name = (s.program as { name?: string } | null)?.name ?? 'Unassigned';
+      acc[name] = (acc[name] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const feeSummary = fees.reduce(
+    (acc, fee) => {
+      acc[fee.status] = (acc[fee.status] ?? 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+
+  const filteredPrograms = data.programs.filter((p) => {
+    if (filters.programId && p.id !== filters.programId) return false;
+    return true;
+  });
+
+  switch (key) {
+    case 'executive-summary':
+      return buildExecutiveSummaryCsv(data.stats, data.generatedAt);
+    case 'students-by-status':
+      return buildStudentsByStatusCsv(byStatus, data.generatedAt);
+    case 'students-by-program':
+      return buildStudentsByProgramCsv(byProgram, data.generatedAt);
+    case 'student-register':
+      return buildStudentRegisterCsv(students, data.generatedAt);
+    case 'fee-summary':
+      return buildFeeSummaryCsv(data.stats, feeSummary, data.generatedAt);
+    case 'fee-ledger':
+      return buildFeeLedgerCsv(fees, data.generatedAt);
+    case 'programs':
+      return buildProgramsCsv(filteredPrograms, data.generatedAt);
+    case 'courses':
+      return buildCoursesCsv(courses, data.generatedAt);
+    case 'enrollments':
+      return buildEnrollmentsCsv(enrollments, data.generatedAt);
+    case 'attendance':
+      return buildAttendanceCsv(attendance, data.generatedAt);
+  }
 }
 
-export function ReportsClient({ data }: { data: ReportsBundle }) {
-  const [downloadingAll, setDownloadingAll] = useState(false);
+const STUDENT_REPORTS: ReportKey[] = [
+  'students-by-status',
+  'students-by-program',
+  'student-register',
+];
 
-  async function handleDownloadAll() {
-    setDownloadingAll(true);
-    for (const report of REPORTS) {
-      downloadReport(report.key, data);
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-    setDownloadingAll(false);
+const FEE_REPORTS: ReportKey[] = ['fee-summary', 'fee-ledger'];
+
+export function ReportsClient({ data }: { data: ReportsBundle }) {
+  const [reportKey, setReportKey] = useState<ReportKey>('student-register');
+  const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
+
+  const termOptions = useMemo(() => getTermOptions(data), [data]);
+  const table = useMemo(() => buildReportTable(reportKey, data, filters), [reportKey, data, filters]);
+
+  const programOptions = [
+    { value: '', label: 'All programs' },
+    ...data.programs.map((p) => ({ value: p.id, label: p.name })),
+  ];
+
+  const statusOptions = [
+    { value: '', label: 'All statuses' },
+    ...['active', 'inactive', 'graduated', 'suspended', 'withdrawn', 'pending', 'paid', 'partial', 'overdue'].map(
+      (s) => ({ value: s, label: s })
+    ),
+  ];
+
+  const termSelectOptions = [
+    { value: '', label: 'All semesters' },
+    ...termOptions.map((t) => ({ value: t, label: t })),
+  ];
+
+  function updateFilter<K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
   }
+
+  function handleCsvDownload() {
+    downloadCsv(reportFilename(reportKey), buildFilteredCsv(reportKey, data, filters));
+  }
+
+  const showProgramFilter = !['executive-summary', 'students-by-status'].includes(reportKey);
+  const showStatusFilter = reportKey !== 'executive-summary' && reportKey !== 'programs';
+  const showTermFilter = FEE_REPORTS.includes(reportKey) || reportKey === 'enrollments';
+  const showDateFilter = FEE_REPORTS.includes(reportKey) || reportKey === 'attendance';
+  const showSearch =
+    reportKey !== 'executive-summary' &&
+    reportKey !== 'students-by-status' &&
+    reportKey !== 'students-by-program' &&
+    reportKey !== 'fee-summary';
 
   return (
     <div className="space-y-6">
-      <Card className="border-blue-200 bg-blue-50/40">
-        <CardContent className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-semibold text-blue-900">Download reports</p>
-            <p className="mt-1 text-sm text-blue-800">
-              Export any report as CSV for Excel or Google Sheets. Generated{' '}
-              {new Date(data.generatedAt).toLocaleString()}.
-            </p>
-          </div>
-          <Button onClick={handleDownloadAll} disabled={downloadingAll}>
-            <FileSpreadsheet className="h-4 w-4" />
-            {downloadingAll ? 'Preparing downloads...' : 'Download all reports'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardContent className="py-5">
-            <p className="text-sm text-slate-500">Total students</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{data.stats.totalStudents}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-5">
-            <p className="text-sm text-slate-500">Active enrollments</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{data.stats.activeEnrollments}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-5">
-            <p className="text-sm text-slate-500">Revenue collected</p>
-            <p className="mt-1 text-2xl font-bold text-emerald-700">
-              {formatCurrency(data.stats.totalRevenue)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-5">
-            <p className="text-sm text-slate-500">Pending / overdue fees</p>
-            <p className="mt-1 text-2xl font-bold text-amber-700">
-              {data.stats.pendingFees} / {data.stats.overdueFees}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {REPORTS.map((report) => (
-          <Card key={report.key}>
-            <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-              <div>
-                <CardTitle className="text-base">{report.title}</CardTitle>
-                <p className="mt-1 text-sm text-slate-500">{report.description}</p>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => downloadReport(report.key, data)}
-              >
-                <Download className="h-4 w-4" />
-                CSV
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <ReportPreview reportKey={report.key} data={data} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ReportPreview({ reportKey, data }: { reportKey: ReportKey; data: ReportsBundle }) {
-  switch (reportKey) {
-    case 'executive-summary':
-      return (
-        <div className="space-y-2 text-sm">
-          <PreviewRow label="Students" value={String(data.stats.totalStudents)} />
-          <PreviewRow label="Programs" value={String(data.stats.totalPrograms)} />
-          <PreviewRow label="Revenue" value={formatCurrency(data.stats.totalRevenue)} />
-        </div>
-      );
-    case 'students-by-status':
-      return <KeyValuePreview entries={data.byStatus} emptyLabel="No student data" badge />;
-    case 'students-by-program':
-      return <KeyValuePreview entries={data.byProgram} emptyLabel="No program data" />;
-    case 'student-register':
-      return (
-        <p className="text-sm text-slate-600">
-          {data.students.length} student{data.students.length === 1 ? '' : 's'} in full register export.
-        </p>
-      );
-    case 'fee-summary':
-      return (
-        <div className="space-y-2 text-sm">
-          <PreviewRow label="Revenue collected" value={formatCurrency(data.stats.totalRevenue)} />
-          <KeyValuePreview entries={data.feeSummary} emptyLabel="No fee data" badge />
-        </div>
-      );
-    case 'fee-ledger':
-      return (
-        <p className="text-sm text-slate-600">
-          {data.fees.length} fee invoice{data.fees.length === 1 ? '' : 's'} with balances and references.
-        </p>
-      );
-    case 'programs':
-      return (
-        <div className="space-y-2">
-          {data.programs.slice(0, 4).map((program) => (
-            <PreviewRow
-              key={program.id}
-              label={program.name}
-              value={formatCurrency(program.tuition_fee)}
+      {/* Toolbar */}
+      <div className="no-print rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <Select
+              label="Report"
+              value={reportKey}
+              onChange={(e) => setReportKey(e.target.value as ReportKey)}
+              options={REPORT_OPTIONS.map((r) => ({ value: r.key, label: r.label }))}
             />
-          ))}
-          {data.programs.length > 4 && (
-            <p className="text-xs text-slate-500">+ {data.programs.length - 4} more in CSV</p>
-          )}
+
+            {showProgramFilter && (
+              <Select
+                label="Program"
+                value={filters.programId}
+                onChange={(e) => updateFilter('programId', e.target.value)}
+                options={programOptions}
+              />
+            )}
+
+            {showStatusFilter && (
+              <Select
+                label="Status"
+                value={filters.status}
+                onChange={(e) => updateFilter('status', e.target.value)}
+                options={
+                  STUDENT_REPORTS.includes(reportKey)
+                    ? statusOptions.filter((o) =>
+                        ['', 'active', 'inactive', 'graduated', 'suspended', 'withdrawn'].includes(o.value)
+                      )
+                    : FEE_REPORTS.includes(reportKey)
+                      ? statusOptions.filter((o) =>
+                          ['', 'pending', 'paid', 'partial', 'overdue', 'waived'].includes(o.value)
+                        )
+                      : reportKey === 'enrollments'
+                        ? statusOptions.filter((o) =>
+                            ['', 'pending', 'active', 'completed', 'dropped'].includes(o.value)
+                          )
+                        : reportKey === 'attendance'
+                          ? statusOptions.filter((o) =>
+                              ['', 'present', 'absent', 'late', 'excused'].includes(o.value)
+                            )
+                          : statusOptions
+                }
+              />
+            )}
+
+            {showTermFilter && (
+              <Select
+                label="Semester"
+                value={filters.termName}
+                onChange={(e) => updateFilter('termName', e.target.value)}
+                options={termSelectOptions}
+              />
+            )}
+
+            {showDateFilter && (
+              <>
+                <Input
+                  label="From date"
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => updateFilter('dateFrom', e.target.value)}
+                />
+                <Input
+                  label="To date"
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => updateFilter('dateTo', e.target.value)}
+                />
+              </>
+            )}
+
+            {showSearch && (
+              <Input
+                label="Search"
+                placeholder="Name, admission no., course..."
+                value={filters.search}
+                onChange={(e) => updateFilter('search', e.target.value)}
+                className="sm:col-span-2"
+              />
+            )}
+          </div>
+
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={() => setFilters(DEFAULT_REPORT_FILTERS)}>
+              Clear filters
+            </Button>
+            <Button type="button" variant="secondary" onClick={handleCsvDownload}>
+              <Download className="h-4 w-4" />
+              CSV
+            </Button>
+            <PrintDocumentButton />
+          </div>
         </div>
-      );
-    case 'courses':
-      return (
-        <p className="text-sm text-slate-600">
-          {data.courses.length} course{data.courses.length === 1 ? '' : 's'} with fees and instructors.
-        </p>
-      );
-    case 'enrollments':
-      return (
-        <p className="text-sm text-slate-600">
-          {data.enrollments.length} enrollment record{data.enrollments.length === 1 ? '' : 's'}.
-        </p>
-      );
-    case 'attendance':
-      return (
-        <p className="text-sm text-slate-600">
-          {data.attendance.length} attendance record{data.attendance.length === 1 ? '' : 's'}.
-        </p>
-      );
-    default:
-      return null;
-  }
-}
+      </div>
 
-function PreviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-slate-600">{label}</span>
-      <span className="font-semibold text-slate-900">{value}</span>
-    </div>
-  );
-}
-
-function KeyValuePreview({
-  entries,
-  emptyLabel,
-  badge = false,
-}: {
-  entries: Record<string, number>;
-  emptyLabel: string;
-  badge?: boolean;
-}) {
-  const items = Object.entries(entries);
-  if (items.length === 0) {
-    return <p className="text-sm text-slate-500">{emptyLabel}</p>;
-  }
-
-  return (
-    <div className="space-y-2">
-      {items.map(([key, count]) => (
-        <div key={key} className="flex items-center justify-between text-sm">
-          {badge ? <Badge status={key}>{key}</Badge> : <span className="text-slate-600">{key}</span>}
-          <span className="font-semibold text-slate-900">{count}</span>
-        </div>
-      ))}
+      {/* Printable report */}
+      <ReportPrintDocument table={table} />
     </div>
   );
 }

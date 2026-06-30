@@ -1,3 +1,4 @@
+import { DocumentLetterhead } from '@/components/documents/document-letterhead';
 import { formatCurrency, formatDate, getAdmissionNumber } from '@/lib/utils';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 
@@ -30,35 +31,30 @@ export function FeePaymentReceiptDocument({
   return (
     <div
       id="fee-payment-receipt"
-      className="mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm print:shadow-none print:border-slate-300"
+      className="print-document mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none"
     >
-      <div className="border-b border-slate-200 pb-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
-              Excellence Online College
+      <DocumentLetterhead
+        documentTitle="Payment Receipt"
+        documentSubtitle={`Receipt #${submission.id.slice(0, 8).toUpperCase()}`}
+        rightMeta={
+          <>
+            <p>
+              <span className="text-slate-500">Submitted:</span>{' '}
+              <span className="font-medium text-slate-900">{formatDate(submission.created_at)}</span>
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Payment Receipt</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Receipt #{submission.id.slice(0, 8).toUpperCase()}
-            </p>
-          </div>
-          <div className="text-right text-sm">
-            <p className="text-slate-500">Submitted</p>
-            <p className="font-medium text-slate-900">{formatDate(submission.created_at)}</p>
             {submission.reviewed_at && (
-              <>
-                <p className="mt-2 text-slate-500">
-                  {submission.status === 'approved' ? 'Approved' : 'Reviewed'}
-                </p>
-                <p className="font-medium text-slate-900">{formatDate(submission.reviewed_at)}</p>
-              </>
+              <p>
+                <span className="text-slate-500">
+                  {submission.status === 'approved' ? 'Approved:' : 'Reviewed:'}
+                </span>{' '}
+                <span className="font-medium text-slate-900">{formatDate(submission.reviewed_at)}</span>
+              </p>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="grid gap-6 py-6 sm:grid-cols-2 text-sm">
+      <div className="grid gap-6 py-2 sm:grid-cols-2 text-sm">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Received from</p>
           <p className="mt-2 font-semibold text-slate-900">
@@ -78,9 +74,7 @@ export function FeePaymentReceiptDocument({
           <p className="text-slate-600">
             <span className="text-slate-500">Invoice:</span> #{fee.id.slice(0, 8).toUpperCase()}
           </p>
-          {fee.description && (
-            <p className="mt-1 text-slate-600">{fee.description}</p>
-          )}
+          {fee.description && <p className="mt-1 text-slate-600">{fee.description}</p>}
         </div>
       </div>
 
@@ -137,9 +131,9 @@ export function FeePaymentReceiptDocument({
         </div>
       )}
 
-      <p className="mt-8 text-center text-xs text-slate-400">
+      <footer className="mt-8 border-t border-slate-200 pt-4 text-center text-xs text-slate-400">
         Official payment receipt — Excellence Online College
-      </p>
+      </footer>
     </div>
   );
 }

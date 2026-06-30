@@ -9,7 +9,7 @@ export default async function ReportsPage() {
     <div>
       <PageHeader
         title="Reports"
-        description="Institutional analytics — preview summaries and download CSV reports"
+        description="Select a report, apply filters, then save as PDF or export CSV"
       />
       <ReportsClient data={data} />
     </div>

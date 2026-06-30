@@ -23,13 +23,13 @@ export default async function StudentFeeReceiptPage({
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 no-print">
         <Link href="/student/fees">
           <Button variant="secondary" size="sm">
             Back to fees
           </Button>
         </Link>
-        <PrintInvoiceButton label="Download / Print Receipt" />
+        <PrintInvoiceButton label="Save as PDF" />
       </div>
       <FeePaymentReceiptDocument
         submission={data.submission as FeePaymentSubmission}

@@ -1,3 +1,4 @@
+import { DocumentLetterhead } from '@/components/documents/document-letterhead';
 import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/lib/system-settings';
@@ -20,31 +21,28 @@ export function FeeInvoiceDocument({
   return (
     <div
       id="fee-invoice"
-      className="mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm print:shadow-none print:border-slate-300"
+      className="print-document mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none"
     >
-      <div className="border-b border-slate-200 pb-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
-              Excellence Online College
+      <DocumentLetterhead
+        documentTitle="Fee Invoice"
+        documentSubtitle={`Invoice #${fee.id.slice(0, 8).toUpperCase()}`}
+        rightMeta={
+          <>
+            <p>
+              <span className="text-slate-500">Date:</span>{' '}
+              <span className="font-medium text-slate-900">{formatDate(fee.created_at)}</span>
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Fee Invoice</h1>
-            <p className="mt-1 text-sm text-slate-500">Invoice #{fee.id.slice(0, 8).toUpperCase()}</p>
-          </div>
-          <div className="text-right text-sm">
-            <p className="text-slate-500">Date</p>
-            <p className="font-medium text-slate-900">{formatDate(fee.created_at)}</p>
             {fee.due_date && (
-              <>
-                <p className="mt-2 text-slate-500">Due date</p>
-                <p className="font-medium text-slate-900">{formatDate(fee.due_date)}</p>
-              </>
+              <p>
+                <span className="text-slate-500">Due:</span>{' '}
+                <span className="font-medium text-slate-900">{formatDate(fee.due_date)}</span>
+              </p>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
-      <div className="grid gap-6 py-6 sm:grid-cols-2 text-sm">
+      <div className="grid gap-6 py-2 sm:grid-cols-2 text-sm">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Bill to</p>
           <p className="mt-2 font-semibold text-slate-900">
@@ -68,9 +66,7 @@ export function FeeInvoiceDocument({
         </div>
       </div>
 
-      {fee.description && (
-        <p className="mb-4 text-sm text-slate-600">{fee.description}</p>
-      )}
+      {fee.description && <p className="mb-4 text-sm text-slate-600">{fee.description}</p>}
 
       <table className="w-full text-sm">
         <thead className="border-y border-slate-200 bg-slate-50 text-left text-slate-500">
@@ -136,9 +132,9 @@ export function FeeInvoiceDocument({
         </div>
       )}
 
-      <p className="mt-8 text-center text-xs text-slate-400">
-        This invoice is also available in the student portal under Fees & Payments.
-      </p>
+      <footer className="mt-8 border-t border-slate-200 pt-4 text-center text-xs text-slate-400">
+        Official fee invoice — Excellence Online College
+      </footer>
     </div>
   );
 }
