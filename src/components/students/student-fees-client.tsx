@@ -428,34 +428,18 @@ function PayFeeModal({
         {mode === 'manual' && (
         <div className="mt-4 space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm">
           <div className="flex items-center gap-2 font-medium text-blue-900">
-            <Smartphone className="h-4 w-4" />
-            M-Pesa Paybill
+            <Building2 className="h-4 w-4" />
+            Bank payment
           </div>
-          <div className="flex justify-between">
-            <span className="text-blue-800">Business number</span>
-            <span className="font-mono font-bold text-blue-900">{paymentSettings.mpesaPaybill}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-blue-800">Account number</span>
-            <span className="font-mono font-bold text-blue-900">{admissionNumber}</span>
-          </div>
-          <p className="text-xs text-blue-700">{paymentSettings.mpesaAccountLabel}</p>
-
-          <div className="border-t border-blue-200 pt-3">
-            <div className="flex items-center gap-2 font-medium text-blue-900">
-              <Building2 className="h-4 w-4" />
-              Bank payment
-            </div>
-            <p className="mt-1 font-semibold text-blue-900">{paymentSettings.bankName}</p>
-            <p className="text-blue-800">
-              Paybill: <span className="font-mono font-bold text-blue-900">{paymentSettings.mpesaPaybill}</span>
-            </p>
-            <p className="text-blue-800">
-              Account No:{' '}
-              <span className="font-mono font-bold text-blue-900">{paymentSettings.bankAccount}</span>
-            </p>
-            <p className="text-blue-800">Name: {paymentSettings.bankBranch}</p>
-          </div>
+          <p className="mt-1 font-semibold text-blue-900">{paymentSettings.bankName}</p>
+          <p className="text-blue-800">
+            Paybill: <span className="font-mono font-bold text-blue-900">{paymentSettings.mpesaPaybill}</span>
+          </p>
+          <p className="text-blue-800">
+            Account No:{' '}
+            <span className="font-mono font-bold text-blue-900">{paymentSettings.bankAccount}</span>
+          </p>
+          <p className="text-blue-800">Name: {paymentSettings.bankBranch}</p>
         </div>
         )}
 
@@ -850,19 +834,6 @@ export function StudentFeesClient({
               </p>
             </PaymentMethodCard>
           )}
-          <PaymentMethodCard
-            title="M-Pesa Paybill"
-            icon={Smartphone}
-            accent="indigo"
-          >
-            <p>
-              Paybill: <span className="font-mono font-bold">{paymentSettings.mpesaPaybill}</span>
-            </p>
-            <p>
-              Account: <span className="font-mono font-bold">{admissionNumber}</span>
-            </p>
-            <p className="text-xs text-slate-500">{paymentSettings.mpesaAccountLabel}</p>
-          </PaymentMethodCard>
           <PaymentMethodCard title="Bank payment" icon={Building2} accent="slate">
             <p className="font-semibold">{paymentSettings.bankName}</p>
             <p>
