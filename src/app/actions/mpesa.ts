@@ -13,7 +13,7 @@ export async function getMpesaStkAvailability() {
   const settings = await getPaymentSettings();
   const missingConfig = getMpesaStkMissingConfig();
   return {
-    enabled: settings.pesapalEnabled,
+    enabled: settings.mpesaStkEnabled,
     configured: missingConfig.length === 0,
     missingConfig,
   };

@@ -49,6 +49,7 @@ const PAYMENT_SETTING_KEYS = {
 const PAYMENT_DEFAULTS: PaymentSettings = {
   mpesaPaybill: '247247',
   mpesaAccountLabel: 'Use your admission number as account number',
+  mpesaStkEnabled: false,
   pesapalEnabled: true,
   bankName: 'EQUITY BANK',
   bankAccount: '0711552570',
@@ -65,10 +66,12 @@ export async function getPaymentSettings(): Promise<PaymentSettings> {
     mpesaPaybill: map.get(PAYMENT_SETTING_KEYS.mpesaPaybill) ?? PAYMENT_DEFAULTS.mpesaPaybill,
     mpesaAccountLabel:
       map.get(PAYMENT_SETTING_KEYS.mpesaAccountLabel) ?? PAYMENT_DEFAULTS.mpesaAccountLabel,
+    mpesaStkEnabled:
+      (map.get(PAYMENT_SETTING_KEYS.mpesaStkEnabled) ??
+        String(PAYMENT_DEFAULTS.mpesaStkEnabled)) === 'true',
     pesapalEnabled:
-      (map.get(PAYMENT_SETTING_KEYS.pesapalEnabled) ??
-        map.get(PAYMENT_SETTING_KEYS.mpesaStkEnabled) ??
-        String(PAYMENT_DEFAULTS.pesapalEnabled)) === 'true',
+      (map.get(PAYMENT_SETTING_KEYS.pesapalEnabled) ?? String(PAYMENT_DEFAULTS.pesapalEnabled)) ===
+      'true',
     bankName: map.get(PAYMENT_SETTING_KEYS.bankName) ?? PAYMENT_DEFAULTS.bankName,
     bankAccount: map.get(PAYMENT_SETTING_KEYS.bankAccount) ?? PAYMENT_DEFAULTS.bankAccount,
     bankBranch: map.get(PAYMENT_SETTING_KEYS.bankBranch) ?? PAYMENT_DEFAULTS.bankBranch,
@@ -80,6 +83,10 @@ export async function setPaymentSettings(settings: PaymentSettings) {
   const rows = [
     { key: PAYMENT_SETTING_KEYS.mpesaPaybill, value: settings.mpesaPaybill.trim() },
     { key: PAYMENT_SETTING_KEYS.mpesaAccountLabel, value: settings.mpesaAccountLabel.trim() },
+    {
+      key: PAYMENT_SETTING_KEYS.mpesaStkEnabled,
+      value: settings.mpesaStkEnabled ? 'true' : 'false',
+    },
     {
       key: PAYMENT_SETTING_KEYS.pesapalEnabled,
       value: settings.pesapalEnabled ? 'true' : 'false',

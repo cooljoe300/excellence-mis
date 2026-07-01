@@ -70,6 +70,22 @@ export function PaymentSettingsCard({
           </span>
         </label>
 
+        <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={settings.mpesaStkEnabled}
+            onChange={(e) => setSettings((s) => ({ ...s, mpesaStkEnabled: e.target.checked }))}
+          />
+          <span>
+            <span className="font-medium text-slate-900">Enable M-Pesa STK Push</span>
+            <span className="mt-1 block text-slate-600">
+              Students can enter their phone number and receive an M-Pesa prompt directly on their
+              handset. Requires Safaricom STK credentials in server environment variables.
+            </span>
+          </span>
+        </label>
+
         <Input
           label="M-Pesa paybill number (manual payments)"
           value={settings.mpesaPaybill}
