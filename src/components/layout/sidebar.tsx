@@ -14,6 +14,7 @@ import {
   CreditCard,
   BarChart3,
   Settings,
+  Shield,
   LogOut,
   ExternalLink,
   X,
@@ -35,6 +36,7 @@ const allNavItems = [
   { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/fees', label: 'Fees', icon: CreditCard, roles: ['admin', 'staff'] as UserRole[] },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['admin'] as UserRole[] },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin', 'staff'] as UserRole[] },
 ];
 
