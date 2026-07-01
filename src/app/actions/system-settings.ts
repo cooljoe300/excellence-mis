@@ -47,12 +47,12 @@ const PAYMENT_SETTING_KEYS = {
 } as const;
 
 const PAYMENT_DEFAULTS: PaymentSettings = {
-  mpesaPaybill: '522522',
+  mpesaPaybill: '247247',
   mpesaAccountLabel: 'Use your admission number as account number',
   pesapalEnabled: true,
-  bankName: 'Equity Bank',
-  bankAccount: '1234567890',
-  bankBranch: 'Nairobi',
+  bankName: 'EQUITY BANK',
+  bankAccount: '0711552570',
+  bankBranch: 'Excellence Online Tuition',
 };
 
 export async function getPaymentSettings(): Promise<PaymentSettings> {

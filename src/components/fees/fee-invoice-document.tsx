@@ -123,8 +123,8 @@ export function FeeInvoiceDocument({
             · Account: <span className="font-mono font-bold">{admissionNumber}</span>
           </p>
           <p className="mt-1 text-slate-600">
-            Bank: {paymentSettings.bankName} · {paymentSettings.bankAccount} ·{' '}
-            {paymentSettings.bankBranch}
+            Bank payment: {paymentSettings.bankName} · Paybill {paymentSettings.mpesaPaybill} ·
+            Account No {paymentSettings.bankAccount} · Name {paymentSettings.bankBranch}
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Partial payments are accepted — send what you can and pay the balance later.

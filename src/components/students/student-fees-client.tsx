@@ -230,12 +230,17 @@ function PayFeeModal({
           <div className="border-t border-blue-200 pt-3">
             <div className="flex items-center gap-2 font-medium text-blue-900">
               <Building2 className="h-4 w-4" />
-              Bank transfer
+              Bank payment
             </div>
-            <p className="mt-1 text-blue-800">
-              {paymentSettings.bankName} · {paymentSettings.bankAccount}
+            <p className="mt-1 font-semibold text-blue-900">{paymentSettings.bankName}</p>
+            <p className="text-blue-800">
+              Paybill: <span className="font-mono font-bold text-blue-900">{paymentSettings.mpesaPaybill}</span>
             </p>
-            <p className="text-xs text-blue-700">Branch: {paymentSettings.bankBranch}</p>
+            <p className="text-blue-800">
+              Account No:{' '}
+              <span className="font-mono font-bold text-blue-900">{paymentSettings.bankAccount}</span>
+            </p>
+            <p className="text-blue-800">Name: {paymentSettings.bankBranch}</p>
           </div>
         </div>
         )}
@@ -544,12 +549,15 @@ export function StudentFeesClient({
             <p className="mt-2 text-xs text-slate-500">{paymentSettings.mpesaAccountLabel}</p>
           </div>
           <div className="rounded-xl border border-slate-200 p-4">
-            <p className="font-semibold text-slate-900">Bank transfer</p>
-            <p className="mt-2 text-slate-600">{paymentSettings.bankName}</p>
+            <p className="font-semibold text-slate-900">Bank payment</p>
+            <p className="mt-2 font-semibold text-slate-700">{paymentSettings.bankName}</p>
             <p className="text-slate-600">
-              Account: <span className="font-mono font-bold">{paymentSettings.bankAccount}</span>
+              Paybill: <span className="font-mono font-bold">{paymentSettings.mpesaPaybill}</span>
             </p>
-            <p className="text-slate-600">Branch: {paymentSettings.bankBranch}</p>
+            <p className="text-slate-600">
+              Account No: <span className="font-mono font-bold">{paymentSettings.bankAccount}</span>
+            </p>
+            <p className="text-slate-600">Name: {paymentSettings.bankBranch}</p>
           </div>
         </CardContent>
       </Card>
