@@ -20,7 +20,126 @@ import {
 import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus, cn } from '@/lib/utils';
 import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import { Modal } from '@/components/ui/modal';
-import { CreditCard, Smartphone, Building2, CheckCircle2, Info } from 'lucide-react';
+import {
+  CreditCard,
+  Smartphone,
+  Building2,
+  CheckCircle2,
+  Info,
+  Wallet,
+  Receipt,
+  Sparkles,
+  Banknote,
+  FileText,
+  ArrowRight,
+} from 'lucide-react';
+
+function StatTile({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: 'slate' | 'emerald' | 'blue';
+}) {
+  const tones = {
+    slate: {
+      card: 'border-slate-200 bg-white',
+      icon: 'bg-slate-100 text-slate-600',
+      label: 'text-slate-500',
+      value: 'text-slate-900',
+    },
+    emerald: {
+      card: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-white',
+      icon: 'bg-emerald-100 text-emerald-700',
+      label: 'text-emerald-800',
+      value: 'text-emerald-700',
+    },
+    blue: {
+      card: 'border-blue-200/80 bg-gradient-to-br from-blue-50 to-white',
+      icon: 'bg-blue-100 text-blue-700',
+      label: 'text-blue-800',
+      value: 'text-blue-700',
+    },
+  }[tone];
+
+  return (
+    <Card className={cn('shadow-sm', tones.card)}>
+      <CardContent className="flex items-center gap-4 py-5">
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', tones.icon)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className={cn('text-sm font-medium', tones.label)}>{label}</p>
+          <p className={cn('mt-0.5 text-2xl font-bold tracking-tight', tones.value)}>{value}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentMethodCard({
+  title,
+  description,
+  icon: Icon,
+  children,
+  accent,
+}: {
+  title: string;
+  description?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  accent: 'emerald' | 'blue' | 'slate' | 'indigo';
+}) {
+  const accents = {
+    emerald: 'border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 to-white',
+    blue: 'border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-white',
+    slate: 'border-slate-200 bg-white',
+    indigo: 'border-indigo-200/80 bg-gradient-to-br from-indigo-50/80 to-white',
+  }[accent];
+  const iconBg = {
+    emerald: 'bg-emerald-100 text-emerald-700',
+    blue: 'bg-blue-100 text-blue-700',
+    slate: 'bg-slate-100 text-slate-600',
+    indigo: 'bg-indigo-100 text-indigo-700',
+  }[accent];
+
+  return (
+    <div className={cn('rounded-2xl border p-5 shadow-sm', accents)}>
+      <div className="flex items-start gap-3">
+        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', iconBg)}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-slate-900">{title}</p>
+          {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
+          <div className="mt-3 space-y-1 text-sm text-slate-700">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeeProgressBar({ paid, total }: { paid: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+  return (
+    <div className="mt-4">
+      <div className="mb-1.5 flex justify-between text-xs font-medium text-slate-500">
+        <span>Payment progress</span>
+        <span>{pct}% paid</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-600 transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 function BalanceSummary({
   fee,
@@ -88,8 +207,11 @@ function PayFeeModal({
   const stkVisible = paymentSettings.mpesaStkEnabled;
 
   const [mode, setMode] = useState<'online' | 'manual' | 'stk'>(() => {
-    if (!onlineVisible) return 'manual';
-    return initialMode;
+    if (initialMode === 'stk' && stkVisible) return 'stk';
+    if (initialMode === 'manual') return 'manual';
+    if (onlineVisible) return 'online';
+    if (stkVisible) return 'stk';
+    return 'manual';
   });
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('mpesa');
@@ -610,8 +732,60 @@ export function StudentFeesClient({
     setPayingFee(fee);
   }
 
+  const paidPercent =
+    totalBilled > 0 ? Math.min(100, Math.round((totalPaid / totalBilled) * 100)) : 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Hero */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#003380] via-blue-800 to-indigo-900 p-6 text-white shadow-lg sm:p-8">
+        <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-12 -left-8 h-48 w-48 rounded-full bg-blue-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-100">
+              <Sparkles className="h-3.5 w-3.5" />
+              Fees & Payments
+            </div>
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+              {student.first_name}&apos;s fee account
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-blue-100/90">
+              Pay any amount you can — PesaPal, M-Pesa STK, paybill, or bank. Partial payments are
+              welcome.
+            </p>
+            <p className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 font-mono text-sm text-white">
+              {admissionNumber}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/20 bg-white/10 px-6 py-5 backdrop-blur-sm">
+            <p className="text-xs font-medium uppercase tracking-wider text-blue-200">
+              Outstanding balance
+            </p>
+            <p className="mt-1 text-3xl font-bold sm:text-4xl">{formatCurrency(totalDue)}</p>
+            {totalBilled > 0 && (
+              <p className="mt-2 text-sm text-blue-100">
+                {paidPercent}% of {formatCurrency(totalBilled)} cleared
+              </p>
+            )}
+          </div>
+        </div>
+        {totalBilled > 0 && (
+          <div className="relative mt-6">
+            <div className="mb-1.5 flex justify-between text-xs text-blue-200">
+              <span>Overall payment progress</span>
+              <span>{paidPercent}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all"
+                style={{ width: `${paidPercent}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </section>
+
       {paymentsBlocked && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <p className="font-semibold">Account not active</p>
@@ -623,102 +797,120 @@ export function StudentFeesClient({
       )}
 
       {fromEnrollment && !paymentsBlocked && (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <div className="flex items-center gap-2 text-emerald-800">
-            <CheckCircle2 className="h-5 w-5 shrink-0" />
-            <p className="text-sm font-medium">
-              Units registered successfully. Your fee invoice is ready — pay any amount you can now
-              via M-Pesa or bank, and clear the rest later.
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-5 shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+          </div>
+          <div>
+            <p className="font-semibold text-emerald-900">Invoice ready</p>
+            <p className="mt-1 text-sm text-emerald-800">
+              Units registered successfully. Pay any amount now via M-Pesa or bank — clear the rest
+              later.
             </p>
           </div>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="py-5">
-            <p className="text-sm text-slate-500">Total billed</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{formatCurrency(totalBilled)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-5">
-            <p className="text-sm text-slate-500">Total paid</p>
-            <p className="mt-1 text-2xl font-bold text-emerald-700">{formatCurrency(totalPaid)}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-200 bg-blue-50/40">
-          <CardContent className="py-5">
-            <p className="text-sm text-blue-800">Outstanding balance</p>
-            <p className="mt-1 text-2xl font-bold text-blue-700">{formatCurrency(totalDue)}</p>
-          </CardContent>
-        </Card>
+        <StatTile label="Total billed" value={formatCurrency(totalBilled)} icon={Receipt} tone="slate" />
+        <StatTile label="Total paid" value={formatCurrency(totalPaid)} icon={Banknote} tone="emerald" />
+        <StatTile label="Outstanding" value={formatCurrency(totalDue)} icon={Wallet} tone="blue" />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-blue-700" />
-            How to pay
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 text-sm sm:grid-cols-2">
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <CreditCard className="h-5 w-5 text-blue-700" />
+          <h2 className="text-lg font-bold text-slate-900">Payment methods</h2>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {onlineVisible && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:col-span-2">
-              <p className="font-semibold text-emerald-900">Pay online with PesaPal</p>
-              <p className="mt-1 text-emerald-800">
-                Click <strong>Pay fees</strong>, enter your amount, then pay with M-Pesa or card on
-                the secure PesaPal page.
+            <PaymentMethodCard
+              title="PesaPal online"
+              description="Instant payment with M-Pesa or card on a secure page."
+              icon={CreditCard}
+              accent="emerald"
+            >
+              <p>
+                Tap <strong>Pay fees</strong> on any invoice, then choose Pay online.
               </p>
               {!pesapalConfigured && (
-                <p className="mt-2 text-xs text-amber-800">
-                  PesaPal is visible but not active yet — admin must add PesaPal credentials on the
-                  server.
-                </p>
+                <p className="text-xs text-amber-700">PesaPal credentials not configured yet.</p>
               )}
-            </div>
+            </PaymentMethodCard>
           )}
-          <div className="rounded-xl border border-slate-200 p-4 sm:col-span-2">
-            <p className="font-semibold text-slate-900">Partial payments are OK</p>
-            <p className="mt-1 text-slate-600">
-              If you do not have the full balance, pay what you can today. Your invoice stays open
-              until the remainder is cleared.
-              {onlineVisible
-                ? ' Use PesaPal for instant online payment.'
-                : ' Submit each M-Pesa or bank payment separately with its confirmation code.'}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-4">
-            <p className="font-semibold text-slate-900">M-Pesa Paybill</p>
-            <p className="mt-2 text-slate-600">
+          {paymentSettings.mpesaStkEnabled && (
+            <PaymentMethodCard
+              title="M-Pesa STK Push"
+              description="Receive a payment prompt on your phone."
+              icon={Smartphone}
+              accent="blue"
+            >
+              <p>
+                Choose <strong>M-Pesa STK Push</strong> and enter your handset number.
+              </p>
+            </PaymentMethodCard>
+          )}
+          <PaymentMethodCard
+            title="M-Pesa Paybill"
+            icon={Smartphone}
+            accent="indigo"
+          >
+            <p>
               Paybill: <span className="font-mono font-bold">{paymentSettings.mpesaPaybill}</span>
             </p>
-            <p className="text-slate-600">
+            <p>
               Account: <span className="font-mono font-bold">{admissionNumber}</span>
             </p>
-            <p className="mt-2 text-xs text-slate-500">{paymentSettings.mpesaAccountLabel}</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 p-4">
-            <p className="font-semibold text-slate-900">Bank payment</p>
-            <p className="mt-2 font-semibold text-slate-700">{paymentSettings.bankName}</p>
-            <p className="text-slate-600">
+            <p className="text-xs text-slate-500">{paymentSettings.mpesaAccountLabel}</p>
+          </PaymentMethodCard>
+          <PaymentMethodCard title="Bank payment" icon={Building2} accent="slate">
+            <p className="font-semibold">{paymentSettings.bankName}</p>
+            <p>
               Paybill: <span className="font-mono font-bold">{paymentSettings.mpesaPaybill}</span>
             </p>
-            <p className="text-slate-600">
+            <p>
               Account No: <span className="font-mono font-bold">{paymentSettings.bankAccount}</span>
             </p>
-            <p className="text-slate-600">Name: {paymentSettings.bankBranch}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {fees.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-white py-12 text-center text-slate-500">
-          No fee invoices yet. Register units to generate a fee invoice.
+            <p>Name: {paymentSettings.bankBranch}</p>
+          </PaymentMethodCard>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {fees.map((fee) => {
+        <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-center text-sm text-slate-600">
+          <Info className="mr-1.5 inline h-4 w-4 align-text-bottom text-slate-400" />
+          Partial payments are OK — your invoice stays open until the balance is cleared.
+        </p>
+      </section>
+
+      <section>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-blue-700" />
+            <h2 className="text-lg font-bold text-slate-900">Your invoices</h2>
+          </div>
+          {fees.length > 0 && (
+            <span className="text-sm text-slate-500">
+              {fees.length} invoice{fees.length === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+        {fees.length === 0 ? (
+          <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
+              <Receipt className="h-7 w-7 text-blue-600" />
+            </div>
+            <p className="text-lg font-semibold text-slate-900">No invoices yet</p>
+            <p className="mt-2 max-w-sm text-sm text-slate-500">
+              Register your units first — a fee invoice will appear here automatically.
+            </p>
+            <Link href="/student/enroll" className="mt-6">
+              <Button>
+                Register units
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {fees.map((fee) => {
             const balance = getFeeBalance(fee);
             const pendingAmount = getPendingSubmissionAmount(fee.submissions);
             const displayStatus = getStudentFeeDisplayStatus(fee);
@@ -728,80 +920,95 @@ export function StudentFeesClient({
               (a, b) => b.created_at.localeCompare(a.created_at)
             );
             return (
-              <Card key={fee.id}>
-                <CardContent className="py-5">
+              <Card
+                key={fee.id}
+                className="overflow-hidden border-slate-200 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
+              >
+                <div className="h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500" />
+                <CardContent className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="font-medium text-slate-900">{fee.description ?? 'Fee invoice'}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900">{fee.description ?? 'Fee invoice'}</p>
                       <p className="mt-1 text-sm text-slate-500">
                         {(fee.term as { name: string } | null)?.name ?? 'No term'} ·{' '}
                         {formatDate(fee.created_at)}
                       </p>
                       {hasPending && (
-                        <p className="mt-1 text-xs text-amber-700">
-                          {formatCurrency(pendingAmount)} pending admin approval
-                        </p>
-                      )}
-                      {fee.reference_number && !hasPending && (
-                        <p className="mt-1 text-xs text-slate-500">
-                          Last ref: {fee.payment_method} — {fee.reference_number}
+                        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                          {formatCurrency(pendingAmount)} pending approval
                         </p>
                       )}
                     </div>
                     <Badge status={displayStatus}>{displayStatus}</Badge>
                   </div>
 
-                  <div className="mt-4 grid gap-2 text-sm sm:grid-cols-4">
-                    <div>
-                      <p className="text-slate-500">Amount</p>
-                      <p className="font-medium">{formatCurrency(fee.amount)}</p>
+                  <FeeProgressBar paid={Number(fee.amount_paid)} total={Number(fee.amount)} />
+
+                  <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-xl bg-slate-50 px-4 py-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Billed</p>
+                      <p className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(fee.amount)}</p>
                     </div>
-                    <div>
-                      <p className="text-slate-500">Paid</p>
-                      <p className="font-medium text-emerald-700">{formatCurrency(fee.amount_paid)}</p>
+                    <div className="rounded-xl bg-emerald-50 px-4 py-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Paid</p>
+                      <p className="mt-1 text-lg font-bold text-emerald-700">{formatCurrency(fee.amount_paid)}</p>
                     </div>
-                    <div>
-                      <p className="text-slate-500">Balance</p>
-                      <p className="font-semibold text-blue-700">{formatCurrency(balance)}</p>
-                      {hasPending && (
-                        <p className="text-xs text-amber-600">{formatCurrency(pendingAmount)} awaiting approval</p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-end justify-start gap-2 sm:justify-end">
-                      <Link href={`/student/fees/invoice/${fee.id}`} target="_blank">
-                        <Button size="sm" variant="secondary">
-                          Invoice
-                        </Button>
-                      </Link>
-                      {!isPaid && !paymentsBlocked && (
-                        <Button size="sm" onClick={() => openPayModal(fee, 'online')}>
-                          {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
-                        </Button>
-                      )}
+                    <div className="rounded-xl bg-blue-50 px-4 py-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Balance</p>
+                      <p className="mt-1 text-lg font-bold text-blue-700">{formatCurrency(balance)}</p>
                     </div>
                   </div>
 
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <Link href={`/student/fees/invoice/${fee.id}`} target="_blank">
+                      <Button size="sm" variant="secondary">
+                        <FileText className="mr-1.5 h-4 w-4" />
+                        View invoice
+                      </Button>
+                    </Link>
+                    {!isPaid && !paymentsBlocked && (
+                      <>
+                        <Button size="sm" onClick={() => openPayModal(fee, 'online')}>
+                          {balance < fee.amount ? 'Pay remainder' : 'Pay fees'}
+                        </Button>
+                        {paymentSettings.mpesaStkEnabled && (
+                          <Button size="sm" variant="secondary" onClick={() => openPayModal(fee, 'stk')}>
+                            <Smartphone className="mr-1.5 h-4 w-4" />
+                            STK Push
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+
                   {submissions.length > 0 && (
-                    <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="mt-5 border-t border-slate-100 pt-4">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Payment receipts
+                        Payment history
                       </p>
-                      <div className="mt-2 space-y-2">
+                      <div className="mt-3 space-y-2">
                         {submissions.map((s) => (
                           <div
                             key={s.id}
-                            className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-sm"
                           >
                             <div>
-                              <span className="font-medium text-slate-800">
+                              <span className="font-semibold text-slate-900">
                                 {formatCurrency(s.amount)}
                               </span>
                               <span className="text-slate-500">
                                 {' '}
                                 · {s.payment_method} · {s.reference_number}
                               </span>
-                              <span className="ml-2 text-xs capitalize text-slate-400">
-                                {(s.status ?? 'approved') === 'pending' ? 'pending approval' : s.status}
+                              <span
+                                className={cn(
+                                  'ml-2 text-xs font-medium capitalize',
+                                  (s.status ?? 'approved') === 'pending'
+                                    ? 'text-amber-600'
+                                    : 'text-emerald-600'
+                                )}
+                              >
+                                {(s.status ?? 'approved') === 'pending' ? 'pending' : s.status}
                               </span>
                             </div>
                             <Link href={`/student/fees/receipt/${s.id}`} target="_blank">
@@ -818,8 +1025,9 @@ export function StudentFeesClient({
               </Card>
             );
           })}
-        </div>
-      )}
+          </div>
+        )}
+      </section>
 
       {payingFee && (
         <PayFeeModal

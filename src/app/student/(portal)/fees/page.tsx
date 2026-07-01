@@ -45,11 +45,7 @@ export default async function StudentFeesPage({
   const pesapalAvailability = await getPesapalAvailability();
 
   return (
-    <div>
-      <PageHeader
-        title="Fees & Payments"
-        description="Pay any amount you can via PesaPal, M-Pesa, or bank — partial payments are accepted"
-      />
+    <div className="pb-8">
       <StudentFeesClient
         student={data.student}
         fees={data.fees}
