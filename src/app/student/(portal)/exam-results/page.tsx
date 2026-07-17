@@ -21,7 +21,7 @@ export default async function ExamResultsPage() {
     ? gradedEnrollments.reduce((sum, e) => sum + (e.score ?? 0), 0) / gradedEnrollments.length
     : 0;
 
-  const gradeDistribution = gradedEnrollments.reduce((acc, e) => {
+  const gradeDistribution: Record<string, number> = gradedEnrollments.reduce((acc, e) => {
     const grade = e.grade || 'N/A';
     acc[grade] = (acc[grade] || 0) + 1;
     return acc;
@@ -96,7 +96,7 @@ export default async function ExamResultsPage() {
             <p className="text-sm text-slate-600">No grades available yet.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {Object.entries(gradeDistribution).map(([grade, count]) => (
+              {Object.entries(gradeDistribution).map(([grade, count]: [string, number]) => (
                 <span key={grade} className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${getGradeColor(grade)}`}>
                   {grade}: {count}
                 </span>
