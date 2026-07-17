@@ -29,7 +29,7 @@ export function PrintIdCardButton() {
   }
 
   return (
-    <Button onClick={handlePrint} className="w-full">
+    <Button onClick={handlePrint} size="sm">
       <Printer className="h-4 w-4" />
       Print ID Card
     </Button>

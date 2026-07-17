@@ -27,7 +27,7 @@ export default async function StudentIdCardPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 print:hidden">
         <Link href="/student">
           <Button variant="secondary" size="sm">
             Back to portal
@@ -37,7 +37,7 @@ export default async function StudentIdCardPage() {
       </div>
 
       {!student.photo_url && (
-        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
+        <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 print:hidden">
           Upload a passport photo under{' '}
           <Link href="/student/register" className="font-medium underline">
             Update my details
@@ -48,7 +48,7 @@ export default async function StudentIdCardPage() {
 
       <StudentIdCardDocument student={student as Student} qrDataUrl={qrDataUrl} />
 
-      <p className="mx-auto mt-4 max-w-md text-center text-xs text-slate-500 print:hidden">
+      <p className="mx-auto mt-3 max-w-sm text-center text-[11px] text-slate-500 print:hidden">
         The card has a front and back. Use Print to download or print both sides.
       </p>
     </div>

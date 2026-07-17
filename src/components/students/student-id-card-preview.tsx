@@ -31,17 +31,17 @@ export function StudentIdCardPreview({
 
   if (!previewStudent?.id) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs text-slate-500">
         Complete registration first, then upload a passport photo to preview your ID card.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-sm font-medium text-slate-700">ID card preview</p>
+    <div className="space-y-2">
+      <p className="text-xs font-medium text-slate-700">ID card preview</p>
       <StudentIdCardDocument student={previewStudent} />
-      <p className="text-xs text-slate-500">
+      <p className="text-[11px] text-slate-500">
         Front and back of your student ID card. Save your details after uploading a photo.
       </p>
     </div>
@@ -73,18 +73,18 @@ export function PassportPhotoUpload({
   const displayUrl = localPreview ?? existingPhotoUrl ?? null;
 
   return (
-    <div className="flex flex-wrap items-start gap-6">
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex h-36 w-28 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-50">
+    <div className="flex flex-wrap items-start gap-4">
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex h-32 w-24 items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-slate-300 bg-slate-50">
           {displayUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={displayUrl} alt="Passport preview" className="h-full w-full object-cover" />
           ) : (
-            <span className="px-2 text-center text-xs text-slate-400">Passport photo</span>
+            <span className="px-2 text-center text-[11px] text-slate-400">Passport photo</span>
           )}
         </div>
         <label className="cursor-pointer">
-          <span className="inline-flex rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:bg-primary-hover">
+          <span className="inline-flex rounded-lg bg-primary px-2 py-1.5 text-xs font-medium text-white hover:bg-primary-hover">
             Choose photo
           </span>
           <input
@@ -95,7 +95,7 @@ export function PassportPhotoUpload({
             onChange={handleChange}
           />
         </label>
-        <p className="max-w-[140px] text-center text-xs text-slate-500">
+        <p className="max-w-[120px] text-center text-[11px] text-slate-500">
           JPG, PNG or WebP · max 2 MB · plain background recommended
         </p>
       </div>
