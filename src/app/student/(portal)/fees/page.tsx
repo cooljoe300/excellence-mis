@@ -51,6 +51,7 @@ export default async function StudentFeesPage({
         fees={data.fees}
         paymentSettings={data.paymentSettings}
         pesapalConfigured={pesapalAvailability.configured}
+        pesapalMaxAmount={pesapalAvailability.maxTransactionAmount}
         totalDue={data.totalDue}
         totalPaid={data.totalPaid}
         totalBilled={data.totalBilled}

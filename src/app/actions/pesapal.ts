@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import {
   getPesapalConfig,
   getPesapalMissingConfig,
+  getPesapalTransactionLimit,
   getPesapalTransactionStatus,
   registerPesapalIpn,
   submitPesapalOrder,
@@ -50,6 +51,7 @@ export async function getPesapalAvailability() {
     enabled: settings.pesapalEnabled,
     configured: missingConfig.length === 0,
     missingConfig,
+    maxTransactionAmount: getPesapalTransactionLimit(),
   };
 }
 
@@ -133,6 +135,13 @@ export async function initiateMyPesapalPayment(feePaymentId: string, amount: num
   if (paidAmount > availableBalance) {
     return {
       error: `Amount cannot exceed the available balance of KES ${availableBalance.toLocaleString()}.`,
+    };
+  }
+
+  const maxTransactionAmount = getPesapalTransactionLimit();
+  if (maxTransactionAmount !== null && paidAmount > maxTransactionAmount) {
+    return {
+      error: `Online payments are limited to KES ${maxTransactionAmount.toLocaleString()} per transaction. Pay a smaller amount or use manual payment for the rest.`,
     };
   }
 

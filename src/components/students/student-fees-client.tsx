@@ -187,6 +187,7 @@ function PayFeeModal({
   admissionNumber,
   paymentSettings,
   pesapalConfigured,
+  pesapalMaxAmount = null,
   initialMode = 'online',
   onClose,
 }: {
@@ -194,6 +195,7 @@ function PayFeeModal({
   admissionNumber: string;
   paymentSettings: PaymentSettings;
   pesapalConfigured: boolean;
+  pesapalMaxAmount?: number | null;
   initialMode?: 'online' | 'manual' | 'stk';
   onClose: () => void;
 }) {
@@ -201,7 +203,13 @@ function PayFeeModal({
   const balance = getFeeBalance(fee);
   const pendingAmount = getPendingSubmissionAmount(fee.submissions);
   const availableBalance = getAvailableFeeBalance(fee, fee.submissions);
-  const presets = getPartialPaymentPresets(availableBalance);
+  const onlineMaxAmount =
+    pesapalMaxAmount !== null && pesapalMaxAmount > 0
+      ? Math.min(availableBalance, pesapalMaxAmount)
+      : availableBalance;
+  const presets = getPartialPaymentPresets(onlineMaxAmount).filter(
+    (preset) => pesapalMaxAmount === null || preset.amount <= pesapalMaxAmount
+  );
   const onlineVisible = paymentSettings.pesapalEnabled || pesapalConfigured;
   const onlineReady = onlineVisible && pesapalConfigured;
   const stkVisible = paymentSettings.mpesaStkEnabled;
@@ -256,6 +264,14 @@ function PayFeeModal({
 
     if (paidAmount > availableBalance) {
       setError(`Amount cannot exceed the available balance of ${formatCurrency(availableBalance)}.`);
+      setLoading(false);
+      return;
+    }
+
+    if (pesapalMaxAmount !== null && paidAmount > pesapalMaxAmount) {
+      setError(
+        `Online payments are limited to ${formatCurrency(pesapalMaxAmount)} per transaction. Pay a smaller amount or use manual payment for the rest.`
+      );
       setLoading(false);
       return;
     }
@@ -477,6 +493,15 @@ function PayFeeModal({
               </div>
             )}
 
+            {pesapalMaxAmount !== null && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                Online payments are limited to {formatCurrency(pesapalMaxAmount)} per transaction
+                {availableBalance > pesapalMaxAmount
+                  ? ` (${formatCurrency(availableBalance - pesapalMaxAmount)} will remain — pay again or use manual payment).`
+                  : '.'}
+              </div>
+            )}
+
             <BalanceSummary
               fee={fee}
               balance={balance}
@@ -489,10 +514,11 @@ function PayFeeModal({
                 label="Amount to pay (KES)"
                 type="number"
                 min="1"
+                max={pesapalMaxAmount ?? undefined}
                 step="1"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder={`e.g. ${Math.min(1000, Math.floor(availableBalance)) || 500}`}
+                placeholder={`e.g. ${Math.min(pesapalMaxAmount ?? 1000, Math.floor(onlineMaxAmount)) || 500}`}
                 required
               />
               {presets.length > 0 && (
@@ -690,6 +716,7 @@ export function StudentFeesClient({
   fees,
   paymentSettings,
   pesapalConfigured,
+  pesapalMaxAmount = null,
   totalDue,
   totalPaid,
   totalBilled,
@@ -699,6 +726,7 @@ export function StudentFeesClient({
   fees: FeePayment[];
   paymentSettings: PaymentSettings;
   pesapalConfigured: boolean;
+  pesapalMaxAmount?: number | null;
   totalDue: number;
   totalPaid: number;
   totalBilled: number;
@@ -819,6 +847,11 @@ export function StudentFeesClient({
               </p>
               {!pesapalConfigured && (
                 <p className="text-xs text-amber-700">PesaPal credentials not configured yet.</p>
+              )}
+              {pesapalMaxAmount !== null && (
+                <p className="text-xs text-amber-700">
+                  Max {formatCurrency(pesapalMaxAmount)} per online transaction.
+                </p>
               )}
             </PaymentMethodCard>
           )}
@@ -1006,6 +1039,7 @@ export function StudentFeesClient({
           admissionNumber={admissionNumber}
           paymentSettings={paymentSettings}
           pesapalConfigured={pesapalConfigured}
+          pesapalMaxAmount={pesapalMaxAmount}
           initialMode={payMode}
           onClose={() => setPayingFee(null)}
         />

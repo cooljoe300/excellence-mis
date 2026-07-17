@@ -18,6 +18,9 @@ import {
   LogOut,
   ExternalLink,
   X,
+  UserMinus,
+  IdCard,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -38,6 +41,12 @@ const allNavItems = [
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'staff'] as UserRole[] },
   { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['admin'] as UserRole[] },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/student', label: 'My Portal', icon: GraduationCap, roles: ['student'] as UserRole[] },
+  { href: '/student/enroll', label: 'Register Units', icon: BookOpen, roles: ['student'] as UserRole[] },
+  { href: '/student/deregister', label: 'Deregister', icon: UserMinus, roles: ['student'] as UserRole[] },
+  { href: '/student/fees', label: 'Pay Fees', icon: CreditCard, roles: ['student'] as UserRole[] },
+  { href: '/student/id-card', label: 'My ID Card', icon: IdCard, roles: ['student'] as UserRole[] },
+  { href: '/student/register', label: 'My Details', icon: User, roles: ['student'] as UserRole[] },
 ];
 
 function getNavItems(role: UserRole) {

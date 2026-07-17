@@ -39,6 +39,15 @@ export function isPesapalConfigured() {
   return getPesapalMissingConfig().length === 0;
 }
 
+/** Optional max KES per transaction — only when PESAPAL_MAX_AMOUNT is set explicitly. */
+export function getPesapalTransactionLimit(): number | null {
+  const explicit = process.env.PESAPAL_MAX_AMOUNT?.trim();
+  if (!explicit) return null;
+
+  const parsed = Number.parseInt(explicit, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 export function getPesapalConfig(): PesapalConfig | null {
   const consumerKey = process.env.PESAPAL_CONSUMER_KEY?.trim();
   const consumerSecret = process.env.PESAPAL_CONSUMER_SECRET?.trim();
