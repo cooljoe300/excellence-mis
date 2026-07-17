@@ -157,12 +157,16 @@ export function StudentSelfForm({
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
     
-    if (!formData.get('first_name') || !formData.get('last_name')) {
+    const firstName = formData.get('first_name') as string || existingStudent?.first_name || defaultFirstName;
+    const lastName = formData.get('last_name') as string || existingStudent?.last_name || defaultLastName;
+    const programId = formData.get('program_id') as string || selectedProgramId;
+    
+    if (!firstName || !lastName) {
       setError('First name and last name are required.');
       return;
     }
     
-    if (!formData.get('program_id')) {
+    if (!programId) {
       setError('Please select a program.');
       return;
     }
@@ -171,6 +175,11 @@ export function StudentSelfForm({
       setError('Please select at least one unit to enroll.');
       return;
     }
+    
+    // Ensure form data has the required values
+    if (!formData.get('first_name')) formData.set('first_name', firstName);
+    if (!formData.get('last_name')) formData.set('last_name', lastName);
+    if (!formData.get('program_id')) formData.set('program_id', programId);
     
     setLoading(true);
     setError(null);
