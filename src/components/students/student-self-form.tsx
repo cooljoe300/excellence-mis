@@ -15,7 +15,7 @@ import {
   StudentIdCardPreview,
 } from '@/components/students/student-id-card-preview';
 import { UserPlus, CreditCard, User, FileText, GraduationCap, CheckCircle2, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 
 const genderOptions = [
   { value: '', label: 'Select gender' },
