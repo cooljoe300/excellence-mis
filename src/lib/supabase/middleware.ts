@@ -20,118 +20,123 @@ function safeNextPath(path: string | null): string | null {
 }
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request });
+  try {
+    let supabaseResponse = NextResponse.next({ request });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            );
+            supabaseResponse = NextResponse.next({ request });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-  const isAuthPage =
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/signup');
-  const isDashboard = pathname.startsWith('/dashboard');
-  const isStudentSignup = pathname.startsWith('/student/signup');
-  const isStudentPwaAsset =
-    pathname === '/student/manifest.webmanifest' ||
-    pathname === '/student/sw.js' ||
-    pathname === '/sw-student.js';
-  const isStudentPortal =
-    pathname.startsWith('/student') && !isStudentSignup && !isStudentPwaAsset;
-  const isHome = pathname === '/';
-
-  if (!user && isHome) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-
-  if (!user && isDashboard) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-
-  if (!user && isStudentPortal) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    url.searchParams.set('next', pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (user) {
-    let role = getRoleFromMetadata(user.user_metadata);
-
-    const needsRoleFromDb =
-      !role &&
-      (isDashboard || isAuthPage || isStudentSignup || isStudentPortal || isHome);
-
-    if (needsRoleFromDb) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-      role = resolveRole(user.user_metadata, profile?.role);
-    }
-
-    if (role === 'student' && isDashboard) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/student';
-      return NextResponse.redirect(url);
-    }
-
-    if (role && role !== 'student' && isStudentPortal) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/dashboard';
-      return NextResponse.redirect(url);
-    }
-
-    if (isAuthPage) {
-      const url = request.nextUrl.clone();
-      const next = safeNextPath(request.nextUrl.searchParams.get('next'));
-      if (next) {
-        url.pathname = next;
-        url.search = '';
-      } else {
-        url.pathname = role === 'student' ? '/student' : '/dashboard';
       }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const pathname = request.nextUrl.pathname;
+    const isAuthPage =
+      pathname.startsWith('/login') ||
+      pathname.startsWith('/signup');
+    const isDashboard = pathname.startsWith('/dashboard');
+    const isStudentSignup = pathname.startsWith('/student/signup');
+    const isStudentPwaAsset =
+      pathname === '/student/manifest.webmanifest' ||
+      pathname === '/student/sw.js' ||
+      pathname === '/sw-student.js';
+    const isStudentPortal =
+      pathname.startsWith('/student') && !isStudentSignup && !isStudentPwaAsset;
+    const isHome = pathname === '/';
+
+    if (!user && isHome) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
       return NextResponse.redirect(url);
     }
 
-    if (isStudentSignup) {
+    if (!user && isDashboard) {
       const url = request.nextUrl.clone();
-      url.pathname = role === 'student' ? '/student/register' : '/dashboard';
+      url.pathname = '/login';
       return NextResponse.redirect(url);
     }
 
-    if (isHome) {
+    if (!user && isStudentPortal) {
       const url = request.nextUrl.clone();
-      url.pathname = role === 'student' ? '/student' : '/dashboard';
+      url.pathname = '/login';
+      url.searchParams.set('next', pathname);
       return NextResponse.redirect(url);
     }
+
+    if (user) {
+      let role = getRoleFromMetadata(user.user_metadata);
+
+      const needsRoleFromDb =
+        !role &&
+        (isDashboard || isAuthPage || isStudentSignup || isStudentPortal || isHome);
+
+      if (needsRoleFromDb) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        role = resolveRole(user.user_metadata, profile?.role);
+      }
+
+      if (role === 'student' && isDashboard) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/student';
+        return NextResponse.redirect(url);
+      }
+
+      if (role && role !== 'student' && isStudentPortal) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/dashboard';
+        return NextResponse.redirect(url);
+      }
+
+      if (isAuthPage) {
+        const url = request.nextUrl.clone();
+        const next = safeNextPath(request.nextUrl.searchParams.get('next'));
+        if (next) {
+          url.pathname = next;
+          url.search = '';
+        } else {
+          url.pathname = role === 'student' ? '/student' : '/dashboard';
+        }
+        return NextResponse.redirect(url);
+      }
+
+      if (isStudentSignup) {
+        const url = request.nextUrl.clone();
+        url.pathname = role === 'student' ? '/student/register' : '/dashboard';
+        return NextResponse.redirect(url);
+      }
+
+      if (isHome) {
+        const url = request.nextUrl.clone();
+        url.pathname = role === 'student' ? '/student' : '/dashboard';
+        return NextResponse.redirect(url);
+      }
+    }
+
+    return supabaseResponse;
+  } catch (error) {
+    console.error('Middleware error:', error);
+    return NextResponse.next({ request });
   }
-
-  return supabaseResponse;
 }
