@@ -68,13 +68,13 @@ function StatTile({
 
   return (
     <Card className={cn('shadow-sm', tones.card)}>
-      <CardContent className="flex items-center gap-4 py-5">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', tones.icon)}>
-          <Icon className="h-5 w-5" />
+      <CardContent className="flex items-center gap-3 py-3">
+        <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', tones.icon)}>
+          <Icon className="h-4 w-4" />
         </div>
         <div>
-          <p className={cn('text-sm font-medium', tones.label)}>{label}</p>
-          <p className={cn('mt-0.5 text-2xl font-bold tracking-tight', tones.value)}>{value}</p>
+          <p className={cn('text-xs font-medium', tones.label)}>{label}</p>
+          <p className={cn('mt-0.5 text-lg font-bold tracking-tight', tones.value)}>{value}</p>
         </div>
       </CardContent>
     </Card>
@@ -108,15 +108,15 @@ function PaymentMethodCard({
   }[accent];
 
   return (
-    <div className={cn('rounded-2xl border p-5 shadow-sm', accents)}>
-      <div className="flex items-start gap-3">
-        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', iconBg)}>
-          <Icon className="h-5 w-5" />
+    <div className={cn('rounded-xl border p-3 shadow-sm', accents)}>
+      <div className="flex items-start gap-2">
+        <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', iconBg)}>
+          <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-slate-900">{title}</p>
-          {description && <p className="mt-1 text-sm text-slate-600">{description}</p>}
-          <div className="mt-3 space-y-1 text-sm text-slate-700">{children}</div>
+          <p className="text-sm font-semibold text-slate-900">{title}</p>
+          {description && <p className="mt-0.5 text-xs text-slate-600">{description}</p>}
+          <div className="mt-2 space-y-1 text-xs text-slate-700">{children}</div>
         </div>
       </div>
     </div>
@@ -126,12 +126,12 @@ function PaymentMethodCard({
 function FeeProgressBar({ paid, total }: { paid: number; total: number }) {
   const pct = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
   return (
-    <div className="mt-4">
-      <div className="mb-1.5 flex justify-between text-xs font-medium text-slate-500">
+    <div className="mt-3">
+      <div className="mb-1 flex justify-between text-[11px] font-medium text-slate-500">
         <span>Payment progress</span>
         <span>{pct}% paid</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
         <div
           className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-600 transition-all duration-500"
           style={{ width: `${pct}%` }}
@@ -153,7 +153,7 @@ function BalanceSummary({
   availableBalance: number;
 }) {
   return (
-    <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm">
+    <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
       <div className="flex justify-between">
         <span className="text-slate-600">Amount due</span>
         <span className="font-medium">{formatCurrency(fee.amount)}</span>
@@ -162,7 +162,7 @@ function BalanceSummary({
         <span className="text-slate-600">Already paid</span>
         <span className="font-medium">{formatCurrency(fee.amount_paid)}</span>
       </div>
-      <div className="mt-2 flex justify-between border-t border-slate-200 pt-2 font-semibold">
+      <div className="mt-1 flex justify-between border-t border-slate-200 pt-1 font-semibold">
         <span>Balance</span>
         <span className="text-blue-700">{formatCurrency(balance)}</span>
       </div>
@@ -411,7 +411,7 @@ function PayFeeModal({
       size="md"
     >
         {(onlineVisible || stkVisible) && !success && (
-          <div className="mt-4 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+          <div className="mt-3 flex rounded-lg border border-slate-200 bg-slate-50 p-1">
             {(
               [
                 ...(onlineVisible ? (['online'] as const) : []),
@@ -427,7 +427,7 @@ function PayFeeModal({
                   setError(null);
                 }}
                 className={cn(
-                  'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
                   mode === tab ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600'
                 )}
               >
@@ -442,9 +442,9 @@ function PayFeeModal({
         )}
 
         {mode === 'manual' && (
-        <div className="mt-4 space-y-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm">
+        <div className="mt-3 space-y-2 rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs">
           <div className="flex items-center gap-2 font-medium text-blue-900">
-            <Building2 className="h-4 w-4" />
+            <Building2 className="h-3.5 w-3.5" />
             Bank payment
           </div>
           <p className="mt-1 font-semibold text-blue-900">{paymentSettings.bankName}</p>
@@ -460,41 +460,41 @@ function PayFeeModal({
         )}
 
         {success ? (
-          <div className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
             <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{success}</span>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               {receiptId && (
                 <Link href={`/student/fees/receipt/${receiptId}`} target="_blank">
-                  <Button>Download receipt</Button>
+                  <Button size="sm">Download receipt</Button>
                 </Link>
               )}
-              <Button variant="secondary" onClick={onClose}>
+              <Button variant="secondary" size="sm" onClick={onClose}>
                 Close
               </Button>
             </div>
           </div>
         ) : mode === 'online' ? (
-          <form onSubmit={handlePesapalSubmit} className="mt-4 space-y-4">
-            <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm text-emerald-900">
-              <CreditCard className="mt-0.5 h-4 w-4 shrink-0" />
+          <form onSubmit={handlePesapalSubmit} className="mt-3 space-y-3">
+            <div className="flex gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+              <CreditCard className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p>
-                Enter the amount and continue to PesaPal to pay with M-Pesa, card, or other methods.
+                Enter amount and continue to PesaPal to pay with M-Pesa, card, or other methods.
                 You will be returned here after payment.
               </p>
             </div>
 
             {!onlineReady && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                 PesaPal is enabled but not fully set up yet. Ask admin to add PESAPAL_CONSUMER_KEY and
                 PESAPAL_CONSUMER_SECRET on the server, then redeploy.
               </div>
             )}
 
             {pesapalMaxAmount !== null && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                 Online payments are limited to {formatCurrency(pesapalMaxAmount)} per transaction
                 {availableBalance > pesapalMaxAmount
                   ? ` (${formatCurrency(availableBalance - pesapalMaxAmount)} will remain — pay again or use manual payment).`
@@ -522,13 +522,13 @@ function PayFeeModal({
                 required
               />
               {presets.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {presets.map((preset) => (
                     <button
                       key={`${preset.label}-${preset.amount}`}
                       type="button"
                       onClick={() => setAmount(preset.amount.toString())}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
                         amount === preset.amount.toString()
                           ? 'border-blue-600 bg-blue-50 text-blue-700'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700'
@@ -543,35 +543,34 @@ function PayFeeModal({
                 </div>
               )}
               {isValidAmount && isPartialPayment && (
-                <p className="text-xs text-amber-700">
-                  Partial payment — {formatCurrency(remainingAfterPayment)} will remain on this
-                  invoice.
+                <p className="text-[11px] text-amber-700">
+                  Partial payment — {formatCurrency(remainingAfterPayment)} will remain on this invoice.
                 </p>
               )}
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-xs text-red-600">{error}</p>}
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={onClose}>
+              <Button type="button" variant="secondary" size="sm" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !isValidAmount || !onlineReady}>
+              <Button type="submit" size="sm" disabled={loading || !isValidAmount || !onlineReady}>
                 {loading ? 'Redirecting...' : 'Continue to PesaPal'}
               </Button>
             </div>
           </form>
         ) : mode === 'stk' ? (
-          <form onSubmit={handleStkSubmit} className="mt-4 space-y-4">
-            <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-sm text-blue-900">
-              <Smartphone className="mt-0.5 h-4 w-4 shrink-0" />
+          <form onSubmit={handleStkSubmit} className="mt-3 space-y-3">
+            <div className="flex gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+              <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p>
                 Enter amount and phone number, then we will send an M-Pesa STK prompt to your phone.
               </p>
             </div>
 
             {!stkConfigured && (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                 STK is enabled but not fully configured yet ({stkMissingConfig.join(', ') || 'missing env vars'}).
               </div>
             )}
@@ -602,27 +601,27 @@ function PayFeeModal({
               required
             />
 
-            {stkStatus && <p className="text-xs text-slate-600">Current STK status: {stkStatus}</p>}
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {stkStatus && <p className="text-[11px] text-slate-600">Current STK status: {stkStatus}</p>}
+            {error && <p className="text-xs text-red-600">{error}</p>}
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={onClose}>
+              <Button type="button" variant="secondary" size="sm" onClick={onClose}>
                 Cancel
               </Button>
               {stkRequestId && (
-                <Button type="button" variant="secondary" onClick={checkStkStatus} disabled={loading}>
+                <Button type="button" variant="secondary" size="sm" onClick={checkStkStatus} disabled={loading}>
                   Check status
                 </Button>
               )}
-              <Button type="submit" disabled={loading || !isValidAmount || !stkConfigured}>
+              <Button type="submit" size="sm" disabled={loading || !isValidAmount || !stkConfigured}>
                 {loading ? 'Sending prompt...' : 'Send STK prompt'}
               </Button>
             </div>
           </form>
         ) : (
-          <form onSubmit={handleManualSubmit} className="mt-4 space-y-4">
-            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <form onSubmit={handleManualSubmit} className="mt-3 space-y-3">
+            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p>
                 You do not need the full balance today. Send whatever you can via M-Pesa or bank,
                 then enter the <strong>exact amount you paid</strong> below.
@@ -658,13 +657,13 @@ function PayFeeModal({
                 required
               />
               {presets.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {presets.map((preset) => (
                     <button
                       key={`${preset.label}-${preset.amount}`}
                       type="button"
                       onClick={() => setAmount(preset.amount.toString())}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
                         amount === preset.amount.toString()
                           ? 'border-blue-600 bg-blue-50 text-blue-700'
                           : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:text-blue-700'
@@ -679,7 +678,7 @@ function PayFeeModal({
                 </div>
               )}
               {isValidAmount && (
-                <p className={`text-xs ${isPartialPayment ? 'text-amber-700' : 'text-emerald-700'}`}>
+                <p className={`text-[11px] ${isPartialPayment ? 'text-amber-700' : 'text-emerald-700'}`}>
                   {isPartialPayment
                     ? `Partial payment — ${formatCurrency(remainingAfterPayment)} will remain after approval.`
                     : 'This will clear the available balance on this invoice.'}
@@ -695,13 +694,13 @@ function PayFeeModal({
               required
             />
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-xs text-red-600">{error}</p>}
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={onClose}>
+              <Button type="button" variant="secondary" size="sm" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading || !isValidAmount}>
+              <Button type="submit" size="sm" disabled={loading || !isValidAmount}>
                 {loading ? 'Submitting...' : isPartialPayment ? 'Submit partial payment' : 'Submit payment'}
               </Button>
             </div>
@@ -748,47 +747,46 @@ export function StudentFeesClient({
     totalBilled > 0 ? Math.min(100, Math.round((totalPaid / totalBilled) * 100)) : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#003380] via-blue-800 to-indigo-900 p-6 text-white shadow-lg sm:p-8">
-        <div className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-12 -left-8 h-48 w-48 rounded-full bg-blue-400/20 blur-3xl" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <section className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#003380] via-blue-800 to-indigo-900 p-4 text-white shadow-lg sm:p-5">
+        <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-8 -left-6 h-40 w-40 rounded-full bg-blue-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-100">
-              <Sparkles className="h-3.5 w-3.5" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-medium text-blue-100">
+              <Sparkles className="h-3 w-3" />
               Fees & Payments
             </div>
-            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+            <h1 className="mt-3 text-xl font-bold tracking-tight sm:text-2xl">
               {student.first_name}&apos;s fee account
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-blue-100/90">
-              Pay any amount you can — PesaPal, M-Pesa STK, paybill, or bank. Partial payments are
-              welcome.
+            <p className="mt-1.5 max-w-xl text-xs text-blue-100/90">
+              Pay any amount — PesaPal, M-Pesa STK, paybill, or bank. Partial payments welcome.
             </p>
-            <p className="mt-3 inline-block rounded-lg bg-white/10 px-3 py-1.5 font-mono text-sm text-white">
+            <p className="mt-2 inline-block rounded-lg bg-white/10 px-2 py-1 font-mono text-xs text-white">
               {admissionNumber}
             </p>
           </div>
-          <div className="rounded-2xl border border-white/20 bg-white/10 px-6 py-5 backdrop-blur-sm">
-            <p className="text-xs font-medium uppercase tracking-wider text-blue-200">
+          <div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-blue-200">
               Outstanding balance
             </p>
-            <p className="mt-1 text-3xl font-bold sm:text-4xl">{formatCurrency(totalDue)}</p>
+            <p className="mt-1 text-2xl font-bold sm:text-3xl">{formatCurrency(totalDue)}</p>
             {totalBilled > 0 && (
-              <p className="mt-2 text-sm text-blue-100">
+              <p className="mt-1 text-xs text-blue-100">
                 {paidPercent}% of {formatCurrency(totalBilled)} cleared
               </p>
             )}
           </div>
         </div>
         {totalBilled > 0 && (
-          <div className="relative mt-6">
-            <div className="mb-1.5 flex justify-between text-xs text-blue-200">
+          <div className="relative mt-4">
+            <div className="mb-1 flex justify-between text-[11px] text-blue-200">
               <span>Overall payment progress</span>
               <span>{paidPercent}%</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white/20">
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-300 transition-all"
                 style={{ width: `${paidPercent}%` }}
@@ -799,7 +797,7 @@ export function StudentFeesClient({
       </section>
 
       {paymentsBlocked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <p className="font-semibold">Account not active</p>
           <p className="mt-1">
             Your student account is {student.status}. You cannot make new fee payments here.
@@ -809,32 +807,31 @@ export function StudentFeesClient({
       )}
 
       {fromEnrollment && !paymentsBlocked && (
-        <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-5 shadow-sm">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-            <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+        <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-3 shadow-sm">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-4 w-4 text-emerald-700" />
           </div>
           <div>
-            <p className="font-semibold text-emerald-900">Invoice ready</p>
-            <p className="mt-1 text-sm text-emerald-800">
-              Units registered successfully. Pay any amount now via M-Pesa or bank — clear the rest
-              later.
+            <p className="text-sm font-semibold text-emerald-900">Invoice ready</p>
+            <p className="mt-1 text-xs text-emerald-800">
+              Units registered successfully. Pay any amount now via M-Pesa or bank — clear the rest later.
             </p>
           </div>
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatTile label="Total billed" value={formatCurrency(totalBilled)} icon={Receipt} tone="slate" />
         <StatTile label="Total paid" value={formatCurrency(totalPaid)} icon={Banknote} tone="emerald" />
         <StatTile label="Outstanding" value={formatCurrency(totalDue)} icon={Wallet} tone="blue" />
       </div>
 
       <section>
-        <div className="mb-4 flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-blue-700" />
-          <h2 className="text-lg font-bold text-slate-900">Payment methods</h2>
+        <div className="mb-3 flex items-center gap-2">
+          <CreditCard className="h-4 w-4 text-blue-700" />
+          <h2 className="text-base font-bold text-slate-900">Payment methods</h2>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {onlineVisible && (
             <PaymentMethodCard
               title="PesaPal online"
@@ -878,42 +875,42 @@ export function StudentFeesClient({
             <p>Name: {paymentSettings.bankBranch}</p>
           </PaymentMethodCard>
         </div>
-        <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-center text-sm text-slate-600">
-          <Info className="mr-1.5 inline h-4 w-4 align-text-bottom text-slate-400" />
+        <p className="mt-3 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2 text-center text-xs text-slate-600">
+          <Info className="mr-1 inline h-3.5 w-3.5 align-text-bottom text-slate-400" />
           Partial payments are OK — your invoice stays open until the balance is cleared.
         </p>
       </section>
 
       <section>
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-700" />
-            <h2 className="text-lg font-bold text-slate-900">Your invoices</h2>
+            <FileText className="h-4 w-4 text-blue-700" />
+            <h2 className="text-base font-bold text-slate-900">Your invoices</h2>
           </div>
           {fees.length > 0 && (
-            <span className="text-sm text-slate-500">
+            <span className="text-xs text-slate-500">
               {fees.length} invoice{fees.length === 1 ? '' : 's'}
             </span>
           )}
         </div>
         {fees.length === 0 ? (
-          <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50">
-              <Receipt className="h-7 w-7 text-blue-600" />
+          <div className="flex flex-col items-center rounded-xl border border-dashed border-slate-200 bg-white px-4 py-12 text-center shadow-sm">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+              <Receipt className="h-6 w-6 text-blue-600" />
             </div>
-            <p className="text-lg font-semibold text-slate-900">No invoices yet</p>
-            <p className="mt-2 max-w-sm text-sm text-slate-500">
+            <p className="text-base font-semibold text-slate-900">No invoices yet</p>
+            <p className="mt-2 max-w-sm text-xs text-slate-500">
               Register your units first — a fee invoice will appear here automatically.
             </p>
-            <Link href="/student/enroll" className="mt-6">
-              <Button>
+            <Link href="/student/enroll" className="mt-4">
+              <Button size="sm">
                 Register units
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {fees.map((fee) => {
             const balance = getFeeBalance(fee);
             const pendingAmount = getPendingSubmissionAmount(fee.submissions);
@@ -929,16 +926,16 @@ export function StudentFeesClient({
                 className="overflow-hidden border-slate-200 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
               >
                 <div className="h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-500" />
-                <CardContent className="p-5 sm:p-6">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
+                <CardContent className="p-4 sm:p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-slate-900">{fee.description ?? 'Fee invoice'}</p>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="text-sm font-semibold text-slate-900">{fee.description ?? 'Fee invoice'}</p>
+                      <p className="mt-1 text-xs text-slate-500">
                         {(fee.term as { name: string } | null)?.name ?? 'No term'} ·{' '}
                         {formatDate(fee.created_at)}
                       </p>
                       {hasPending && (
-                        <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                        <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                           {formatCurrency(pendingAmount)} pending approval
                         </p>
                       )}
@@ -948,22 +945,22 @@ export function StudentFeesClient({
 
                   <FeeProgressBar paid={Number(fee.amount_paid)} total={Number(fee.amount)} />
 
-                  <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                    <div className="rounded-xl bg-slate-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Billed</p>
-                      <p className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(fee.amount)}</p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Billed</p>
+                      <p className="mt-1 text-base font-bold text-slate-900">{formatCurrency(fee.amount)}</p>
                     </div>
-                    <div className="rounded-xl bg-emerald-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">Paid</p>
-                      <p className="mt-1 text-lg font-bold text-emerald-700">{formatCurrency(fee.amount_paid)}</p>
+                    <div className="rounded-lg bg-emerald-50 px-3 py-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">Paid</p>
+                      <p className="mt-1 text-base font-bold text-emerald-700">{formatCurrency(fee.amount_paid)}</p>
                     </div>
-                    <div className="rounded-xl bg-blue-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-blue-700">Balance</p>
-                      <p className="mt-1 text-lg font-bold text-blue-700">{formatCurrency(balance)}</p>
+                    <div className="rounded-lg bg-blue-50 px-3 py-2">
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">Balance</p>
+                      <p className="mt-1 text-base font-bold text-blue-700">{formatCurrency(balance)}</p>
                     </div>
                   </div>
 
-                  <div className="mt-5 flex flex-wrap gap-2">
+                  <div className="mt-4 flex flex-wrap gap-2">
                     <Link href={`/student/fees/invoice/${fee.id}`} target="_blank">
                       <Button size="sm" variant="secondary">
                         <FileText className="mr-1.5 h-4 w-4" />
@@ -986,15 +983,15 @@ export function StudentFeesClient({
                   </div>
 
                   {submissions.length > 0 && (
-                    <div className="mt-5 border-t border-slate-100 pt-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
                         Payment history
                       </p>
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-2 space-y-1">
                         {submissions.map((s) => (
                           <div
                             key={s.id}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/50 px-4 py-3 text-sm"
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2 text-xs"
                           >
                             <div>
                               <span className="font-semibold text-slate-900">
@@ -1006,7 +1003,7 @@ export function StudentFeesClient({
                               </span>
                               <span
                                 className={cn(
-                                  'ml-2 text-xs font-medium capitalize',
+                                  'ml-2 text-[11px] font-medium capitalize',
                                   (s.status ?? 'approved') === 'pending'
                                     ? 'text-amber-600'
                                     : 'text-emerald-600'
