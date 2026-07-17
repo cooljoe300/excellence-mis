@@ -159,10 +159,10 @@ body {
   body.print-id-card .student-id-card-page {
     page: id-card;
     width: 85.6mm;
-    min-height: 53.98mm;
+    height: 53.98mm;
     margin: 0;
     padding: 0;
-    overflow: visible;
+    overflow: hidden;
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -176,13 +176,13 @@ body {
     display: flex !important;
     flex-direction: column !important;
     width: 85.6mm !important;
-    min-height: 53.98mm !important;
+    height: 53.98mm !important;
     max-width: none !important;
     margin: 0 !important;
     border-radius: 2mm !important;
     aspect-ratio: auto !important;
     box-shadow: none !important;
-    overflow: visible !important;
+    overflow: hidden !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
