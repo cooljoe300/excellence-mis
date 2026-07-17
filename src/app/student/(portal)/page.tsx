@@ -1,11 +1,14 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 import { getMyStudentRecord } from '@/app/actions/student-self';
 import { getMyEnrollmentsWithFees } from '@/app/actions/student-enrollment';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DataRow } from '@/components/ui/data-row';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatDate, formatCurrency, getAdmissionNumber } from '@/lib/utils';
 import { CheckCircle2, Clock, AlertCircle, UserPlus, BookOpen, CreditCard } from 'lucide-react';
 import { InstallAppCard } from '@/components/student/install-app-card';
@@ -42,7 +45,9 @@ export default async function StudentPortalPage() {
         </p>
       </div>
 
-      <InstallAppCard />
+      <Suspense fallback={<Skeleton className="h-32 w-full" />}>
+        <InstallAppCard />
+      </Suspense>
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <StatusStep
@@ -175,12 +180,12 @@ export default async function StudentPortalPage() {
             <CardTitle>Personal Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <Row label="Name" value={`${student.first_name} ${student.last_name}`} />
-            <Row label="Email" value={student.email} />
-            <Row label="Phone" value={student.phone} />
-            <Row label="Date of birth" value={formatDate(student.date_of_birth)} />
-            <Row label="Gender" value={student.gender} />
-            <Row label="Nationality" value={student.nationality} />
+            <DataRow label="Name" value={`${student.first_name} ${student.last_name}`} />
+            <DataRow label="Email" value={student.email} />
+            <DataRow label="Phone" value={student.phone} />
+            <DataRow label="Date of birth" value={formatDate(student.date_of_birth)} />
+            <DataRow label="Gender" value={student.gender} />
+            <DataRow label="Nationality" value={student.nationality} />
           </CardContent>
         </Card>
 
@@ -189,12 +194,12 @@ export default async function StudentPortalPage() {
             <CardTitle>Academic</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <Row label="Program" value={(student.program as { name: string } | null)?.name} />
-            <Row label="Enrollment date" value={formatDate(student.enrollment_date)} />
-            <Row label="Status" value={student.status} />
+            <DataRow label="Program" value={(student.program as { name: string } | null)?.name} />
+            <DataRow label="Enrollment date" value={formatDate(student.enrollment_date)} />
+            <DataRow label="Status" value={student.status} />
             {lmsSynced && (
               <>
-                <Row label="LMS username" value={student.lms_username} />
+                <DataRow label="LMS username" value={student.lms_username} />
                 <div className="pt-2">
                   <a
                     href="https://lms.excellenceonlinecollege.com/"
@@ -275,15 +280,6 @@ function StatusStep({
           Pending
         </Badge>
       )}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="flex justify-between gap-4">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-right font-medium text-slate-900">{value || '—'}</span>
     </div>
   );
 }
