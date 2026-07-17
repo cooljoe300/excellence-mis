@@ -110,21 +110,21 @@ export function StudentDeregistrationForm({
   }
 
   return (
-    <div className="space-y-6">
-      {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+    <div className="space-y-4">
+      {error && <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
       {success && (
-        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{success}</div>
+        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{success}</div>
       )}
 
       {pendingRequest ? (
         <Card className="border-amber-200 bg-amber-50/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-900">
-              <ClipboardList className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-amber-900 text-base">
+              <ClipboardList className="h-4 w-4" />
               Pending request
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm text-amber-950">
+          <CardContent className="space-y-2 text-sm text-amber-950 pt-0">
             <p>
               You have a{' '}
               <strong>
@@ -148,45 +148,43 @@ export function StudentDeregistrationForm({
           </CardContent>
         </Card>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-blue-700" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BookOpen className="h-4 w-4 text-blue-700" />
                 What would you like to request?
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4">
+            <CardContent className="space-y-3 pt-0">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
                 <input
                   type="radio"
                   name="requestType"
-                  className="mt-1"
+                  className="mt-0.5 h-4 w-4"
                   checked={requestType === 'units'}
                   onChange={() => setRequestType('units')}
                 />
                 <div>
-                  <p className="font-medium text-slate-900">Deregister selected units</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Remove one or more units from your current registration. Unpaid fees for those
-                    units will be adjusted after approval.
+                  <p className="text-sm font-medium text-slate-900">Deregister selected units</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Remove units from registration. Unpaid fees adjusted after approval.
                   </p>
                 </div>
               </label>
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
                 <input
                   type="radio"
                   name="requestType"
-                  className="mt-1"
+                  className="mt-0.5 h-4 w-4"
                   checked={requestType === 'full_withdrawal'}
                   onChange={() => setRequestType('full_withdrawal')}
                 />
                 <div>
-                  <p className="font-medium text-slate-900">Withdraw from the college</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Request to leave Excellence Online College. All open units will be dropped and
-                    your account will be marked withdrawn if approved.
+                  <p className="text-sm font-medium text-slate-900">Withdraw from the college</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Leave Excellence Online College. All units dropped if approved.
                   </p>
                 </div>
               </label>
@@ -195,47 +193,47 @@ export function StudentDeregistrationForm({
 
           {requestType === 'units' && (
             <Card>
-              <CardHeader>
-                <CardTitle>Select units to deregister</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Select units to deregister</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0">
                 {deregisterableUnits.length === 0 ? (
                   <p className="text-sm text-slate-600">
                     You have no units that can be deregistered this term.
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {enrolledUnits.map((unit) => {
                       const disabled = unit.hasGrades;
                       const checked = selectedSet.has(unit.courseId);
                       return (
                         <label
                           key={unit.courseId}
-                          className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 ${
+                          className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 ${
                             disabled
                               ? 'cursor-not-allowed border-slate-100 bg-slate-50 opacity-70'
                               : 'cursor-pointer border-slate-200 hover:border-blue-200'
                           }`}
                         >
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-start gap-2">
                             <input
                               type="checkbox"
-                              className="mt-1 h-4 w-4"
+                              className="mt-0.5 h-3.5 w-3.5"
                               checked={checked}
                               disabled={disabled}
                               onChange={(e) => toggleUnit(unit.courseId, e.target.checked)}
                             />
                             <div>
-                              <p className="font-medium text-slate-900">
+                              <p className="text-sm font-medium text-slate-900 leading-tight">
                                 {unit.code} — {unit.name}
                               </p>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-[11px] text-slate-500">
                                 {unit.credits} credits
                                 {disabled && ' · grades recorded — contact admin'}
                               </p>
                             </div>
                           </div>
-                          <span className="text-sm font-semibold">{formatCurrency(unit.unitFee)}</span>
+                          <span className="text-xs font-semibold">{formatCurrency(unit.unitFee)}</span>
                         </label>
                       );
                     })}
@@ -247,7 +245,7 @@ export function StudentDeregistrationForm({
 
           {requestType === 'units' && selectedIds.length > 0 && (
             <Card className="border-blue-200 bg-blue-50/40">
-              <CardContent className="py-4 text-sm">
+              <CardContent className="py-2 text-sm">
                 <div className="flex justify-between font-semibold text-slate-900">
                   <span>Selected unit fees (if approved, balance may be reduced)</span>
                   <span className="text-blue-700">{formatCurrency(selectedTotal)}</span>
@@ -257,33 +255,33 @@ export function StudentDeregistrationForm({
           )}
 
           <Card>
-            <CardHeader>
-              <CardTitle>Reason for request</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Reason for request</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                rows={4}
+                rows={3}
                 placeholder="Explain why you want to deregister (minimum 10 characters)..."
                 required
               />
             </CardContent>
           </Card>
 
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
             <div className="flex gap-2">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
-                Requests are reviewed by college administration. Fees already paid are kept on
-                record. Unpaid balances for deregistered units are adjusted after approval.
+                Requests reviewed by admin. Paid fees kept on record. Unpaid balances adjusted after approval.
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2">
             <Button
               type="submit"
+              size="sm"
               disabled={
                 loading ||
                 (requestType === 'units' &&
@@ -294,7 +292,7 @@ export function StudentDeregistrationForm({
               {loading ? 'Submitting...' : 'Submit request'}
             </Button>
             <Link href="/student/enroll">
-              <Button type="button" variant="secondary">
+              <Button type="button" variant="secondary" size="sm">
                 Back to units
               </Button>
             </Link>
@@ -304,17 +302,17 @@ export function StudentDeregistrationForm({
 
       {requests.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Request history</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Request history</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2 pt-0">
             {requests.map((request) => (
               <div
                 key={request.id}
-                className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-medium text-slate-900">
+                  <p className="text-sm font-medium text-slate-900">
                     {request.request_type === 'full_withdrawal'
                       ? 'Full withdrawal'
                       : `Deregister ${request.course_ids.length} unit${
@@ -331,7 +329,7 @@ export function StudentDeregistrationForm({
                     : ''}
                 </p>
                 {request.review_notes && (
-                  <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-slate-700">
+                  <p className="mt-1 rounded bg-slate-50 px-2 py-1 text-xs text-slate-700">
                     Admin response: {request.review_notes}
                   </p>
                 )}
@@ -342,7 +340,7 @@ export function StudentDeregistrationForm({
       )}
 
       {student.status !== 'active' && (
-        <p className="text-sm text-slate-500">
+        <p className="text-xs text-slate-500">
           Your account status is <strong>{student.status}</strong>. New requests may not be available.
         </p>
       )}
