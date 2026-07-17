@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import {
   PassportPhotoUpload,
   StudentIdCardPreview,
 } from '@/components/students/student-id-card-preview';
-import { UserPlus, CreditCard, User, FileText, GraduationCap, CheckCircle2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { UserPlus, CreditCard, User, FileText, GraduationCap, CheckCircle2, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const genderOptions = [
@@ -28,6 +28,7 @@ const STEPS = [
   { id: 'personal', label: 'Personal Information', icon: User },
   { id: 'idcard', label: 'ID Card', icon: CreditCard },
   { id: 'academics', label: 'Academics', icon: GraduationCap },
+  { id: 'units', label: 'Unit Enrollment', icon: BookOpen },
   { id: 'review', label: 'Review & Submit', icon: FileText },
 ] as const;
 
@@ -51,8 +52,48 @@ export function StudentSelfForm({
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
+  const [availableUnits, setAvailableUnits] = useState<{ id: string; code: string; name: string; unit_fee: number; credits: number }[]>([]);
+  const [termId, setTermId] = useState<string | null>(null);
+  const [loadingUnits, setLoadingUnits] = useState(false);
 
   const currentStepId = STEPS[currentStep].id;
+
+  // Load available units when program is selected
+  async function loadUnitsForProgram(programId: string) {
+    if (!programId) {
+      setAvailableUnits([]);
+      setSelectedUnitIds([]);
+      return;
+    }
+    
+    setLoadingUnits(true);
+    try {
+      const response = await fetch('/api/enrollments/program-units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ programId }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableUnits(data.units || []);
+        setTermId(data.termId || null);
+        setSelectedUnitIds([]);
+      }
+    } catch (error) {
+      console.error('Failed to load units:', error);
+    } finally {
+      setLoadingUnits(false);
+    }
+  }
+
+  // Load units when program changes
+  useEffect(() => {
+    if (selectedProgramId && currentStepId === 'academics') {
+      loadUnitsForProgram(selectedProgramId);
+    }
+  }, [selectedProgramId, currentStepId]);
 
   const programOptions = [
     { value: '', label: 'Select program' },
@@ -73,6 +114,13 @@ export function StudentSelfForm({
     if (currentStepId === 'academics') {
       if (!formData.get('program_id')) {
         setError('Please select a program.');
+        return false;
+      }
+    }
+    
+    if (currentStepId === 'units') {
+      if (selectedUnitIds.length === 0) {
+        setError('Please select at least one unit to enroll.');
         return false;
       }
     }
@@ -119,6 +167,11 @@ export function StudentSelfForm({
       return;
     }
     
+    if (selectedUnitIds.length === 0) {
+      setError('Please select at least one unit to enroll.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -131,6 +184,29 @@ export function StudentSelfForm({
       setError(result.error);
       setLoading(false);
       return;
+    }
+
+    // Enroll in selected units
+    const studentId = existingStudent?.id || (result as any)?.id;
+    if (studentId && selectedUnitIds.length > 0) {
+      try {
+        const enrollResponse = await fetch('/api/enrollments/enroll-units', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unitIds: selectedUnitIds }),
+        });
+        
+        if (!enrollResponse.ok) {
+          const errorData = await enrollResponse.json();
+          setError(errorData.error || 'Failed to enroll in units.');
+          setLoading(false);
+          return;
+        }
+      } catch (error) {
+        setError('Failed to enroll in units. Please try again.');
+        setLoading(false);
+        return;
+      }
     }
 
     if (existingStudent?.id) {
@@ -299,6 +375,82 @@ export function StudentSelfForm({
         </Card>
       )}
 
+      {currentStepId === 'units' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-blue-700" />
+              Unit Enrollment
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingUnits ? (
+              <p className="text-xs text-slate-500">Loading available units...</p>
+            ) : availableUnits.length === 0 ? (
+              <p className="text-xs text-slate-500">
+                {selectedProgramId ? 'No units are available for this program yet.' : 'Please select a program in the Academics step first.'}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-slate-600">
+                  Select the units you want to enroll in. Each unit has its own fee.
+                </p>
+                <div className="space-y-1">
+                  {availableUnits.map((unit) => {
+                    const checked = selectedUnitIds.includes(unit.id);
+                    return (
+                      <label
+                        key={unit.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 cursor-pointer hover:border-blue-200 hover:bg-blue-50/30"
+                      >
+                        <div className="flex items-start gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedUnitIds(prev => [...prev, unit.id]);
+                              } else {
+                                setSelectedUnitIds(prev => prev.filter(id => id !== unit.id));
+                              }
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900 leading-tight">
+                              {unit.code}
+                              <span className="font-normal text-slate-500"> — {unit.name}</span>
+                            </p>
+                            <p className="text-[11px] text-slate-500">{unit.credits} credits</p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-slate-900">
+                          {formatCurrency(unit.unit_fee)}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {selectedUnitIds.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2">
+                    <div className="flex justify-between text-xs font-bold text-slate-900">
+                      <span>Selected Units Total</span>
+                      <span className="text-blue-700">
+                        {formatCurrency(
+                          availableUnits
+                            .filter(u => selectedUnitIds.includes(u.id))
+                            .reduce((sum, u) => sum + u.unit_fee, 0)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {currentStepId === 'review' && (
         <Card>
           <CardHeader>
@@ -336,6 +488,31 @@ export function StudentSelfForm({
                 <p><span className="font-medium">Notes:</span> {existingStudent?.notes || 'None'}</p>
               </div>
             </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <h3 className="text-xs font-semibold text-slate-900 mb-2">Unit Enrollment</h3>
+              <div className="text-xs text-slate-600">
+                {selectedUnitIds.length === 0 ? (
+                  <p>No units selected</p>
+                ) : (
+                  <div className="space-y-1">
+                    {availableUnits
+                      .filter(u => selectedUnitIds.includes(u.id))
+                      .map(u => (
+                        <p key={u.id}>
+                          <span className="font-medium">{u.code}</span> — {u.name} ({formatCurrency(u.unit_fee)})
+                        </p>
+                      ))}
+                    <p className="mt-2 pt-2 border-t border-slate-200 font-bold">
+                      Total: {formatCurrency(
+                        availableUnits
+                          .filter(u => selectedUnitIds.includes(u.id))
+                          .reduce((sum, u) => sum + u.unit_fee, 0)
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
             <p className="text-[11px] text-slate-500">
               Review your information above. Click "Back" to make changes or "Submit" to complete registration.
             </p>
@@ -365,11 +542,11 @@ export function StudentSelfForm({
         {currentStepId === 'review' ? (
           <Button type="submit" disabled={loading} size="sm">
             <UserPlus className="h-4 w-4" />
-            {loading ? 'Saving...' : existingStudent ? 'Update details' : 'Register'}
+            {loading ? 'Saving...' : existingStudent ? 'Update details' : 'Register & Enroll'}
           </Button>
         ) : (
           <Button type="button" onClick={handleNext} size="sm">
-            {currentStepId === 'academics' ? 'Review' : 'Next'}
+            {currentStepId === 'units' ? 'Review' : 'Next'}
             <ChevronRight className="h-4 w-4" />
           </Button>
         )}
