@@ -226,7 +226,9 @@ export function StudentSelfForm({
       admissionNumber,
     });
     setLoading(false);
-    router.replace('/student');
+    
+    // Redirect to fees page for payment after successful registration
+    router.replace('/student/fees?from=registration');
   }
 
   return (

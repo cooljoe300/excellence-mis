@@ -13,6 +13,7 @@ export default async function StudentFeesPage({
 }) {
   const { from } = await searchParams;
   const fromEnrollment = from === 'enrollment';
+  const fromRegistration = from === 'registration';
 
   let data;
   try {
@@ -56,6 +57,7 @@ export default async function StudentFeesPage({
         totalPaid={data.totalPaid}
         totalBilled={data.totalBilled}
         fromEnrollment={fromEnrollment}
+        fromRegistration={fromRegistration}
       />
     </div>
   );

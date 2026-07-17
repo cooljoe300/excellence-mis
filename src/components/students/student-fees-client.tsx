@@ -334,6 +334,11 @@ function PayFeeModal({
     setReceiptId(result.submissionId ?? null);
     setLoading(false);
     router.refresh();
+    
+    // Redirect to admission completion page if coming from registration
+    if (fromRegistration && !partial) {
+      router.replace('/student/admission-complete');
+    }
   }
 
   async function handleStkSubmit(e: React.FormEvent) {
@@ -720,6 +725,7 @@ export function StudentFeesClient({
   totalPaid,
   totalBilled,
   fromEnrollment = false,
+  fromRegistration = false,
 }: {
   student: Student;
   fees: FeePayment[];
@@ -730,6 +736,7 @@ export function StudentFeesClient({
   totalPaid: number;
   totalBilled: number;
   fromEnrollment?: boolean;
+  fromRegistration?: boolean;
 }) {
   const [payingFee, setPayingFee] = useState<FeePayment | null>(null);
   const [payMode, setPayMode] = useState<'online' | 'manual' | 'stk'>('online');
