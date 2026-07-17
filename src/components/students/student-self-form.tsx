@@ -104,11 +104,25 @@ export function StudentSelfForm({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    
+    // Final validation before submission
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    
+    if (!formData.get('first_name') || !formData.get('last_name')) {
+      setError('First name and last name are required.');
+      return;
+    }
+    
+    if (!formData.get('program_id')) {
+      setError('Please select a program.');
+      return;
+    }
+    
     setLoading(true);
     setError(null);
     setSuccess(null);
 
-    const formData = new FormData(e.currentTarget);
     const result = existingStudent?.id
       ? await updateMyStudentRecord(existingStudent.id, formData)
       : await createMyStudentRecord(formData);
