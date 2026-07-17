@@ -9,7 +9,7 @@ import type { Student } from '@/lib/types';
 
 const CARD_CLASS =
   'student-id-card-face mx-auto w-[340px] overflow-hidden rounded-2xl border-2 border-slate-300 bg-white shadow-xl print:shadow-none print:border-slate-400';
-const CARD_STYLE = { aspectRatio: '1.586 / 1' as const };
+const CARD_STYLE = { aspectRatio: '1.586 / 1' as const, minHeight: '214px' as const };
 
 const PROPERTY_NOTICE =
   'This Card is the property of Excellence Online College and should be surrendered on expiry or on demand';
