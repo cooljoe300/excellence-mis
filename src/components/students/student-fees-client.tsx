@@ -190,6 +190,7 @@ function PayFeeModal({
   pesapalMaxAmount = null,
   initialMode = 'online',
   onClose,
+  fromRegistration = false,
 }: {
   fee: FeePayment;
   admissionNumber: string;
@@ -198,6 +199,7 @@ function PayFeeModal({
   pesapalMaxAmount?: number | null;
   initialMode?: 'online' | 'manual' | 'stk';
   onClose: () => void;
+  fromRegistration?: boolean;
 }) {
   const router = useRouter();
   const balance = getFeeBalance(fee);
@@ -337,7 +339,9 @@ function PayFeeModal({
     
     // Redirect to admission completion page if coming from registration
     if (fromRegistration && !partial) {
-      router.replace('/student/admission-complete');
+      setTimeout(() => {
+        router.replace('/student/admission-complete');
+      }, 1500);
     }
   }
 
@@ -1046,6 +1050,7 @@ export function StudentFeesClient({
           pesapalMaxAmount={pesapalMaxAmount}
           initialMode={payMode}
           onClose={() => setPayingFee(null)}
+          fromRegistration={fromRegistration}
         />
       )}
     </div>
