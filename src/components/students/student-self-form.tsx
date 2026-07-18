@@ -14,7 +14,7 @@ import {
   PassportPhotoUpload,
   StudentIdCardPreview,
 } from '@/components/students/student-id-card-preview';
-import { UserPlus, CreditCard, User, FileText, GraduationCap, CheckCircle2, ChevronRight, ChevronLeft, BookOpen } from 'lucide-react';
+import { UserPlus, CreditCard, User, FileText, GraduationCap, CheckCircle2, ChevronRight, ChevronLeft, BookOpen, Wallet } from 'lucide-react';
 import { cn, formatCurrency } from '@/lib/utils';
 
 const genderOptions = [
@@ -29,6 +29,7 @@ const STEPS = [
   { id: 'idcard', label: 'ID Card', icon: CreditCard },
   { id: 'academics', label: 'Academics', icon: GraduationCap },
   { id: 'units', label: 'Unit Enrollment', icon: BookOpen },
+  { id: 'fees', label: 'Pay Fees', icon: Wallet },
   { id: 'review', label: 'Review & Submit', icon: FileText },
 ] as const;
 
@@ -56,6 +57,10 @@ export function StudentSelfForm({
   const [availableUnits, setAvailableUnits] = useState<{ id: string; code: string; name: string; unit_fee: number; credits: number }[]>([]);
   const [termId, setTermId] = useState<string | null>(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [studentCreated, setStudentCreated] = useState(false);
+  const [enrollmentCompleted, setEnrollmentCompleted] = useState(false);
+  const [feesData, setFeesData] = useState<any>(null);
+  const [loadingFees, setLoadingFees] = useState(false);
 
   const currentStepId = STEPS[currentStep].id;
 
@@ -124,13 +129,31 @@ export function StudentSelfForm({
         return false;
       }
     }
+
+    if (currentStepId === 'fees') {
+      if (!studentCreated || !enrollmentCompleted) {
+        setError('Please complete registration and enrollment before paying fees.');
+        return false;
+      }
+    }
     
     setError(null);
     return true;
   }
 
-  function handleNext() {
+  async function handleNext() {
     if (!validateCurrentStep()) return;
+    
+    // When moving from units to fees, create student and enroll units
+    if (currentStepId === 'units' && !studentCreated) {
+      await createStudentAndEnroll();
+      if (!studentCreated) return; // Creation failed
+    }
+    
+    // Load fees data when entering fees step
+    if (currentStepId === 'units' && STEPS[currentStep + 1].id === 'fees') {
+      await loadFeesData();
+    }
     
     setCompletedSteps(prev => new Set([...prev, currentStep]));
     if (currentStep < STEPS.length - 1) {
@@ -138,22 +161,7 @@ export function StudentSelfForm({
     }
   }
 
-  function handlePrevious() {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
-  }
-
-  function handleStepClick(index: number) {
-    if (completedSteps.has(index) || index < currentStep) {
-      setCurrentStep(index);
-    }
-  }
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    
-    // Final validation before submission
+  async function createStudentAndEnroll() {
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
     
@@ -183,7 +191,6 @@ export function StudentSelfForm({
     
     setLoading(true);
     setError(null);
-    setSuccess(null);
 
     const result = existingStudent?.id
       ? await updateMyStudentRecord(existingStudent.id, formData)
@@ -211,6 +218,7 @@ export function StudentSelfForm({
           setLoading(false);
           return;
         }
+        setEnrollmentCompleted(true);
       } catch (error) {
         setError('Failed to enroll in units. Please try again.');
         setLoading(false);
@@ -218,26 +226,62 @@ export function StudentSelfForm({
       }
     }
 
+    setStudentCreated(true);
+    setLoading(false);
+  }
+
+  async function loadFeesData() {
+    setLoadingFees(true);
+    try {
+      const response = await fetch('/api/student/fees-data');
+      if (response.ok) {
+        const data = await response.json();
+        setFeesData(data);
+      }
+    } catch (error) {
+      console.error('Failed to load fees:', error);
+    } finally {
+      setLoadingFees(false);
+    }
+  }
+
+  function handlePrevious() {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  }
+
+  function handleStepClick(index: number) {
+    if (completedSteps.has(index) || index < currentStep) {
+      setCurrentStep(index);
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    
+    // For existing students, just update details
     if (existingStudent?.id) {
+      if (!formRef.current) return;
+      const formData = new FormData(formRef.current);
+      setLoading(true);
+      setError(null);
+      
+      const result = await updateMyStudentRecord(existingStudent.id, formData);
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
+      }
+      
       setSuccess({ message: 'Your details have been updated.' });
       setLoading(false);
       router.refresh();
       return;
     }
 
-    const admissionNumber =
-      'admissionNumber' in result && typeof result.admissionNumber === 'string'
-        ? result.admissionNumber
-        : undefined;
-
-    setSuccess({
-      message: 'Registration complete! Your admission number has been generated.',
-      admissionNumber,
-    });
-    setLoading(false);
-    
-    // Redirect to fees page for payment after successful registration
-    router.replace('/student/fees?from=registration');
+    // For new students, redirect to admission complete after all steps
+    router.replace('/student/admission-complete');
   }
 
   return (
@@ -462,6 +506,95 @@ export function StudentSelfForm({
         </Card>
       )}
 
+      {currentStepId === 'fees' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-blue-700" />
+              Pay Fees
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!studentCreated ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+                <p className="font-semibold">Complete registration first</p>
+                <p className="mt-1">
+                  Please complete the previous steps (Personal Information, ID Card, Academics, and Unit Enrollment) before proceeding to payment.
+                </p>
+              </div>
+            ) : loadingFees ? (
+              <p className="text-xs text-slate-500">Loading fee information...</p>
+            ) : feesData ? (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <h3 className="text-xs font-semibold text-slate-900 mb-2">Student Information</h3>
+                  <div className="grid gap-1 text-xs text-slate-600">
+                    <p><span className="font-medium">Name:</span> {existingStudent?.first_name ?? defaultFirstName} {existingStudent?.last_name ?? defaultLastName}</p>
+                    <p><span className="font-medium">Program:</span> {programs.find(p => p.id === selectedProgramId)?.name || 'Not selected'}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <h3 className="text-xs font-semibold text-slate-900 mb-2">Fee Summary</h3>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    {feesData.fees?.map((fee: any) => (
+                      <div key={fee.id} className="flex justify-between">
+                        <span>{fee.description || fee.category || 'Fee'}</span>
+                        <span className="font-medium">{formatCurrency(fee.amount || 0)}</span>
+                      </div>
+                    ))}
+                    <div className="mt-2 pt-2 border-t border-slate-200 flex justify-between font-bold text-slate-900">
+                      <span>Total</span>
+                      <span>{formatCurrency(feesData.totalDue || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <h3 className="text-xs font-semibold text-slate-900 mb-2">Payment Status</h3>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Amount Paid</span>
+                      <span className="font-medium">{formatCurrency(feesData.totalPaid || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Outstanding Balance</span>
+                      <span className="font-medium text-blue-700">{formatCurrency(feesData.totalDue || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-700 shrink-0" />
+                  <div className="text-xs text-emerald-900">
+                    <p className="font-semibold">Registration Complete</p>
+                    <p className="mt-1">
+                      Your student record has been created and units enrolled. You can proceed to review or pay your fees now. Payment can also be done later from your student portal.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={() => router.push('/student/fees?from=registration')}
+                  className="w-full"
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Pay Fees Now
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+                <p className="font-semibold">No fees generated yet</p>
+                <p className="mt-1">
+                  Fee information will be available after completing unit enrollment.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {currentStepId === 'review' && (
         <Card>
           <CardHeader>
@@ -524,8 +657,39 @@ export function StudentSelfForm({
                 )}
               </div>
             </div>
+
+            {studentCreated && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <h3 className="text-xs font-semibold text-emerald-900 mb-2">Registration Status</h3>
+                <div className="space-y-2 text-xs text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Student Registered</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Enrollment Completed</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Units Enrolled ({selectedUnitIds.length})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Fees Generated</span>
+                  </div>
+                  {feesData?.totalPaid > 0 && (
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Payment Recorded ({formatCurrency(feesData.totalPaid)})</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <p className="text-[11px] text-slate-500">
-              Review your information above. Click "Back" to make changes or "Submit" to complete registration.
+              Review your information above. Click "Back" to make changes or "Finish Admission" to complete registration.
             </p>
           </CardContent>
         </Card>

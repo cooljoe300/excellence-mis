@@ -253,7 +253,7 @@ export function EnrollmentsClient({
               <option value="completed">Completed</option>
               <option value="dropped">Dropped</option>
             </select>
-            <Button variant="outline" size="sm">
+            <Button variant="secondary" size="sm">
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh
             </Button>
@@ -325,17 +325,17 @@ export function EnrollmentsClient({
                       <td className="px-3 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Link href={`/dashboard/students/${group.studentId}`}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View Student">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="View Student">
                               <User className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
                           <Link href={`/dashboard/students/${group.studentId}/enrollment`}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="View Enrollment">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="View Enrollment">
                               <Eye className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
                           <Link href={`/dashboard/students/${group.studentId}/fees`}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" title="Fee Statement">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Fee Statement">
                               <CreditCard className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
