@@ -721,7 +721,7 @@ export function StudentSelfForm({
           </Button>
         ) : (
           <Button type="button" onClick={handleNext} size="sm">
-            {currentStepId === 'units' ? 'Review' : 'Next'}
+            Next
             <ChevronRight className="h-4 w-4" />
           </Button>
         )}
