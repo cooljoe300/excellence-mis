@@ -7,27 +7,38 @@ import { revalidatePath } from 'next/cache';
 export async function getTimetableStats() {
   const supabase = await createClient();
   
-  const [
-    totalTimetables,
-    activeTimetables,
-    totalRooms,
-    totalTimeSlots,
-    todayClasses,
-  ] = await Promise.all([
-    supabase.from('timetables').select('*', { count: 'exact', head: true }),
-    supabase.from('timetables').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('rooms').select('*', { count: 'exact', head: true }),
-    supabase.from('time_slots').select('*', { count: 'exact', head: true }),
-    supabase.from('timetables').select('*', { count: 'exact', head: true }).eq('day', new Date().toLocaleDateString('en-US', { weekday: 'long' })),
-  ]);
+  try {
+    const [
+      totalTimetables,
+      activeTimetables,
+      totalRooms,
+      totalTimeSlots,
+      todayClasses,
+    ] = await Promise.all([
+      supabase.from('timetables').select('*', { count: 'exact', head: true }),
+      supabase.from('timetables').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      supabase.from('rooms').select('*', { count: 'exact', head: true }),
+      supabase.from('time_slots').select('*', { count: 'exact', head: true }),
+      supabase.from('timetables').select('*', { count: 'exact', head: true }).eq('day', new Date().toLocaleDateString('en-US', { weekday: 'long' })),
+    ]);
 
-  return {
-    totalTimetables: totalTimetables.count || 0,
-    activeTimetables: activeTimetables.count || 0,
-    totalRooms: totalRooms.count || 0,
-    totalTimeSlots: totalTimeSlots.count || 0,
-    todayClasses: todayClasses.count || 0,
-  };
+    return {
+      totalTimetables: totalTimetables.count || 0,
+      activeTimetables: activeTimetables.count || 0,
+      totalRooms: totalRooms.count || 0,
+      totalTimeSlots: totalTimeSlots.count || 0,
+      todayClasses: todayClasses.count || 0,
+    };
+  } catch (error) {
+    console.error('Error fetching timetable stats:', error);
+    return {
+      totalTimetables: 0,
+      activeTimetables: 0,
+      totalRooms: 0,
+      totalTimeSlots: 0,
+      todayClasses: 0,
+    };
+  }
 }
 
 export async function getTimetables() {
@@ -38,7 +49,10 @@ export async function getTimetables() {
     .order('created_at', { ascending: false })
     .limit(10);
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching timetables:', error);
+    return [];
+  }
   return (data || []) as Timetable[];
 }
 
@@ -49,7 +63,10 @@ export async function getRooms() {
     .select('*')
     .order('name', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching rooms:', error);
+    return [];
+  }
   return (data || []) as Room[];
 }
 
@@ -60,32 +77,48 @@ export async function getTimeSlots() {
     .select('*')
     .order('start_time', { ascending: true });
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error fetching time slots:', error);
+    return [];
+  }
   return (data || []) as TimeSlot[];
 }
 
 export async function getTimetableFormData() {
   const supabase = await createClient();
   
-  const [programs, courses, lecturers, rooms, timeSlots, intakes, terms] = await Promise.all([
-    supabase.from('programs').select('*').order('name', { ascending: true }),
-    supabase.from('courses').select('*').order('name', { ascending: true }),
-    supabase.from('profiles').select('*').eq('role', 'teacher').order('full_name', { ascending: true }),
-    supabase.from('rooms').select('*').order('name', { ascending: true }),
-    supabase.from('time_slots').select('*').order('start_time', { ascending: true }),
-    supabase.from('intakes').select('*').order('name', { ascending: true }),
-    supabase.from('academic_terms').select('*').order('name', { ascending: true }),
-  ]);
+  try {
+    const [programs, courses, lecturers, rooms, timeSlots, intakes, terms] = await Promise.all([
+      supabase.from('programs').select('*').order('name', { ascending: true }),
+      supabase.from('courses').select('*').order('name', { ascending: true }),
+      supabase.from('profiles').select('*').eq('role', 'teacher').order('full_name', { ascending: true }),
+      supabase.from('rooms').select('*').order('name', { ascending: true }),
+      supabase.from('time_slots').select('*').order('start_time', { ascending: true }),
+      supabase.from('intakes').select('*').order('name', { ascending: true }),
+      supabase.from('academic_terms').select('*').order('name', { ascending: true }),
+    ]);
 
-  return {
-    programs: programs.data || [],
-    courses: courses.data || [],
-    lecturers: lecturers.data || [],
-    rooms: rooms.data || [],
-    timeSlots: timeSlots.data || [],
-    intakes: intakes.data || [],
-    terms: terms.data || [],
-  };
+    return {
+      programs: programs.data || [],
+      courses: courses.data || [],
+      lecturers: lecturers.data || [],
+      rooms: rooms.data || [],
+      timeSlots: timeSlots.data || [],
+      intakes: intakes.data || [],
+      terms: terms.data || [],
+    };
+  } catch (error) {
+    console.error('Error fetching timetable form data:', error);
+    return {
+      programs: [],
+      courses: [],
+      lecturers: [],
+      rooms: [],
+      timeSlots: [],
+      intakes: [],
+      terms: [],
+    };
+  }
 }
 
 export async function checkTimetableConflict(formData: FormData) {
@@ -219,40 +252,45 @@ export async function getStudentTimetable() {
     return { student: null, timetables: [] };
   }
 
-  // Get student record
-  const { data: student } = await supabase
-    .from('students')
-    .select('*')
-    .eq('profile_id', user.id)
-    .single();
+  try {
+    // Get student record
+    const { data: student } = await supabase
+      .from('students')
+      .select('*')
+      .eq('profile_id', user.id)
+      .single();
 
-  if (!student) {
+    if (!student) {
+      return { student: null, timetables: [] };
+    }
+
+    // Get enrolled courses
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('course_id')
+      .eq('student_id', student.id)
+      .eq('status', 'active');
+
+    if (!enrollments || enrollments.length === 0) {
+      return { student, timetables: [] };
+    }
+
+    const courseIds = enrollments.map(e => e.course_id);
+
+    // Get timetable entries for enrolled courses
+    const { data: timetables } = await supabase
+      .from('timetables')
+      .select('*, course:courses(*), lecturer:profiles(*), room:rooms(*)')
+      .in('course_id', courseIds)
+      .eq('status', 'active')
+      .order('day')
+      .order('start_time');
+
+    return { student, timetables: timetables || [] };
+  } catch (error) {
+    console.error('Error fetching student timetable:', error);
     return { student: null, timetables: [] };
   }
-
-  // Get enrolled courses
-  const { data: enrollments } = await supabase
-    .from('enrollments')
-    .select('course_id')
-    .eq('student_id', student.id)
-    .eq('status', 'active');
-
-  if (!enrollments || enrollments.length === 0) {
-    return { student, timetables: [] };
-  }
-
-  const courseIds = enrollments.map(e => e.course_id);
-
-  // Get timetable entries for enrolled courses
-  const { data: timetables } = await supabase
-    .from('timetables')
-    .select('*, course:courses(*), lecturer:profiles(*), room:rooms(*)')
-    .in('course_id', courseIds)
-    .eq('status', 'active')
-    .order('day')
-    .order('start_time');
-
-  return { student, timetables: timetables || [] };
 }
 
 export async function getLecturerTimetable() {
@@ -263,23 +301,28 @@ export async function getLecturerTimetable() {
     return { lecturer: null, timetables: [] };
   }
 
-  // Get timetable entries for this lecturer
-  const { data: timetables } = await supabase
-    .from('timetables')
-    .select('*, course:courses(*), lecturer:profiles(*), room:rooms(*), program:programs(*)')
-    .eq('lecturer_id', user.id)
-    .eq('status', 'active')
-    .order('day')
-    .order('start_time');
+  try {
+    // Get timetable entries for this lecturer
+    const { data: timetables } = await supabase
+      .from('timetables')
+      .select('*, course:courses(*), lecturer:profiles(*), room:rooms(*), program:programs(*)')
+      .eq('lecturer_id', user.id)
+      .eq('status', 'active')
+      .order('day')
+      .order('start_time');
 
-  // Calculate teaching load
-  const totalHours = timetables?.reduce((sum, tt) => {
-    const start = new Date(`2000-01-01T${tt.start_time}`);
-    const end = new Date(`2000-01-01T${tt.end_time}`);
-    return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-  }, 0) || 0;
+    // Calculate teaching load
+    const totalHours = timetables?.reduce((sum, tt) => {
+      const start = new Date(`2000-01-01T${tt.start_time}`);
+      const end = new Date(`2000-01-01T${tt.end_time}`);
+      return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+    }, 0) || 0;
 
-  return { lecturer: user, timetables: timetables || [], totalHours };
+    return { lecturer: user, timetables: timetables || [], totalHours };
+  } catch (error) {
+    console.error('Error fetching lecturer timetable:', error);
+    return { lecturer: user, timetables: [], totalHours: 0 };
+  }
 }
 
 export async function exportTimetableToCSV() {
