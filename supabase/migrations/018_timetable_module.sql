@@ -1,6 +1,15 @@
 -- Excellence Online College MIS - Timetable Module
 -- Migration for complete timetable management system
 
+-- Drop existing tables and types if they exist (for clean migration)
+DROP TABLE IF EXISTS timetable_audit_logs CASCADE;
+DROP TABLE IF EXISTS timetables CASCADE;
+DROP TABLE IF EXISTS rooms CASCADE;
+DROP TABLE IF EXISTS time_slots CASCADE;
+DROP TYPE IF EXISTS timetable_status CASCADE;
+DROP TYPE IF EXISTS teaching_mode CASCADE;
+DROP TYPE IF EXISTS room_type CASCADE;
+
 -- Custom types for timetable module
 CREATE TYPE timetable_status AS ENUM ('draft', 'active', 'archived');
 CREATE TYPE teaching_mode AS ENUM ('physical', 'online', 'hybrid');
