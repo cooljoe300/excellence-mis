@@ -32,11 +32,6 @@ interface TimetableGridProps {
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const TIME_SLOTS = [
-  '07:00-08:00', '08:00-09:00', '09:00-10:00', '10:00-11:00', '11:00-12:00',
-  '12:00-13:00', '13:00-14:00', '14:00-15:00', '15:00-16:00', '16:00-17:00',
-  '17:00-18:00', '18:00-19:00', '19:00-20:00',
-];
 
 // Color coding by department/program
 const PROGRAM_COLORS: Record<string, string> = {
@@ -72,6 +67,14 @@ export function TimetableGrid({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
+
+  // Generate time slots from the timeSlots prop
+  const TIME_SLOTS = useMemo(() => {
+    return timeSlots
+      .filter(ts => ts.is_active)
+      .map(ts => `${ts.start_time}-${ts.end_time}`)
+      .sort();
+  }, [timeSlots]);
 
   // Filter timetables based on selected filters
   const filteredTimetables = useMemo(() => {
