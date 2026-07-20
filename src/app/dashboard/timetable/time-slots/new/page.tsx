@@ -5,32 +5,32 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/server';
 
-export default async function NewTimeSlotPage() {
-  async function createTimeSlot(formData: FormData) {
-    'use server';
-    
-    const supabase = await createClient();
-    const name = formData.get('name') as string;
-    const startTime = formData.get('start_time') as string;
-    const endTime = formData.get('end_time') as string;
-    const isActive = formData.get('is_active') === 'true';
+async function createTimeSlot(formData: FormData) {
+  'use server';
+  
+  const supabase = await createClient();
+  const name = formData.get('name') as string;
+  const startTime = formData.get('start_time') as string;
+  const endTime = formData.get('end_time') as string;
+  const isActive = formData.get('is_active') === 'true';
 
-    const { error } = await supabase
-      .from('time_slots')
-      .insert({
-        name,
-        start_time: startTime,
-        end_time: endTime,
-        is_active: isActive,
-      });
+  const { error } = await supabase
+    .from('time_slots')
+    .insert({
+      name,
+      start_time: startTime,
+      end_time: endTime,
+      is_active: isActive,
+    });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    redirect('/dashboard/timetable/time-slots');
+  if (error) {
+    throw new Error(error.message);
   }
 
+  redirect('/dashboard/timetable/time-slots');
+}
+
+export default async function NewTimeSlotPage() {
   return (
     <div>
       <PageHeader

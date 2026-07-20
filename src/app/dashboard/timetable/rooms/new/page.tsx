@@ -8,34 +8,34 @@ import { createClient } from '@/lib/supabase/server';
 
 const ROOM_TYPES = ['lecture_hall', 'computer_lab', 'laboratory', 'seminar_room', 'boardroom'];
 
-export default async function NewRoomPage() {
-  async function createRoom(formData: FormData) {
-    'use server';
-    
-    const supabase = await createClient();
-    const name = formData.get('name') as string;
-    const building = formData.get('building') as string;
-    const capacity = formData.get('capacity') as string;
-    const type = formData.get('type') as string;
-    const status = formData.get('status') as string;
+async function createRoom(formData: FormData) {
+  'use server';
+  
+  const supabase = await createClient();
+  const name = formData.get('name') as string;
+  const building = formData.get('building') as string;
+  const capacity = formData.get('capacity') as string;
+  const type = formData.get('type') as string;
+  const status = formData.get('status') as string;
 
-    const { error } = await supabase
-      .from('rooms')
-      .insert({
-        name,
-        building: building || null,
-        capacity: capacity ? parseInt(capacity) : null,
-        type,
-        status,
-      });
+  const { error } = await supabase
+    .from('rooms')
+    .insert({
+      name,
+      building: building || null,
+      capacity: capacity ? parseInt(capacity) : null,
+      type,
+      status,
+    });
 
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    redirect('/dashboard/timetable/rooms');
+  if (error) {
+    throw new Error(error.message);
   }
 
+  redirect('/dashboard/timetable/rooms');
+}
+
+export default async function NewRoomPage() {
   return (
     <div>
       <PageHeader
