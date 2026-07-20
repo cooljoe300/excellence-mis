@@ -41,6 +41,9 @@ const allNavItems = [
   { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox, roles: ['admin', 'staff'] as UserRole[] },
   { href: '/dashboard/courses', label: 'Courses', icon: BookOpen, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/timetable', label: 'Timetable', icon: Calendar, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/timetable/rooms', label: 'Rooms', icon: LayoutDashboard, roles: ['admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/timetable/time-slots', label: 'Time Slots', icon: CalendarDays, roles: ['admin', 'staff'] as UserRole[] },
   { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/fees', label: 'Fees', icon: CreditCard, roles: ['admin', 'staff'] as UserRole[] },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'staff'] as UserRole[] },
@@ -55,6 +58,8 @@ const allNavItems = [
   { href: '/student/deregister', label: 'Deregister', icon: UserMinus, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/student/fees', label: 'Fee Statement', icon: CreditCard, roles: ['student'] as UserRole[], section: 'Finance' },
   { href: '/student/id-card', label: 'My ID Card', icon: IdCard, roles: ['student'] as UserRole[], section: 'Services' },
+  { href: '/teacher', label: 'Dashboard', icon: LayoutDashboard, roles: ['teacher'] as UserRole[], section: null },
+  { href: '/teacher/timetable', label: 'My Timetable', icon: Calendar, roles: ['teacher'] as UserRole[], section: null },
 ];
 
 function getNavItems(role: UserRole) {

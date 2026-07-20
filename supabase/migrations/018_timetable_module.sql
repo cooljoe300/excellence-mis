@@ -1,0 +1,123 @@
+-- Excellence Online College MIS - Timetable Module
+-- Migration for complete timetable management system
+
+-- Custom types for timetable module
+CREATE TYPE timetable_status AS ENUM ('draft', 'active', 'archived');
+CREATE TYPE teaching_mode AS ENUM ('physical', 'online', 'hybrid');
+CREATE TYPE room_type AS ENUM ('lecture_hall', 'computer_lab', 'laboratory', 'seminar_room', 'boardroom');
+
+-- Time slots (reusable teaching periods)
+CREATE TABLE time_slots (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Rooms
+CREATE TABLE rooms (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL UNIQUE,
+  building TEXT,
+  capacity INTEGER,
+  type room_type NOT NULL DEFAULT 'lecture_hall',
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Timetable entries
+CREATE TABLE timetables (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  academic_year TEXT NOT NULL,
+  semester TEXT NOT NULL,
+  program_id UUID REFERENCES programs(id) ON DELETE SET NULL,
+  department TEXT,
+  campus TEXT DEFAULT 'Main Campus',
+  intake_id UUID REFERENCES intakes(id) ON DELETE SET NULL,
+  class_section TEXT,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  lecturer_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  room_id UUID REFERENCES rooms(id) ON DELETE SET NULL,
+  day TEXT NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  duration INTEGER,
+  max_students INTEGER,
+  teaching_mode teaching_mode NOT NULL DEFAULT 'physical',
+  meeting_link TEXT,
+  status timetable_status NOT NULL DEFAULT 'draft',
+  notes TEXT,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  published_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(course_id, day, start_time, end_time, room_id)
+);
+
+-- Audit logs for timetable changes
+CREATE TABLE timetable_audit_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  timetable_id UUID REFERENCES timetables(id) ON DELETE CASCADE,
+  action TEXT NOT NULL,
+  previous_value JSONB,
+  new_value JSONB,
+  performed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Updated_at trigger for rooms
+CREATE TRIGGER rooms_updated_at BEFORE UPDATE ON rooms
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Updated_at trigger for timetables
+CREATE TRIGGER timetables_updated_at BEFORE UPDATE ON timetables
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Row Level Security
+ALTER TABLE time_slots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE timetables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE timetable_audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- Time slots policies
+CREATE POLICY "Staff can manage time slots" ON time_slots FOR ALL USING (is_staff_or_admin());
+
+-- Rooms policies
+CREATE POLICY "Authenticated users can view rooms" ON rooms FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Staff can manage rooms" ON rooms FOR ALL USING (is_staff_or_admin());
+
+-- Timetables policies
+CREATE POLICY "Authenticated users can view active timetables" ON timetables FOR SELECT TO authenticated 
+  USING (status = 'active');
+CREATE POLICY "Staff can manage timetables" ON timetables FOR ALL USING (is_staff_or_admin());
+
+-- Audit logs policies
+CREATE POLICY "Staff can view audit logs" ON timetable_audit_logs FOR SELECT USING (is_staff_or_admin());
+CREATE POLICY "System can create audit logs" ON timetable_audit_logs FOR INSERT 
+  WITH CHECK (true);
+
+-- Seed default time slots
+INSERT INTO time_slots (name, start_time, end_time) VALUES
+  ('07:00 - 09:00', '07:00:00', '09:00:00'),
+  ('09:00 - 11:00', '09:00:00', '11:00:00'),
+  ('11:00 - 13:00', '11:00:00', '13:00:00'),
+  ('14:00 - 16:00', '14:00:00', '16:00:00'),
+  ('16:00 - 18:00', '16:00:00', '18:00:00'),
+  ('18:00 - 20:00', '18:00:00', '20:00:00');
+
+-- Seed sample rooms
+INSERT INTO rooms (name, building, capacity, type) VALUES
+  ('LH-1', 'Admin Block', 100, 'lecture_hall'),
+  ('LH-2', 'Admin Block', 80, 'lecture_hall'),
+  ('LH-3', 'Academic Block', 120, 'lecture_hall'),
+  ('CL-1', 'Computer Block', 40, 'computer_lab'),
+  ('CL-2', 'Computer Block', 40, 'computer_lab'),
+  ('LAB-1', 'Science Block', 30, 'laboratory'),
+  ('SR-1', 'Admin Block', 20, 'seminar_room'),
+  ('BR-1', 'Admin Block', 15, 'boardroom');

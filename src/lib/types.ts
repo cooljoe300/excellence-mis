@@ -7,6 +7,9 @@ export type PaymentSubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type DeregistrationRequestType = 'units' | 'full_withdrawal';
 export type DeregistrationRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
 export type LmsSyncStatus = 'not_synced' | 'synced' | 'failed';
+export type TimetableStatus = 'draft' | 'active' | 'archived';
+export type TeachingMode = 'physical' | 'online' | 'hybrid';
+export type RoomType = 'lecture_hall' | 'computer_lab' | 'laboratory' | 'seminar_room' | 'boardroom';
 
 export interface Profile {
   id: string;
@@ -199,4 +202,69 @@ export interface DashboardStats {
   pendingFees: number;
   overdueFees: number;
   totalRevenue: number;
+}
+
+export interface TimeSlot {
+  id: string;
+  name: string;
+  start_time: string;
+  end_time: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface Room {
+  id: string;
+  name: string;
+  building: string | null;
+  capacity: number | null;
+  type: RoomType;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Timetable {
+  id: string;
+  academic_year: string;
+  semester: string;
+  program_id: string | null;
+  department: string | null;
+  campus: string;
+  intake_id: string | null;
+  class_section: string | null;
+  course_id: string | null;
+  lecturer_id: string | null;
+  room_id: string | null;
+  day: string;
+  start_time: string;
+  end_time: string;
+  duration: number | null;
+  max_students: number | null;
+  teaching_mode: TeachingMode;
+  meeting_link: string | null;
+  status: TimetableStatus;
+  notes: string | null;
+  created_by: string | null;
+  updated_by: string | null;
+  published_by: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  program?: Program;
+  intake?: Intake;
+  course?: Course;
+  lecturer?: Profile;
+  room?: Room;
+}
+
+export interface TimetableAuditLog {
+  id: string;
+  timetable_id: string;
+  action: string;
+  previous_value: any;
+  new_value: any;
+  performed_by: string | null;
+  reason: string | null;
+  created_at: string;
 }
