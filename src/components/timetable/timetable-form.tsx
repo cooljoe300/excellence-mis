@@ -34,6 +34,7 @@ export function TimetableForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState<string>('');
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -58,6 +59,11 @@ export function TimetableForm({
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const teachingModes = ['physical', 'online', 'hybrid'];
   const statuses = ['draft', 'active'];
+
+  // Filter courses based on selected program
+  const filteredCourses = selectedProgramId
+    ? courses.filter(course => course.program_id === selectedProgramId)
+    : courses;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -103,6 +109,7 @@ export function TimetableForm({
             name="program_id"
             options={[{ value: '', label: 'Select programme' }, ...programs.map(p => ({ value: p.id, label: `${p.code} - ${p.name}` }))]}
             required
+            onChange={(e) => setSelectedProgramId(e.target.value)}
           />
         </div>
 
@@ -149,7 +156,7 @@ export function TimetableForm({
           <Select
             id="course_id"
             name="course_id"
-            options={[{ value: '', label: 'Select unit' }, ...courses.map(c => ({ value: c.id, label: `${c.code} - ${c.name}` }))]}
+            options={[{ value: '', label: 'Select unit' }, ...filteredCourses.map(c => ({ value: c.id, label: `${c.code} - ${c.name}` }))]}
             required
           />
         </div>
