@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/server';
+import Link from 'next/link';
 
 const ROOM_TYPES = ['lecture_hall', 'computer_lab', 'laboratory', 'seminar_room', 'boardroom'];
 
@@ -119,13 +120,11 @@ export default async function NewRoomPage() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => redirect('/dashboard/timetable/rooms')}
-              >
-                Cancel
-              </Button>
+              <Link href="/dashboard/timetable/rooms">
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </Link>
               <Button type="submit">Create Room</Button>
             </div>
           </form>

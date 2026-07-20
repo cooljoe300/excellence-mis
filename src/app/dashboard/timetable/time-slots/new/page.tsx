@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/server';
+import Link from 'next/link';
 
 async function createTimeSlot(formData: FormData) {
   'use server';
@@ -97,13 +98,11 @@ export default async function NewTimeSlotPage() {
             </div>
 
             <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => redirect('/dashboard/timetable/time-slots')}
-              >
-                Cancel
-              </Button>
+              <Link href="/dashboard/timetable/time-slots">
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </Link>
               <Button type="submit">Create Time Slot</Button>
             </div>
           </form>
