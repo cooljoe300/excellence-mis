@@ -35,6 +35,23 @@ export function TimetableForm({
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<string[]>([]);
   const [selectedProgramId, setSelectedProgramId] = useState<string>('');
+  const [selectedTimeSlotId, setSelectedTimeSlotId] = useState<string>('');
+  const [startTime, setStartTime] = useState<string>('');
+  const [endTime, setEndTime] = useState<string>('');
+
+  function handleTimeSlotChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const slotId = e.target.value;
+    setSelectedTimeSlotId(slotId);
+    
+    const selectedSlot = timeSlots.find(slot => slot.id === slotId);
+    if (selectedSlot) {
+      setStartTime(selectedSlot.start_time);
+      setEndTime(selectedSlot.end_time);
+    } else {
+      setStartTime('');
+      setEndTime('');
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -188,7 +205,7 @@ export function TimetableForm({
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-4">
         <div className="space-y-2">
           <label htmlFor="day" className="text-sm font-medium text-slate-700">
             Day
@@ -202,17 +219,43 @@ export function TimetableForm({
         </div>
 
         <div className="space-y-2">
+          <label htmlFor="time_slot_id" className="text-sm font-medium text-slate-700">
+            Time Slot
+          </label>
+          <Select
+            id="time_slot_id"
+            name="time_slot_id"
+            options={[{ value: '', label: 'Select time slot' }, ...timeSlots.map(ts => ({ value: ts.id, label: `${ts.name} (${ts.start_time} - ${ts.end_time})` }))]}
+            onChange={handleTimeSlotChange}
+          />
+        </div>
+
+        <div className="space-y-2">
           <label htmlFor="start_time" className="text-sm font-medium text-slate-700">
             Start Time
           </label>
-          <Input id="start_time" name="start_time" type="time" required />
+          <Input 
+            id="start_time" 
+            name="start_time" 
+            type="time" 
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            required 
+          />
         </div>
 
         <div className="space-y-2">
           <label htmlFor="end_time" className="text-sm font-medium text-slate-700">
             End Time
           </label>
-          <Input id="end_time" name="end_time" type="time" required />
+          <Input 
+            id="end_time" 
+            name="end_time" 
+            type="time" 
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            required 
+          />
         </div>
       </div>
 
