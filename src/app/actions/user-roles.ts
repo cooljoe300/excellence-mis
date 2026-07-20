@@ -134,13 +134,15 @@ export async function updateUserRole(userId: string, role: string, reason?: stri
 
   // Log the role change
   try {
-    await logRoleChange({
-      userId,
-      previousRole: currentRole,
-      newRole: role,
-      changedBy: gate.userId,
-      reason,
-    });
+    if (gate.userId) {
+      await logRoleChange({
+        userId,
+        previousRole: currentRole,
+        newRole: role,
+        changedBy: gate.userId,
+        reason,
+      });
+    }
   } catch (logError) {
     // Log error but don't fail the role change
     console.error('Failed to log role change:', logError);
