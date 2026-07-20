@@ -12,6 +12,24 @@ import {
   ToggleRight,
 } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
+
+async function deleteTimeSlot(id: string) {
+  'use server';
+  
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('time_slots')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath('/dashboard/timetable/time-slots');
+}
 
 export default async function TimeSlotsPage() {
   const timeSlots = await getTimeSlots();
@@ -80,9 +98,11 @@ export default async function TimeSlotsPage() {
                               <Edit className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" title="Delete">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <form action={deleteTimeSlot.bind(null, slot.id)}>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" title="Delete" type="submit">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </form>
                         </div>
                       </td>
                     </tr>

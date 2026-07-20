@@ -15,6 +15,8 @@ import {
   DoorOpen,
 } from 'lucide-react';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
 
 const roomTypeIcons = {
   lecture_hall: Building2,
@@ -31,6 +33,22 @@ const roomTypeLabels = {
   seminar_room: 'Seminar Room',
   boardroom: 'Boardroom',
 };
+
+async function deleteRoom(id: string) {
+  'use server';
+  
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('rooms')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath('/dashboard/timetable/rooms');
+}
 
 export default async function RoomsPage() {
   const rooms = await getRooms();
@@ -101,9 +119,11 @@ export default async function RoomsPage() {
                               <Edit className="h-3.5 w-3.5" />
                             </Button>
                           </Link>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" title="Delete">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
+                          <form action={deleteRoom.bind(null, room.id)}>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-600 hover:text-red-700" title="Delete" type="submit">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </form>
                         </div>
                       </td>
                     </tr>
