@@ -1,6 +1,9 @@
 -- Excellence Online College MIS - Timetable Module
 -- Migration for complete timetable management system
 
+-- Ensure UUID extension is available
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Drop existing tables and types if they exist (for clean migration)
 DROP TABLE IF EXISTS timetable_audit_logs CASCADE;
 DROP TABLE IF EXISTS timetables CASCADE;
@@ -42,14 +45,14 @@ CREATE TABLE timetables (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   academic_year TEXT NOT NULL,
   semester TEXT NOT NULL,
-  program_id UUID REFERENCES programs(id) ON DELETE SET NULL,
+  program_id UUID,
   department TEXT,
   campus TEXT DEFAULT 'Main Campus',
-  intake_id UUID REFERENCES intakes(id) ON DELETE SET NULL,
+  intake_id UUID,
   class_section TEXT,
-  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  lecturer_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  room_id UUID REFERENCES rooms(id) ON DELETE SET NULL,
+  course_id UUID,
+  lecturer_id UUID,
+  room_id UUID,
   day TEXT NOT NULL,
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
@@ -59,26 +62,34 @@ CREATE TABLE timetables (
   meeting_link TEXT,
   status timetable_status NOT NULL DEFAULT 'draft',
   notes TEXT,
-  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  published_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_by UUID,
+  updated_by UUID,
+  published_by UUID,
   published_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE(course_id, day, start_time, end_time, room_id)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Audit logs for timetable changes
 CREATE TABLE timetable_audit_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  timetable_id UUID REFERENCES timetables(id) ON DELETE CASCADE,
+  timetable_id UUID,
   action TEXT NOT NULL,
   previous_value JSONB,
   new_value JSONB,
-  performed_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  performed_by UUID,
   reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Updated_at trigger function (if not exists)
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Updated_at trigger for rooms
 CREATE TRIGGER rooms_updated_at BEFORE UPDATE ON rooms
@@ -93,6 +104,17 @@ ALTER TABLE time_slots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE timetables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE timetable_audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- Helper function for staff/admin check (if not exists)
+CREATE OR REPLACE FUNCTION is_staff_or_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM profiles
+    WHERE id = auth.uid() AND role IN ('admin', 'staff')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Time slots policies
 CREATE POLICY "Staff can manage time slots" ON time_slots FOR ALL USING (is_staff_or_admin());
