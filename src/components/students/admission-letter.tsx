@@ -8,6 +8,7 @@ import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import type { Student } from '@/lib/types';
 import jsPDF from 'jspdf';
+import { AdmissionStamp } from './admission-stamp';
 
 interface AdmissionLetterProps {
   student: Student;
@@ -240,6 +241,44 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.text('EXCELLENCE ONLINE COLLEGE', margin, signatureY + 10);
+
+      // Add stamp image to the right of signature
+      try {
+        const stampResponse = await fetch('/eoc.png');
+        const stampBlob = await stampResponse.blob();
+        const stampReader = new FileReader();
+        
+        await new Promise<void>((resolve, reject) => {
+          stampReader.onloadend = () => resolve();
+          stampReader.onerror = reject;
+          stampReader.readAsDataURL(stampBlob);
+        });
+        
+        const stampDataUrl = stampReader.result as string;
+        
+        // Add stamp image
+        const stampWidth = 30;
+        const stampHeight = 30;
+        const stampX = margin + 70;
+        const stampY = signatureY - 15;
+        doc.addImage(stampDataUrl, 'PNG', stampX, stampY, stampWidth, stampHeight);
+
+        // Add dynamic date overlay on top of stamp
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+        const month = months[now.getMonth()];
+        const year = now.getFullYear();
+        const stampDate = `${day} ${month} ${year}`;
+
+        doc.setFontSize(7);
+        doc.setTextColor(30, 64, 175); // Blue color
+        doc.setFont('helvetica', 'bold');
+        doc.text(stampDate, stampX + stampWidth / 2, stampY + stampHeight / 2 + 2, { align: 'center' });
+      } catch (stampError) {
+        console.warn('Could not load stamp for PDF:', stampError);
+        // Continue without stamp if it fails
+      }
 
       // Footer
       y = pageHeight - 20;
@@ -475,10 +514,15 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
             </div>
 
             {/* Signature Section */}
-            <div className="max-w-xs">
-              <div className="border-t border-slate-900 pt-2">
-                <p className="text-sm font-semibold text-slate-900">Admissions Officer / Registrar</p>
-                <p className="text-xs text-slate-600">EXCELLENCE ONLINE COLLEGE</p>
+            <div className="flex items-start gap-8">
+              <div className="max-w-xs">
+                <div className="border-t border-slate-900 pt-2">
+                  <p className="text-sm font-semibold text-slate-900">Admissions Officer / Registrar</p>
+                  <p className="text-xs text-slate-600">EXCELLENCE ONLINE COLLEGE</p>
+                </div>
+              </div>
+              <div className="mt-2">
+                <AdmissionStamp />
               </div>
             </div>
 
