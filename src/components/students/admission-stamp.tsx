@@ -26,14 +26,14 @@ export function AdmissionStamp({ className = '' }: AdmissionStampProps) {
         <Image
           src="/eoc.png"
           alt="Excellence Online College Admissions Office Stamp"
-          width={120}
-          height={120}
+          width={90}
+          height={90}
           className="drop-shadow-md"
           priority
         />
         {/* Dynamic date overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[10px] font-bold text-red-700" style={{ marginTop: '2px' }}>
+          <span className="text-[8px] font-bold text-red-700" style={{ marginTop: '2px' }}>
             {currentDate}
           </span>
         </div>
