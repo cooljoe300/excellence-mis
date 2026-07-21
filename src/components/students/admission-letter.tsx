@@ -432,7 +432,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       {/* Print-friendly admission letter */}
       <Card className="print:shadow-none print:border-none">
         <CardContent className="p-0">
-          <div id="admission-letter" className="max-w-[210mm] mx-auto bg-white p-[15mm] border-2 border-slate-900" style={{ minHeight: '297mm' }}>
+          <div id="admission-letter" className="max-w-[210mm] mx-auto bg-white p-[15mm] border-2 border-slate-900 print:border-none" style={{ minHeight: '297mm' }}>
             {/* Header with Logo */}
             <div className="text-center mb-4 border-b-2 border-slate-900 pb-3">
               <div className="flex justify-center mb-2">
@@ -599,7 +599,13 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
         @media print {
           @page {
             size: A4 portrait;
-            margin: 15mm;
+            margin: 0;
+          }
+          
+          body {
+            margin: 0;
+            padding: 0;
+            background: white !important;
           }
           
           body * {
@@ -616,9 +622,12 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             left: 0;
             top: 0;
             width: 210mm;
+            min-height: 297mm;
             margin: 0;
             padding: 15mm;
             border: none !important;
+            box-shadow: none !important;
+            background: white !important;
           }
           
           .no-print {
