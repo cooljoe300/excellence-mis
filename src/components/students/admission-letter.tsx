@@ -30,7 +30,7 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
     address: 'Main Campus',
     city: 'Nairobi',
     country: 'Kenya',
-    phone: '+254 XXX XXX XXX',
+    phone: '+254 711 552570',
     email: 'info@excellencecollege.ac.ke',
     website: 'www.excellencecollege.ac.ke',
   };
