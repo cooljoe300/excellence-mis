@@ -36,7 +36,7 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
 
   const department = program?.department || 'Business & ICT';
   const campus = institution.address;
-  const modeOfStudy = 'Online / Distance Learning';
+  const modeOfStudy = 'Online';
   const academicYear = '2026/2027';
 
   const generatePDF = async () => {
@@ -105,27 +105,37 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
       doc.setFontSize(16);
       doc.setTextColor(0);
       doc.setFont('helvetica', 'bold');
-      doc.text('OFFICIAL ADMISSION LETTER', pageWidth / 2, y, { align: 'center' });
+      doc.text('ADMISSION LETTER', pageWidth / 2, y, { align: 'center' });
       y += 8;
 
       doc.setFontSize(9);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Ref: ${admissionNumber}`, pageWidth / 2, y, { align: 'center' });
+      doc.text(`Date: ${formatDate(student.enrollment_date) || new Date().toLocaleDateString()}`, pageWidth / 2, y, { align: 'center' });
       y += 15;
 
-      // Date
+      // Recipient Info
       doc.setFontSize(10);
-      doc.text(`Date: ${formatDate(student.enrollment_date) || new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.text('To:', margin, y);
+      y += 5;
+      doc.text(`${student.first_name} ${student.last_name}`, margin, y);
+      y += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Admission Number: ${admissionNumber}`, margin, y);
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text(`RE: ADMISSION TO ${program?.name?.toUpperCase()}`, margin, y);
       y += 15;
 
       // Salutation
       doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
       doc.text(`Dear ${student.first_name} ${student.last_name},`, margin, y);
       y += 10;
 
       // Body
       const bodyText = [
-        `We are pleased to inform you that you have been successfully admitted to Excellence Online College for the ${intake?.name || 'Current Intake'}.`,
+        `We are pleased to inform you that you have been admitted to Excellence Online College to pursue ${program?.name}, ${program?.code}.`,
         '',
         'Your admission details are as follows:',
       ];
@@ -139,16 +149,13 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
 
       // Student Details Table
       const tableData = [
-        ['Admission Number', admissionNumber],
         ['Student Name', `${student.first_name} ${student.last_name}`],
+        ['Admission Number', admissionNumber],
         ['Programme', program?.name || ''],
         ['Programme Code', program?.code || ''],
-        ['Department', department],
-        ['Campus', campus],
         ['Mode of Study', modeOfStudy],
         ['Intake', intake?.name || ''],
         ['Academic Year', academicYear],
-        ['Date of Admission', formatDate(student.enrollment_date) || ''],
         ['Programme Duration', program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'],
       ];
 
@@ -183,29 +190,41 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
 
       y = tableY + 10;
 
-      // Requirements
-      const requirementsText = [
-        `Please report to the college on ${formatDate(student.enrollment_date)} to complete your registration process.`,
-        'You are required to bring the following documents:',
-        '• National ID Card / Passport',
-        '• Academic Certificates (KCSE, Diploma, Degree, etc.)',
-        '• Passport-size photographs (2 copies)',
-        '• This admission letter',
+      // Online Learning Statement
+      const onlineLearningText = [
+        'As an online student, you will access your learning resources, course materials, assignments,',
+        'assessments, announcements, and other academic services through the Excellence Online College',
+        'Student Portal/Learning Management System (LMS).',
         '',
-        'Congratulations on your admission. We look forward to welcoming you to Excellence Online College',
-        'and supporting you in achieving your academic goals.',
+        'You are required to log in to your student portal using the credentials provided to you and ensure',
+        'that your student profile is complete. All important academic communication, including course',
+        'registration, learning activities, examinations, and other institutional updates, will be',
+        'communicated through the appropriate online platforms.',
         '',
-        'Should you have any questions, please contact the Admissions Office.',
+        'You are encouraged to familiarize yourself with the Student Portal and LMS and participate',
+        'actively in all online learning activities. Where applicable, virtual orientation sessions and',
+        'other online student support services will be communicated through the official college channels.',
       ];
 
-      requirementsText.forEach(line => {
+      onlineLearningText.forEach(line => {
         doc.text(line, margin, y);
         y += 5;
       });
       y += 5;
 
       // Closing
-      doc.text('Yours sincerely,', margin, y);
+      const closingText = [
+        'We welcome you to Excellence Online College and look forward to supporting you throughout',
+        'your academic journey. We wish you success in your studies.',
+      ];
+
+      closingText.forEach(line => {
+        doc.text(line, margin, y);
+        y += 5;
+      });
+      y += 10;
+
+      doc.text('Yours faithfully,', margin, y);
       y += 20;
 
       // Signature section
@@ -213,23 +232,14 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
       doc.setDrawColor(0);
       doc.setLineWidth(0.5);
       
-      // Registrar signature
+      // Admissions Officer signature
       doc.line(margin, signatureY, margin + 60, signatureY);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('Registrar', margin, signatureY + 5);
+      doc.text('Admissions Officer / Registrar', margin, signatureY + 5);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text('Excellence Online College', margin, signatureY + 10);
-
-      // Principal signature
-      doc.line(pageWidth - margin - 60, signatureY, pageWidth - margin, signatureY);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Principal', pageWidth - margin - 60, signatureY + 5);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Excellence Online College', pageWidth - margin - 60, signatureY + 10);
+      doc.text('EXCELLENCE ONLINE COLLEGE', margin, signatureY + 10);
 
       // Footer
       y = pageHeight - 20;
@@ -363,18 +373,19 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
             {/* Letter Title */}
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold text-slate-900 underline">
-                OFFICIAL ADMISSION LETTER
+                ADMISSION LETTER
               </h2>
               <p className="text-sm text-slate-600 mt-2">
-                Ref: {admissionNumber}
+                Date: {formatDate(student.enrollment_date) || new Date().toLocaleDateString()}
               </p>
             </div>
 
-            {/* Date */}
-            <div className="text-right mb-8">
-              <p className="text-sm text-slate-700">
-                Date: {formatDate(student.enrollment_date) || new Date().toLocaleDateString()}
-              </p>
+            {/* Recipient Info */}
+            <div className="mb-8 text-sm text-slate-700">
+              <p className="font-semibold">To:</p>
+              <p className="font-semibold">{student.first_name} {student.last_name}</p>
+              <p>Admission Number: {admissionNumber}</p>
+              <p className="mt-2 font-semibold">RE: ADMISSION TO {program?.name?.toUpperCase()}</p>
             </div>
 
             {/* Salutation */}
@@ -387,9 +398,9 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
             {/* Body */}
             <div className="space-y-4 text-sm text-slate-700 leading-relaxed mb-8">
               <p>
-                We are pleased to inform you that you have been successfully admitted to 
-                <span className="font-semibold"> Excellence Online College</span> for the 
-                <span className="font-semibold"> {intake?.name || 'Current Intake'}</span>.
+                We are pleased to inform you that you have been admitted to 
+                <span className="font-semibold"> Excellence Online College</span> to pursue 
+                <span className="font-semibold"> {program?.name}</span>, <span className="font-semibold">{program?.code}</span>.
               </p>
 
               <p>
@@ -401,12 +412,12 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
                 <table className="w-full text-sm">
                   <tbody>
                     <tr className="border-b border-slate-200">
-                      <td className="py-2 px-4 font-semibold bg-slate-50 w-1/3">Admission Number</td>
-                      <td className="py-2 px-4">{admissionNumber}</td>
+                      <td className="py-2 px-4 font-semibold bg-slate-50 w-1/3">Student Name</td>
+                      <td className="py-2 px-4">{student.first_name} {student.last_name}</td>
                     </tr>
                     <tr className="border-b border-slate-200">
-                      <td className="py-2 px-4 font-semibold bg-slate-50">Student Name</td>
-                      <td className="py-2 px-4">{student.first_name} {student.last_name}</td>
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Admission Number</td>
+                      <td className="py-2 px-4">{admissionNumber}</td>
                     </tr>
                     <tr className="border-b border-slate-200">
                       <td className="py-2 px-4 font-semibold bg-slate-50">Programme</td>
@@ -415,14 +426,6 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
                     <tr className="border-b border-slate-200">
                       <td className="py-2 px-4 font-semibold bg-slate-50">Programme Code</td>
                       <td className="py-2 px-4">{program?.code}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 px-4 font-semibold bg-slate-50">Department</td>
-                      <td className="py-2 px-4">{department}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 px-4 font-semibold bg-slate-50">Campus</td>
-                      <td className="py-2 px-4">{campus}</td>
                     </tr>
                     <tr className="border-b border-slate-200">
                       <td className="py-2 px-4 font-semibold bg-slate-50">Mode of Study</td>
@@ -436,10 +439,6 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
                       <td className="py-2 px-4 font-semibold bg-slate-50">Academic Year</td>
                       <td className="py-2 px-4">{academicYear}</td>
                     </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 px-4 font-semibold bg-slate-50">Date of Admission</td>
-                      <td className="py-2 px-4">{formatDate(student.enrollment_date)}</td>
-                    </tr>
                     <tr>
                       <td className="py-2 px-4 font-semibold bg-slate-50">Programme Duration</td>
                       <td className="py-2 px-4">{program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'}</td>
@@ -448,48 +447,38 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
                 </table>
               </div>
 
-              <p>
-                Please report to the college on <span className="font-semibold">{formatDate(student.enrollment_date)}</span> 
-                to complete your registration process. You are required to bring the following documents:
-              </p>
+              {/* Online Learning Statement */}
+              <div className="my-6 p-4 bg-slate-50 border border-slate-200 rounded">
+                <p className="font-semibold mb-3">Online Learning Information:</p>
+                <p className="mb-3">
+                  As an online student, you will access your learning resources, course materials, assignments, assessments, announcements, and other academic services through the Excellence Online College Student Portal/Learning Management System (LMS).
+                </p>
+                <p className="mb-3">
+                  You are required to log in to your student portal using the credentials provided to you and ensure that your student profile is complete. All important academic communication, including course registration, learning activities, examinations, and other institutional updates, will be communicated through the appropriate online platforms.
+                </p>
+                <p>
+                  You are encouraged to familiarize yourself with the Student Portal and LMS and participate actively in all online learning activities. Where applicable, virtual orientation sessions and other online student support services will be communicated through the official college channels.
+                </p>
+              </div>
 
-              <ul className="list-disc ml-6 space-y-1">
-                <li>National ID Card / Passport</li>
-                <li>Academic Certificates (KCSE, Diploma, Degree, etc.)</li>
-                <li>Passport-size photographs (2 copies)</li>
-                <li>This admission letter</li>
-              </ul>
-
-              <p>
-                Congratulations on your admission. We look forward to welcoming you to Excellence Online College 
-                and supporting you in achieving your academic goals.
-              </p>
-
+              {/* Closing */}
               <p className="font-semibold">
-                Should you have any questions, please contact the Admissions Office.
+                We welcome you to Excellence Online College and look forward to supporting you throughout your academic journey. We wish you success in your studies.
               </p>
             </div>
 
             {/* Closing */}
             <div className="mb-8">
               <p className="text-sm text-slate-700">
-                Yours sincerely,
+                Yours faithfully,
               </p>
             </div>
 
             {/* Signature Section */}
-            <div className="grid grid-cols-2 gap-8 mt-12">
-              <div>
-                <div className="border-t border-slate-900 pt-2">
-                  <p className="text-sm font-semibold text-slate-900">Registrar</p>
-                  <p className="text-xs text-slate-600">Excellence Online College</p>
-                </div>
-              </div>
-              <div>
-                <div className="border-t border-slate-900 pt-2">
-                  <p className="text-sm font-semibold text-slate-900">Principal</p>
-                  <p className="text-xs text-slate-600">Excellence Online College</p>
-                </div>
+            <div className="max-w-xs">
+              <div className="border-t border-slate-900 pt-2">
+                <p className="text-sm font-semibold text-slate-900">Admissions Officer / Registrar</p>
+                <p className="text-xs text-slate-600">EXCELLENCE ONLINE COLLEGE</p>
               </div>
             </div>
 
