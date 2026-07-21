@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
@@ -38,7 +39,7 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
   const modeOfStudy = 'Online / Distance Learning';
   const academicYear = '2026/2027';
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     setIsGenerating(true);
     
     try {
@@ -48,15 +49,36 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
       const margin = 20;
       let y = margin;
 
-      // Add logo if available
-      const logoImg = new Image();
-      logoImg.src = '/logo.png';
-      
-      // Header with logo
+      // Load and add logo to PDF
+      try {
+        const response = await fetch('/logo.png');
+        const blob = await response.blob();
+        const reader = new FileReader();
+        
+        await new Promise<void>((resolve, reject) => {
+          reader.onloadend = () => resolve();
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        
+        const logoDataUrl = reader.result as string;
+        
+        // Add logo at top center
+        const logoWidth = 30;
+        const logoHeight = 30;
+        const logoX = (pageWidth - logoWidth) / 2;
+        doc.addImage(logoDataUrl, 'PNG', logoX, y, logoWidth, logoHeight);
+        y += logoHeight + 10;
+      } catch (logoError) {
+        console.warn('Could not load logo for PDF:', logoError);
+        // Continue without logo if it fails
+      }
+
+      // Header text
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text(institution.name, pageWidth / 2, y + 30, { align: 'center' });
-      y += 38;
+      doc.text(institution.name, pageWidth / 2, y, { align: 'center' });
+      y += 8;
 
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -315,8 +337,18 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
       <Card className="print:shadow-none print:border-none">
         <CardContent className="p-8">
           <div id="admission-letter" className="max-w-4xl mx-auto bg-white p-8 border-2 border-slate-900">
-            {/* Header */}
+            {/* Header with Logo */}
             <div className="text-center mb-8 border-b-2 border-slate-900 pb-6">
+              <div className="flex justify-center mb-4">
+                <Image
+                  src="/logo.png"
+                  alt="Excellence Online College Logo"
+                  width={80}
+                  height={80}
+                  className="h-20 w-20 object-contain"
+                  priority
+                />
+              </div>
               <h1 className="text-3xl font-bold text-slate-900 mb-2">
                 {institution.name}
               </h1>
