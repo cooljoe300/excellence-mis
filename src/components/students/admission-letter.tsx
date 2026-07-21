@@ -48,7 +48,10 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   const academicYear = '2026/2027';
 
   // Calculate total units and fees
-  const totalUnits = enrollments.length;
+  const unitNames = enrollments
+    .map((enrollment) => enrollment.course?.name)
+    .filter(Boolean)
+    .join(', ');
   const tuitionFee = program?.tuition_fee || 0;
   const unitFees = enrollments.reduce((sum, enrollment) => {
     return sum + (enrollment.course?.unit_fee || 0);
@@ -208,7 +211,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
         ['Intake', intake?.name || ''],
         ['Academic Year', academicYear],
         ['Programme Duration', program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'],
-        ['Units Registered', totalUnits.toString()],
+        ['Units Registered', unitNames || 'None'],
         ['Total Fees', formatCurrency(totalFees)],
       ];
 
@@ -528,7 +531,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
                     </tr>
                     <tr className="border-b border-slate-200">
                       <td className="py-1 px-3 font-semibold bg-slate-50">Units Registered</td>
-                      <td className="py-1 px-3">{totalUnits}</td>
+                      <td className="py-1 px-3 text-xs">{unitNames || 'None'}</td>
                     </tr>
                     <tr>
                       <td className="py-1 px-3 font-semibold bg-slate-50">Total Fees</td>
