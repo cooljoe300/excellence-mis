@@ -7,7 +7,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { Student } from '@/lib/types';
-import jsPDF from 'jspdf';
 import { AdmissionStamp } from './admission-stamp';
 
 interface AdmissionLetterProps {
@@ -16,7 +15,6 @@ interface AdmissionLetterProps {
 }
 
 export function AdmissionLetter({ student, enrollments: initialEnrollments = [] }: AdmissionLetterProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [enrollments, setEnrollments] = useState<any[]>(initialEnrollments);
@@ -58,303 +56,17 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   }, 0);
   const totalFees = tuitionFee + unitFees;
 
-  // Helper function to justify text in PDF
-  const justifyText = (doc: jsPDF, text: string, x: number, y: number, maxWidth: number, fontSize: number, lineHeight: number) => {
-    doc.setFontSize(fontSize);
-    const words = text.split(' ');
-    let line = '';
-    let currentY = y;
-
-    for (let i = 0; i < words.length; i++) {
-      const testLine = line + words[i] + ' ';
-      const testWidth = doc.getTextWidth(testLine);
-
-      if (testWidth > maxWidth && i > 0) {
-        // Justify the current line
-        const lineWords = line.trim().split(' ');
-        if (lineWords.length > 1) {
-          const totalWidth = doc.getTextWidth(line.trim());
-          const totalSpace = maxWidth - totalWidth;
-          const spaceCount = lineWords.length - 1;
-          const extraSpace = totalSpace / spaceCount;
-
-          let xPos = x;
-          lineWords.forEach((word, index) => {
-            doc.text(word, xPos, currentY);
-            xPos += doc.getTextWidth(word) + extraSpace + (index < spaceCount ? 1 : 0);
-          });
-        } else {
-          doc.text(line.trim(), x, currentY);
-        }
-        line = words[i] + ' ';
-        currentY += lineHeight;
-      } else {
-        line = testLine;
-      }
-    }
-
-    // Add the last line (left-aligned)
-    if (line.trim()) {
-      doc.text(line.trim(), x, currentY);
-    }
-
-    return currentY + lineHeight;
-  };
-
-  const generatePDF = async () => {
-    setIsGenerating(true);
-    
-    try {
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 15;
-      let y = margin;
-
-      // Load and add logo to PDF
-      try {
-        const response = await fetch('/logo.png');
-        const blob = await response.blob();
-        const reader = new FileReader();
-        
-        await new Promise<void>((resolve, reject) => {
-          reader.onloadend = () => resolve();
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        
-        const logoDataUrl = reader.result as string;
-        
-        // Add logo at top center
-        const logoWidth = 20;
-        const logoHeight = 20;
-        const logoX = (pageWidth - logoWidth) / 2;
-        doc.addImage(logoDataUrl, 'PNG', logoX, y, logoWidth, logoHeight);
-        y += logoHeight + 5;
-      } catch (logoError) {
-        console.warn('Could not load logo for PDF:', logoError);
-        // Continue without logo if it fails
-      }
-
-      // Header text
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(institution.name, pageWidth / 2, y, { align: 'center' });
-      y += 5;
-
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(institution.tagline, pageWidth / 2, y, { align: 'center' });
-      y += 3;
-
-      doc.setFontSize(7);
-      doc.setTextColor(100);
-      doc.text(
-        `${institution.address} | ${institution.city}, ${institution.country} | Tel: ${institution.phone} | Email: ${institution.email}`,
-        pageWidth / 2,
-        y,
-        { align: 'center' }
-      );
-      y += 8;
-
-      // Horizontal line
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.5);
-      doc.line(margin, y, pageWidth - margin, y);
-      y += 6;
-
-      // Letter Title
-      doc.setFontSize(12);
-      doc.setTextColor(0);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ADMISSION LETTER', pageWidth / 2, y, { align: 'center' });
-      y += 5;
-
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Date: ${formatDate(student.enrollment_date) || new Date().toLocaleDateString()}`, pageWidth / 2, y, { align: 'center' });
-      y += 8;
-
-      // Recipient Info
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('To:', margin, y);
-      y += 3;
-      doc.text(`${student.first_name} ${student.last_name}`, margin, y);
-      y += 3;
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Admission Number: ${admissionNumber}`, margin, y);
-      y += 5;
-      doc.setFont('helvetica', 'bold');
-      doc.text(`RE: ADMISSION TO ${program?.name?.toUpperCase()}`, margin, y);
-      y += 8;
-
-      // Salutation
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Dear ${student.first_name} ${student.last_name},`, margin, y);
-      y += 5;
-
-      // Body
-      const bodyText = `We are pleased to inform you that you have been admitted to Excellence Online College to pursue ${program?.name}, ${program?.code}. Your admission details are as follows:`;
-
-      y = justifyText(doc, bodyText, margin, y, pageWidth - margin * 2, 8, 4);
-      y += 3;
-
-      // Student Details Table
-      const tableData = [
-        ['Student Name', `${student.first_name} ${student.last_name}`],
-        ['Admission Number', admissionNumber],
-        ['Programme', program?.name || ''],
-        ['Programme Code', program?.code || ''],
-        ['Mode of Study', modeOfStudy],
-        ['Intake', intake?.name || ''],
-        ['Academic Year', academicYear],
-        ['Programme Duration', program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'],
-        ['Units Registered', unitNames || 'None'],
-        ['Total Fees', formatCurrency(totalFees)],
-      ];
-
-      doc.setFontSize(7);
-      let tableY = y;
-      const rowHeight = 5;
-      const col1Width = 45;
-      const col2Width = pageWidth - margin * 2 - col1Width;
-
-      // Table header
-      doc.setFillColor(240, 240, 240);
-      doc.rect(margin, tableY, pageWidth - margin * 2, rowHeight, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.text('Field', margin + 2, tableY + 3.5);
-      doc.text('Details', margin + col1Width + 2, tableY + 3.5);
-      tableY += rowHeight;
-
-      // Table rows
-      doc.setFont('helvetica', 'normal');
-      tableData.forEach((row, index) => {
-        if (index % 2 === 0) {
-          doc.setFillColor(250, 250, 250);
-          doc.rect(margin, tableY, pageWidth - margin * 2, rowHeight, 'F');
-        }
-        doc.setDrawColor(200);
-        doc.setLineWidth(0.1);
-        doc.rect(margin, tableY, pageWidth - margin * 2, rowHeight);
-        doc.text(row[0], margin + 2, tableY + 3.5);
-        doc.text(row[1], margin + col1Width + 2, tableY + 3.5);
-        tableY += rowHeight;
-      });
-
-      y = tableY + 5;
-
-      // Online Learning Statement
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Online Learning Information:', margin, y);
-      y += 4;
-
-      const onlineLearningText = [
-        'As an online student, you will access your learning resources, course materials, assignments, assessments, announcements, and other academic services through the Excellence Online College Student Portal/Learning Management System (LMS).',
-        'You are required to log in to your student portal using the credentials provided to you and ensure that your student profile is complete. All important academic communication, including course registration, learning activities, examinations, and other institutional updates, will be communicated through the appropriate online platforms.',
-        'You are encouraged to familiarize yourself with the Student Portal and LMS and participate actively in all online learning activities. Where applicable, virtual orientation sessions and other online student support services will be communicated through the official college channels.',
-      ];
-
-      doc.setFont('helvetica', 'normal');
-      onlineLearningText.forEach(paragraph => {
-        y = justifyText(doc, paragraph, margin, y, pageWidth - margin * 2, 7, 3.5);
-        y += 2;
-      });
-      y += 2;
-
-      // Closing
-      const closingText = 'We welcome you to Excellence Online College and look forward to supporting you throughout your academic journey. We wish you success in your studies.';
-      
-      doc.setFont('helvetica', 'bold');
-      y = justifyText(doc, closingText, margin, y, pageWidth - margin * 2, 8, 4);
-      y += 5;
-
-      doc.text('Yours faithfully,', margin, y);
-      y += 10;
-
-      // Signature section
-      const signatureY = y;
-      doc.setDrawColor(0);
-      doc.setLineWidth(0.5);
-      
-      // Admissions Officer signature
-      doc.line(margin, signatureY, margin + 50, signatureY);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Admissions Officer / Registrar', margin, signatureY + 4);
-      doc.setFontSize(7);
-      doc.setFont('helvetica', 'normal');
-      doc.text('EXCELLENCE ONLINE COLLEGE', margin, signatureY + 8);
-
-      // Add stamp image to the right of signature
-      try {
-        const stampResponse = await fetch('/eoc.png');
-        const stampBlob = await stampResponse.blob();
-        const stampReader = new FileReader();
-        
-        await new Promise<void>((resolve, reject) => {
-          stampReader.onloadend = () => resolve();
-          stampReader.onerror = reject;
-          stampReader.readAsDataURL(stampBlob);
-        });
-        
-        const stampDataUrl = stampReader.result as string;
-        
-        // Add stamp image (Kenyan standard 45mm × 30mm)
-        const stampWidth = 45;
-        const stampHeight = 30;
-        const stampX = margin + 60;
-        const stampY = signatureY - 15;
-        doc.addImage(stampDataUrl, 'PNG', stampX, stampY, stampWidth, stampHeight);
-
-        // Add dynamic date overlay on top of stamp
-        const now = new Date();
-        const day = String(now.getDate()).padStart(2, '0');
-        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        const month = months[now.getMonth()];
-        const year = now.getFullYear();
-        const stampDate = `${day} ${month} ${year}`;
-
-        doc.setFontSize(8);
-        doc.setTextColor(220, 38, 38); // Red color
-        doc.setFont('helvetica', 'bold');
-        doc.text(stampDate, stampX + stampWidth / 2, stampY + stampHeight / 2 + 2, { align: 'center' });
-      } catch (stampError) {
-        console.warn('Could not load stamp for PDF:', stampError);
-        // Continue without stamp if it fails
-      }
-
-      // Footer
-      y = pageHeight - 15;
-      doc.setFontSize(6);
-      doc.setTextColor(100);
-      doc.text('This is an official admission letter. For verification, contact the Admissions Office.', pageWidth / 2, y, { align: 'center' });
-      y += 3;
-      doc.text('Excellence Online College | A Premier Institution of Higher Learning', pageWidth / 2, y, { align: 'center' });
-
-      // Save PDF
-      doc.save(`Admission_Letter_${admissionNumber}.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadPDF = () => {
     window.print();
   };
 
   const handleSendEmail = async () => {
     setIsSendingEmail(true);
     try {
-      // Generate PDF first
-      generatePDF();
-      
       // Create mailto link with pre-filled subject
       const subject = encodeURIComponent(`Admission Letter - ${admissionNumber}`);
       const body = encodeURIComponent(
@@ -380,9 +92,6 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   const handleSendWhatsApp = async () => {
     setIsSendingWhatsApp(true);
     try {
-      // Generate PDF first
-      generatePDF();
-      
       const message = encodeURIComponent(
         `Dear ${student.first_name} ${student.last_name},\n\n` +
         `Congratulations on your admission to Excellence Online College!\n\n` +
@@ -411,9 +120,9 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   return (
     <div className="space-y-4 no-print">
       <div className="flex flex-wrap gap-3 no-print">
-        <Button onClick={generatePDF} disabled={isGenerating}>
+        <Button onClick={handleDownloadPDF}>
           <Download className="h-4 w-4 mr-2" />
-          {isGenerating ? 'Generating...' : 'Download PDF'}
+          Download PDF
         </Button>
         <Button onClick={handlePrint} variant="secondary">
           <Printer className="h-4 w-4 mr-2" />
