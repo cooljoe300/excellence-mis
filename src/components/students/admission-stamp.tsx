@@ -33,7 +33,7 @@ export function AdmissionStamp({ className = '' }: AdmissionStampProps) {
         />
         {/* Dynamic date overlay */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[10px] font-bold text-blue-800" style={{ marginTop: '2px' }}>
+          <span className="text-[10px] font-bold text-red-700" style={{ marginTop: '2px' }}>
             {currentDate}
           </span>
         </div>

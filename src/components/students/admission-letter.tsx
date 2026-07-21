@@ -272,7 +272,7 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
         const stampDate = `${day} ${month} ${year}`;
 
         doc.setFontSize(7);
-        doc.setTextColor(30, 64, 175); // Blue color
+        doc.setTextColor(220, 38, 38); // Red color
         doc.setFont('helvetica', 'bold');
         doc.text(stampDate, stampX + stampWidth / 2, stampY + stampHeight / 2 + 2, { align: 'center' });
       } catch (stampError) {
