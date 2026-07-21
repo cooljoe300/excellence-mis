@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { importStudentToLms } from '@/app/actions/lms';
-import { CheckCircle2, Circle, Upload, CreditCard, UserPlus, FileText } from 'lucide-react';
+import { CheckCircle2, Circle, Upload, CreditCard, UserPlus, FileText, FileText as LetterIcon } from 'lucide-react';
 import type { Student } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -58,6 +58,20 @@ export function StudentWorkflow({
     },
     {
       id: 2,
+      title: 'Admission Letter',
+      description: 'Official admission letter generated',
+      done: true,
+      icon: LetterIcon,
+      action: (
+        <Link href={`/dashboard/students/${student.id}/admission-letter`} target="_blank">
+          <Button size="sm" variant="secondary">
+            View Admission Letter
+          </Button>
+        </Link>
+      ),
+    },
+    {
+      id: 3,
       title: 'Fee invoice',
       description: invoiceId
         ? 'Invoice generated and available in the student portal'
@@ -73,7 +87,7 @@ export function StudentWorkflow({
       ) : undefined,
     },
     {
-      id: 3,
+      id: 4,
       title: 'Print ID Card',
       description: idCardReady ? 'ID card auto-generated' : 'Pending',
       done: idCardReady,
@@ -87,7 +101,7 @@ export function StudentWorkflow({
       ),
     },
     {
-      id: 4,
+      id: 5,
       title: 'Import to Moodle LMS',
       description: lmsSynced
         ? `Synced as ${student.lms_username}`
@@ -118,6 +132,9 @@ export function StudentWorkflow({
       {justRegistered && (
         <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Student registered successfully. Admission number: <strong>{admissionNumber}</strong>
+          <span className="mt-1 block">
+            An official admission letter has been generated. Click "View Admission Letter" below to download or print it.
+          </span>
           {invoiceId && (
             <span className="mt-1 block">
               A fee invoice has been created and is now visible in the student portal.

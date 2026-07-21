@@ -1,0 +1,509 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
+import type { Student } from '@/lib/types';
+import jsPDF from 'jspdf';
+
+interface AdmissionLetterProps {
+  student: Student;
+}
+
+export function AdmissionLetter({ student }: AdmissionLetterProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+
+  const admissionNumber = student.admission_number || student.student_number;
+  const program = student.program as { name: string; code: string; description: string; duration_months: number; department?: string } | null;
+  const intake = student.intake as { name: string; code: string } | null;
+
+  // Institution details
+  const institution = {
+    name: 'EXCELLENCE ONLINE COLLEGE',
+    tagline: 'Excellence Through Quality Education',
+    address: 'Main Campus',
+    city: 'Nairobi',
+    country: 'Kenya',
+    phone: '+254 XXX XXX XXX',
+    email: 'info@excellencecollege.ac.ke',
+    website: 'www.excellencecollege.ac.ke',
+  };
+
+  const department = program?.department || 'Business & ICT';
+  const campus = institution.address;
+  const modeOfStudy = 'Online / Distance Learning';
+  const academicYear = '2026/2027';
+
+  const generatePDF = () => {
+    setIsGenerating(true);
+    
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      let y = margin;
+
+      // Add logo if available
+      const logoImg = new Image();
+      logoImg.src = '/logo.png';
+      
+      // Header with logo
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(institution.name, pageWidth / 2, y + 30, { align: 'center' });
+      y += 38;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(institution.tagline, pageWidth / 2, y, { align: 'center' });
+      y += 5;
+
+      doc.setFontSize(8);
+      doc.setTextColor(100);
+      doc.text(
+        `${institution.address} | ${institution.city}, ${institution.country} | Tel: ${institution.phone} | Email: ${institution.email}`,
+        pageWidth / 2,
+        y,
+        { align: 'center' }
+      );
+      y += 12;
+
+      // Horizontal line
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.5);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 10;
+
+      // Letter Title
+      doc.setFontSize(16);
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'bold');
+      doc.text('OFFICIAL ADMISSION LETTER', pageWidth / 2, y, { align: 'center' });
+      y += 8;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Ref: ${admissionNumber}`, pageWidth / 2, y, { align: 'center' });
+      y += 15;
+
+      // Date
+      doc.setFontSize(10);
+      doc.text(`Date: ${formatDate(student.enrollment_date) || new Date().toLocaleDateString()}`, pageWidth - margin, y, { align: 'right' });
+      y += 15;
+
+      // Salutation
+      doc.setFontSize(10);
+      doc.text(`Dear ${student.first_name} ${student.last_name},`, margin, y);
+      y += 10;
+
+      // Body
+      const bodyText = [
+        `We are pleased to inform you that you have been successfully admitted to Excellence Online College for the ${intake?.name || 'Current Intake'}.`,
+        '',
+        'Your admission details are as follows:',
+      ];
+
+      doc.setFontSize(10);
+      bodyText.forEach(line => {
+        doc.text(line, margin, y);
+        y += 5;
+      });
+      y += 5;
+
+      // Student Details Table
+      const tableData = [
+        ['Admission Number', admissionNumber],
+        ['Student Name', `${student.first_name} ${student.last_name}`],
+        ['Programme', program?.name || ''],
+        ['Programme Code', program?.code || ''],
+        ['Department', department],
+        ['Campus', campus],
+        ['Mode of Study', modeOfStudy],
+        ['Intake', intake?.name || ''],
+        ['Academic Year', academicYear],
+        ['Date of Admission', formatDate(student.enrollment_date) || ''],
+        ['Programme Duration', program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'],
+      ];
+
+      doc.setFontSize(9);
+      let tableY = y;
+      const rowHeight = 7;
+      const col1Width = 50;
+      const col2Width = pageWidth - margin * 2 - col1Width;
+
+      // Table header
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, tableY, pageWidth - margin * 2, rowHeight, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.text('Field', margin + 2, tableY + 5);
+      doc.text('Details', margin + col1Width + 2, tableY + 5);
+      tableY += rowHeight;
+
+      // Table rows
+      doc.setFont('helvetica', 'normal');
+      tableData.forEach((row, index) => {
+        if (index % 2 === 0) {
+          doc.setFillColor(250, 250, 250);
+          doc.rect(margin, tableY, pageWidth - margin * 2, rowHeight, 'F');
+        }
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.1);
+        doc.rect(margin, tableY, pageWidth - margin * 2, rowHeight);
+        doc.text(row[0], margin + 2, tableY + 5);
+        doc.text(row[1], margin + col1Width + 2, tableY + 5);
+        tableY += rowHeight;
+      });
+
+      y = tableY + 10;
+
+      // Requirements
+      const requirementsText = [
+        `Please report to the college on ${formatDate(student.enrollment_date)} to complete your registration process.`,
+        'You are required to bring the following documents:',
+        '• National ID Card / Passport',
+        '• Academic Certificates (KCSE, Diploma, Degree, etc.)',
+        '• Passport-size photographs (2 copies)',
+        '• This admission letter',
+        '',
+        'Congratulations on your admission. We look forward to welcoming you to Excellence Online College',
+        'and supporting you in achieving your academic goals.',
+        '',
+        'Should you have any questions, please contact the Admissions Office.',
+      ];
+
+      requirementsText.forEach(line => {
+        doc.text(line, margin, y);
+        y += 5;
+      });
+      y += 5;
+
+      // Closing
+      doc.text('Yours sincerely,', margin, y);
+      y += 20;
+
+      // Signature section
+      const signatureY = y;
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.5);
+      
+      // Registrar signature
+      doc.line(margin, signatureY, margin + 60, signatureY);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Registrar', margin, signatureY + 5);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Excellence Online College', margin, signatureY + 10);
+
+      // Principal signature
+      doc.line(pageWidth - margin - 60, signatureY, pageWidth - margin, signatureY);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Principal', pageWidth - margin - 60, signatureY + 5);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Excellence Online College', pageWidth - margin - 60, signatureY + 10);
+
+      // Footer
+      y = pageHeight - 20;
+      doc.setFontSize(7);
+      doc.setTextColor(100);
+      doc.text('This is an official admission letter. For verification, contact the Admissions Office.', pageWidth / 2, y, { align: 'center' });
+      y += 4;
+      doc.text('Excellence Online College | A Premier Institution of Higher Learning', pageWidth / 2, y, { align: 'center' });
+
+      // Save PDF
+      doc.save(`Admission_Letter_${admissionNumber}.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleSendEmail = async () => {
+    setIsSendingEmail(true);
+    try {
+      // Generate PDF first
+      generatePDF();
+      
+      // Create mailto link with pre-filled subject
+      const subject = encodeURIComponent(`Admission Letter - ${admissionNumber}`);
+      const body = encodeURIComponent(
+        `Dear ${student.first_name} ${student.last_name},\n\n` +
+        `Congratulations on your admission to Excellence Online College!\n\n` +
+        `Your admission number is: ${admissionNumber}\n` +
+        `Programme: ${program?.name}\n\n` +
+        `Please find your admission letter attached.\n\n` +
+        `Best regards,\n` +
+        `Admissions Office\n` +
+        `Excellence Online College`
+      );
+      
+      window.location.href = `mailto:${student.email}?subject=${subject}&body=${body}`;
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    setIsSendingWhatsApp(true);
+    try {
+      // Generate PDF first
+      generatePDF();
+      
+      const message = encodeURIComponent(
+        `Dear ${student.first_name} ${student.last_name},\n\n` +
+        `Congratulations on your admission to Excellence Online College!\n\n` +
+        `🎓 Admission Number: ${admissionNumber}\n` +
+        `📚 Programme: ${program?.name}\n` +
+        `📅 Intake: ${intake?.name}\n\n` +
+        `Your admission letter has been generated. Please check your email or contact the admissions office.\n\n` +
+        `Excellence Online College\n` +
+        `📞 ${institution.phone}`
+      );
+      
+      const phone = student.phone?.replace(/\D/g, ''); // Remove non-digits
+      if (phone) {
+        window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+      } else {
+        alert('Student phone number not available. Please add phone number to send via WhatsApp.');
+      }
+    } catch (error) {
+      console.error('Error sending WhatsApp:', error);
+      alert('Failed to send WhatsApp message. Please try again.');
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-3">
+        <Button onClick={generatePDF} disabled={isGenerating}>
+          <Download className="h-4 w-4 mr-2" />
+          {isGenerating ? 'Generating...' : 'Download PDF'}
+        </Button>
+        <Button onClick={handlePrint} variant="secondary">
+          <Printer className="h-4 w-4 mr-2" />
+          Print
+        </Button>
+        <Button onClick={handleSendEmail} variant="secondary" disabled={isSendingEmail}>
+          <Mail className="h-4 w-4 mr-2" />
+          {isSendingEmail ? 'Opening...' : 'Send Email'}
+        </Button>
+        <Button onClick={handleSendWhatsApp} variant="secondary" disabled={isSendingWhatsApp}>
+          <MessageCircle className="h-4 w-4 mr-2" />
+          {isSendingWhatsApp ? 'Opening...' : 'Send WhatsApp'}
+        </Button>
+      </div>
+
+      {/* Print-friendly admission letter */}
+      <Card className="print:shadow-none print:border-none">
+        <CardContent className="p-8">
+          <div id="admission-letter" className="max-w-4xl mx-auto bg-white p-8 border-2 border-slate-900">
+            {/* Header */}
+            <div className="text-center mb-8 border-b-2 border-slate-900 pb-6">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                {institution.name}
+              </h1>
+              <p className="text-sm text-slate-600 mb-1">
+                {institution.tagline}
+              </p>
+              <p className="text-xs text-slate-500">
+                {institution.address} | {institution.city}, {institution.country} | Tel: {institution.phone} | Email: {institution.email}
+              </p>
+            </div>
+
+            {/* Letter Title */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-slate-900 underline">
+                OFFICIAL ADMISSION LETTER
+              </h2>
+              <p className="text-sm text-slate-600 mt-2">
+                Ref: {admissionNumber}
+              </p>
+            </div>
+
+            {/* Date */}
+            <div className="text-right mb-8">
+              <p className="text-sm text-slate-700">
+                Date: {formatDate(student.enrollment_date) || new Date().toLocaleDateString()}
+              </p>
+            </div>
+
+            {/* Salutation */}
+            <div className="mb-6">
+              <p className="text-sm text-slate-700">
+                Dear <span className="font-semibold">{student.first_name} {student.last_name}</span>,
+              </p>
+            </div>
+
+            {/* Body */}
+            <div className="space-y-4 text-sm text-slate-700 leading-relaxed mb-8">
+              <p>
+                We are pleased to inform you that you have been successfully admitted to 
+                <span className="font-semibold"> Excellence Online College</span> for the 
+                <span className="font-semibold"> {intake?.name || 'Current Intake'}</span>.
+              </p>
+
+              <p>
+                Your admission details are as follows:
+              </p>
+
+              {/* Student Details Table */}
+              <div className="my-6 border border-slate-300">
+                <table className="w-full text-sm">
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50 w-1/3">Admission Number</td>
+                      <td className="py-2 px-4">{admissionNumber}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Student Name</td>
+                      <td className="py-2 px-4">{student.first_name} {student.last_name}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Programme</td>
+                      <td className="py-2 px-4">{program?.name}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Programme Code</td>
+                      <td className="py-2 px-4">{program?.code}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Department</td>
+                      <td className="py-2 px-4">{department}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Campus</td>
+                      <td className="py-2 px-4">{campus}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Mode of Study</td>
+                      <td className="py-2 px-4">{modeOfStudy}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Intake</td>
+                      <td className="py-2 px-4">{intake?.name}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Academic Year</td>
+                      <td className="py-2 px-4">{academicYear}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Date of Admission</td>
+                      <td className="py-2 px-4">{formatDate(student.enrollment_date)}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2 px-4 font-semibold bg-slate-50">Programme Duration</td>
+                      <td className="py-2 px-4">{program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <p>
+                Please report to the college on <span className="font-semibold">{formatDate(student.enrollment_date)}</span> 
+                to complete your registration process. You are required to bring the following documents:
+              </p>
+
+              <ul className="list-disc ml-6 space-y-1">
+                <li>National ID Card / Passport</li>
+                <li>Academic Certificates (KCSE, Diploma, Degree, etc.)</li>
+                <li>Passport-size photographs (2 copies)</li>
+                <li>This admission letter</li>
+              </ul>
+
+              <p>
+                Congratulations on your admission. We look forward to welcoming you to Excellence Online College 
+                and supporting you in achieving your academic goals.
+              </p>
+
+              <p className="font-semibold">
+                Should you have any questions, please contact the Admissions Office.
+              </p>
+            </div>
+
+            {/* Closing */}
+            <div className="mb-8">
+              <p className="text-sm text-slate-700">
+                Yours sincerely,
+              </p>
+            </div>
+
+            {/* Signature Section */}
+            <div className="grid grid-cols-2 gap-8 mt-12">
+              <div>
+                <div className="border-t border-slate-900 pt-2">
+                  <p className="text-sm font-semibold text-slate-900">Registrar</p>
+                  <p className="text-xs text-slate-600">Excellence Online College</p>
+                </div>
+              </div>
+              <div>
+                <div className="border-t border-slate-900 pt-2">
+                  <p className="text-sm font-semibold text-slate-900">Principal</p>
+                  <p className="text-xs text-slate-600">Excellence Online College</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-12 pt-6 border-t border-slate-300 text-center">
+              <p className="text-xs text-slate-500">
+                This is an official admission letter. For verification, contact the Admissions Office.
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Excellence Online College | A Premier Institution of Higher Learning
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Print styles */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #admission-letter,
+          #admission-letter * {
+            visibility: visible;
+          }
+          #admission-letter {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 20px;
+          }
+          .print\\:shadow-none {
+            box-shadow: none !important;
+          }
+          .print\\:border-none {
+            border: none !important;
+          }
+          @page {
+            size: A4;
+            margin: 20mm;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
