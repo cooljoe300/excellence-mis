@@ -1,27 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import type { Student } from '@/lib/types';
 import jsPDF from 'jspdf';
 import { AdmissionStamp } from './admission-stamp';
 
 interface AdmissionLetterProps {
   student: Student;
+  enrollments?: any[];
 }
 
-export function AdmissionLetter({ student }: AdmissionLetterProps) {
+export function AdmissionLetter({ student, enrollments: initialEnrollments = [] }: AdmissionLetterProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [enrollments, setEnrollments] = useState<any[]>(initialEnrollments);
 
   const admissionNumber = student.admission_number || student.student_number;
-  const program = student.program as { name: string; code: string; description: string; duration_months: number; department?: string } | null;
+  const program = student.program as { name: string; code: string; description: string; duration_months: number; department?: string; tuition_fee: number } | null;
   const intake = student.intake as { name: string; code: string } | null;
+
+  // Update enrollments when prop changes
+  useEffect(() => {
+    setEnrollments(initialEnrollments);
+  }, [initialEnrollments]);
 
   // Institution details
   const institution = {
@@ -39,6 +46,57 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
   const campus = institution.address;
   const modeOfStudy = 'Online';
   const academicYear = '2026/2027';
+
+  // Calculate total units and fees
+  const totalUnits = enrollments.length;
+  const tuitionFee = program?.tuition_fee || 0;
+  const unitFees = enrollments.reduce((sum, enrollment) => {
+    return sum + (enrollment.course?.unit_fee || 0);
+  }, 0);
+  const totalFees = tuitionFee + unitFees;
+
+  // Helper function to justify text in PDF
+  const justifyText = (doc: jsPDF, text: string, x: number, y: number, maxWidth: number, fontSize: number, lineHeight: number) => {
+    doc.setFontSize(fontSize);
+    const words = text.split(' ');
+    let line = '';
+    let currentY = y;
+
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+      const testWidth = doc.getTextWidth(testLine);
+
+      if (testWidth > maxWidth && i > 0) {
+        // Justify the current line
+        const lineWords = line.trim().split(' ');
+        if (lineWords.length > 1) {
+          const totalWidth = doc.getTextWidth(line.trim());
+          const totalSpace = maxWidth - totalWidth;
+          const spaceCount = lineWords.length - 1;
+          const extraSpace = totalSpace / spaceCount;
+
+          let xPos = x;
+          lineWords.forEach((word, index) => {
+            doc.text(word, xPos, currentY);
+            xPos += doc.getTextWidth(word) + extraSpace + (index < spaceCount ? 1 : 0);
+          });
+        } else {
+          doc.text(line.trim(), x, currentY);
+        }
+        line = words[i] + ' ';
+        currentY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+
+    // Add the last line (left-aligned)
+    if (line.trim()) {
+      doc.text(line.trim(), x, currentY);
+    }
+
+    return currentY + lineHeight;
+  };
 
   const generatePDF = async () => {
     setIsGenerating(true);
@@ -135,17 +193,9 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
       y += 5;
 
       // Body
-      const bodyText = [
-        `We are pleased to inform you that you have been admitted to Excellence Online College to pursue ${program?.name}, ${program?.code}.`,
-        '',
-        'Your admission details are as follows:',
-      ];
+      const bodyText = `We are pleased to inform you that you have been admitted to Excellence Online College to pursue ${program?.name}, ${program?.code}. Your admission details are as follows:`;
 
-      doc.setFontSize(8);
-      bodyText.forEach(line => {
-        doc.text(line, margin, y);
-        y += 3;
-      });
+      y = justifyText(doc, bodyText, margin, y, pageWidth - margin * 2, 8, 4);
       y += 3;
 
       // Student Details Table
@@ -158,6 +208,8 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
         ['Intake', intake?.name || ''],
         ['Academic Year', academicYear],
         ['Programme Duration', program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'],
+        ['Units Registered', totalUnits.toString()],
+        ['Total Fees', formatCurrency(totalFees)],
       ];
 
       doc.setFontSize(7);
@@ -192,43 +244,29 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
       y = tableY + 5;
 
       // Online Learning Statement
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Online Learning Information:', margin, y);
+      y += 4;
+
       const onlineLearningText = [
-        'Online Learning Information:',
-        '',
-        'As an online student, you will access your learning resources, course materials,',
-        'assignments, assessments, announcements, and other academic services through',
-        'the Excellence Online College Student Portal/Learning Management System (LMS).',
-        '',
-        'You are required to log in to your student portal using the credentials provided',
-        'to you and ensure that your student profile is complete. All important academic',
-        'communication, including course registration, learning activities, examinations,',
-        'and other institutional updates, will be communicated through the appropriate',
-        'online platforms.',
-        '',
-        'You are encouraged to familiarize yourself with the Student Portal and LMS and',
-        'participate actively in all online learning activities. Where applicable, virtual',
-        'orientation sessions and other online student support services will be',
-        'communicated through the official college channels.',
+        'As an online student, you will access your learning resources, course materials, assignments, assessments, announcements, and other academic services through the Excellence Online College Student Portal/Learning Management System (LMS).',
+        'You are required to log in to your student portal using the credentials provided to you and ensure that your student profile is complete. All important academic communication, including course registration, learning activities, examinations, and other institutional updates, will be communicated through the appropriate online platforms.',
+        'You are encouraged to familiarize yourself with the Student Portal and LMS and participate actively in all online learning activities. Where applicable, virtual orientation sessions and other online student support services will be communicated through the official college channels.',
       ];
 
-      doc.setFontSize(7);
-      onlineLearningText.forEach(line => {
-        doc.text(line, margin, y);
-        y += 3;
+      doc.setFont('helvetica', 'normal');
+      onlineLearningText.forEach(paragraph => {
+        y = justifyText(doc, paragraph, margin, y, pageWidth - margin * 2, 7, 3.5);
+        y += 2;
       });
-      y += 3;
+      y += 2;
 
       // Closing
-      const closingText = [
-        'We welcome you to Excellence Online College and look forward to supporting',
-        'you throughout your academic journey. We wish you success in your studies.',
-      ];
-
-      doc.setFontSize(8);
-      closingText.forEach(line => {
-        doc.text(line, margin, y);
-        y += 3;
-      });
+      const closingText = 'We welcome you to Excellence Online College and look forward to supporting you throughout your academic journey. We wish you success in your studies.';
+      
+      doc.setFont('helvetica', 'bold');
+      y = justifyText(doc, closingText, margin, y, pageWidth - margin * 2, 8, 4);
       y += 5;
 
       doc.text('Yours faithfully,', margin, y);
@@ -262,11 +300,11 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
         
         const stampDataUrl = stampReader.result as string;
         
-        // Add stamp image
-        const stampWidth = 25;
-        const stampHeight = 25;
+        // Add stamp image (Kenyan standard 45mm × 30mm)
+        const stampWidth = 45;
+        const stampHeight = 30;
         const stampX = margin + 60;
-        const stampY = signatureY - 10;
+        const stampY = signatureY - 15;
         doc.addImage(stampDataUrl, 'PNG', stampX, stampY, stampWidth, stampHeight);
 
         // Add dynamic date overlay on top of stamp
@@ -277,7 +315,7 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
         const year = now.getFullYear();
         const stampDate = `${day} ${month} ${year}`;
 
-        doc.setFontSize(6);
+        doc.setFontSize(8);
         doc.setTextColor(220, 38, 38); // Red color
         doc.setFont('helvetica', 'bold');
         doc.text(stampDate, stampX + stampWidth / 2, stampY + stampHeight / 2 + 2, { align: 'center' });
@@ -442,13 +480,13 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
 
             {/* Body */}
             <div className="space-y-3 text-xs text-slate-700 leading-relaxed mb-4">
-              <p>
+              <p className="text-justify">
                 We are pleased to inform you that you have been admitted to 
                 <span className="font-semibold"> Excellence Online College</span> to pursue 
                 <span className="font-semibold"> {program?.name}</span>, <span className="font-semibold">{program?.code}</span>.
               </p>
 
-              <p>
+              <p className="text-justify">
                 Your admission details are as follows:
               </p>
 
@@ -484,9 +522,17 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
                       <td className="py-1 px-3 font-semibold bg-slate-50">Academic Year</td>
                       <td className="py-1 px-3">{academicYear}</td>
                     </tr>
-                    <tr>
+                    <tr className="border-b border-slate-200">
                       <td className="py-1 px-3 font-semibold bg-slate-50">Programme Duration</td>
                       <td className="py-1 px-3">{program?.duration_months ? `${program.duration_months} months` : 'As per programme structure'}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-1 px-3 font-semibold bg-slate-50">Units Registered</td>
+                      <td className="py-1 px-3">{totalUnits}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 px-3 font-semibold bg-slate-50">Total Fees</td>
+                      <td className="py-1 px-3">{formatCurrency(totalFees)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -495,19 +541,19 @@ export function AdmissionLetter({ student }: AdmissionLetterProps) {
               {/* Online Learning Statement */}
               <div className="my-3 p-3 bg-slate-50 border border-slate-200 rounded">
                 <p className="font-semibold mb-2 text-xs">Online Learning Information:</p>
-                <p className="mb-2 text-xs">
+                <p className="mb-2 text-xs text-justify">
                   As an online student, you will access your learning resources, course materials, assignments, assessments, announcements, and other academic services through the Excellence Online College Student Portal/Learning Management System (LMS).
                 </p>
-                <p className="mb-2 text-xs">
+                <p className="mb-2 text-xs text-justify">
                   You are required to log in to your student portal using the credentials provided to you and ensure that your student profile is complete. All important academic communication, including course registration, learning activities, examinations, and other institutional updates, will be communicated through the appropriate online platforms.
                 </p>
-                <p className="text-xs">
+                <p className="text-xs text-justify">
                   You are encouraged to familiarize yourself with the Student Portal and LMS and participate actively in all online learning activities. Where applicable, virtual orientation sessions and other online student support services will be communicated through the official college channels.
                 </p>
               </div>
 
               {/* Closing */}
-              <p className="font-semibold text-xs">
+              <p className="font-semibold text-xs text-justify">
                 We welcome you to Excellence Online College and look forward to supporting you throughout your academic journey. We wish you success in your studies.
               </p>
             </div>
