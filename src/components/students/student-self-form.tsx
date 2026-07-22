@@ -26,10 +26,9 @@ const genderOptions = [
 
 const STEPS = [
   { id: 'personal', label: 'Personal Information', icon: User },
-  { id: 'idcard', label: 'ID Card', icon: CreditCard },
   { id: 'academics', label: 'Academics', icon: GraduationCap },
-  { id: 'units', label: 'Unit Enrollment', icon: BookOpen },
   { id: 'fees', label: 'Pay Fees', icon: Wallet },
+  { id: 'idcard', label: 'ID Card', icon: CreditCard },
   { id: 'review', label: 'Review & Submit', icon: FileText },
 ] as const;
 
@@ -121,9 +120,6 @@ export function StudentSelfForm({
         setError('Please select a program.');
         return false;
       }
-    }
-    
-    if (currentStepId === 'units') {
       if (selectedUnitIds.length === 0) {
         setError('Please select at least one unit to enroll.');
         return false;
@@ -144,14 +140,14 @@ export function StudentSelfForm({
   async function handleNext() {
     if (!validateCurrentStep()) return;
     
-    // When moving from units to fees, create student and enroll units
-    if (currentStepId === 'units' && !studentCreated) {
+    // When moving from academics to fees, create student and enroll units
+    if (currentStepId === 'academics' && !studentCreated) {
       await createStudentAndEnroll();
       if (!studentCreated) return; // Creation failed
     }
     
     // Load fees data when entering fees step
-    if (currentStepId === 'units' && STEPS[currentStep + 1].id === 'fees') {
+    if (currentStepId === 'academics' && STEPS[currentStep + 1].id === 'fees') {
       await loadFeesData();
     }
     
@@ -405,103 +401,99 @@ export function StudentSelfForm({
               Academics
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <Select
-              name="program_id"
-              label="Program"
-              defaultValue={existingStudent?.program_id ?? ''}
-              options={programOptions}
-              onChange={(e) => setSelectedProgramId(e.target.value)}
-              required
-            />
-            <p className="sm:col-span-2 text-[11px] text-slate-500 -mt-2">
-              Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
-            </p>
-            <Input
-              name="enrollment_date"
-              label="Enrollment date"
-              type="date"
-              defaultValue={existingStudent?.enrollment_date ?? new Date().toISOString().split('T')[0]}
-            />
-            <div className="sm:col-span-2">
-              <Textarea name="notes" label="Notes (optional)" rows={3} defaultValue={existingStudent?.notes ?? ''} />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {currentStepId === 'units' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-blue-700" />
-              Unit Enrollment
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadingUnits ? (
-              <p className="text-xs text-slate-500">Loading available units...</p>
-            ) : availableUnits.length === 0 ? (
-              <p className="text-xs text-slate-500">
-                {selectedProgramId ? 'No units are available for this program yet.' : 'Please select a program in the Academics step first.'}
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Select
+                name="program_id"
+                label="Program"
+                defaultValue={existingStudent?.program_id ?? ''}
+                options={programOptions}
+                onChange={(e) => setSelectedProgramId(e.target.value)}
+                required
+              />
+              <p className="sm:col-span-2 text-[11px] text-slate-500 -mt-2">
+                Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
               </p>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-slate-600">
-                  Select the units you want to enroll in. Each unit has its own fee.
-                </p>
-                <div className="space-y-1">
-                  {availableUnits.map((unit) => {
-                    const checked = selectedUnitIds.includes(unit.id);
-                    return (
-                      <label
-                        key={unit.id}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 cursor-pointer hover:border-blue-200 hover:bg-blue-50/30"
-                      >
-                        <div className="flex items-start gap-2 min-w-0">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
-                            checked={checked}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedUnitIds(prev => [...prev, unit.id]);
-                              } else {
-                                setSelectedUnitIds(prev => prev.filter(id => id !== unit.id));
-                              }
-                            }}
-                          />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-900 leading-tight">
-                              {unit.code}
-                              <span className="font-normal text-slate-500"> — {unit.name}</span>
-                            </p>
-                            <p className="text-[11px] text-slate-500">{unit.credits} credits</p>
-                          </div>
-                        </div>
-                        <span className="shrink-0 text-xs font-semibold text-slate-900">
-                          {formatCurrency(unit.unit_fee)}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {selectedUnitIds.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2">
-                    <div className="flex justify-between text-xs font-bold text-slate-900">
-                      <span>Selected Units Total</span>
-                      <span className="text-blue-700">
-                        {formatCurrency(
-                          availableUnits
-                            .filter(u => selectedUnitIds.includes(u.id))
-                            .reduce((sum, u) => sum + u.unit_fee, 0)
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                )}
+              <Input
+                name="enrollment_date"
+                label="Enrollment date"
+                type="date"
+                defaultValue={existingStudent?.enrollment_date ?? new Date().toISOString().split('T')[0]}
+              />
+              <div className="sm:col-span-2">
+                <Textarea name="notes" label="Notes (optional)" rows={3} defaultValue={existingStudent?.notes ?? ''} />
               </div>
-            )}
+            </div>
+
+            <div className="border-t border-slate-200 pt-4">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-blue-700" />
+                Unit Enrollment
+              </h3>
+              {loadingUnits ? (
+                <p className="text-xs text-slate-500">Loading available units...</p>
+              ) : availableUnits.length === 0 ? (
+                <p className="text-xs text-slate-500">
+                  {selectedProgramId ? 'No units are available for this program yet.' : 'Please select a program above to see available units.'}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-600">
+                    Select the units you want to enroll in. Each unit has its own fee.
+                  </p>
+                  <div className="space-y-1">
+                    {availableUnits.map((unit) => {
+                      const checked = selectedUnitIds.includes(unit.id);
+                      return (
+                        <label
+                          key={unit.id}
+                          className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 cursor-pointer hover:border-blue-200 hover:bg-blue-50/30"
+                        >
+                          <div className="flex items-start gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
+                              checked={checked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedUnitIds(prev => [...prev, unit.id]);
+                                } else {
+                                  setSelectedUnitIds(prev => prev.filter(id => id !== unit.id));
+                                }
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-900 leading-tight">
+                                {unit.code}
+                                <span className="font-normal text-slate-500"> — {unit.name}</span>
+                              </p>
+                              <p className="text-[11px] text-slate-500">{unit.credits} credits</p>
+                            </div>
+                          </div>
+                          <span className="shrink-0 text-xs font-semibold text-slate-900">
+                            {formatCurrency(unit.unit_fee)}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedUnitIds.length > 0 && (
+                    <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2">
+                      <div className="flex justify-between text-xs font-bold text-slate-900">
+                        <span>Selected Units Total</span>
+                        <span className="text-blue-700">
+                          {formatCurrency(
+                            availableUnits
+                              .filter(u => selectedUnitIds.includes(u.id))
+                              .reduce((sum, u) => sum + u.unit_fee, 0)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -519,7 +511,7 @@ export function StudentSelfForm({
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
                 <p className="font-semibold">Complete registration first</p>
                 <p className="mt-1">
-                  Please complete the previous steps (Personal Information, ID Card, Academics, and Unit Enrollment) before proceeding to payment.
+                  Please complete the previous steps (Personal Information, Academics) before proceeding to payment.
                 </p>
               </div>
             ) : loadingFees ? (
@@ -619,12 +611,6 @@ export function StudentSelfForm({
               </div>
             </div>
             <div className="rounded-lg bg-slate-50 p-3">
-              <h3 className="text-xs font-semibold text-slate-900 mb-2">ID Card</h3>
-              <div className="text-xs text-slate-600">
-                <p>{existingStudent?.photo_url ? 'Passport photo uploaded' : 'No passport photo uploaded'}</p>
-              </div>
-            </div>
-            <div className="rounded-lg bg-slate-50 p-3">
               <h3 className="text-xs font-semibold text-slate-900 mb-2">Academics</h3>
               <div className="grid gap-1 text-xs text-slate-600">
                 <p><span className="font-medium">Program:</span> {programs.find(p => p.id === selectedProgramId)?.name || 'Not selected'}</p>
@@ -655,6 +641,12 @@ export function StudentSelfForm({
                     </p>
                   </div>
                 )}
+              </div>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-3">
+              <h3 className="text-xs font-semibold text-slate-900 mb-2">ID Card</h3>
+              <div className="text-xs text-slate-600">
+                <p>{existingStudent?.photo_url ? 'Passport photo uploaded' : 'No passport photo uploaded'}</p>
               </div>
             </div>
 
