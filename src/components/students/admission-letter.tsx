@@ -73,13 +73,34 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       
       // Capture the admission letter element as a canvas
       const canvas = await html2canvas(letterRef.current, {
-        scale: 2, // Higher scale for better quality
-        useCORS: true, // Allow cross-origin images
+        scale: 2,
+        useCORS: true,
         allowTaint: true,
-        logging: true,
+        logging: false,
         backgroundColor: '#ffffff',
+        ignoreElements: (element) => {
+          // Ignore elements that might cause issues
+          return element.tagName === 'SCRIPT' || element.tagName === 'STYLE';
+        },
         onclone: (clonedDoc) => {
-          // Ensure images are loaded in the cloned document
+          // Fix unsupported color functions
+          const allElements = clonedDoc.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            const computedStyle = window.getComputedStyle(el);
+            const color = computedStyle.color;
+            const backgroundColor = computedStyle.backgroundColor;
+            
+            // Replace lab/lch colors with hex equivalents
+            if (color && (color.includes('lab(') || color.includes('lch('))) {
+              htmlEl.style.color = '#000000';
+            }
+            if (backgroundColor && (backgroundColor.includes('lab(') || backgroundColor.includes('lch('))) {
+              htmlEl.style.backgroundColor = '#ffffff';
+            }
+          });
+          
+          // Ensure images are loaded
           const images = clonedDoc.querySelectorAll('img');
           images.forEach((img) => {
             img.crossOrigin = 'anonymous';
