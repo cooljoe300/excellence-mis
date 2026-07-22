@@ -61,30 +61,43 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   const totalFees = tuitionFee + unitFees;
 
   const handleDownloadPDF = async () => {
+    console.log('=== PDF Generation Started ===');
+    
     if (!letterRef.current) {
+      console.error('ERROR: Admission letter element not found');
       alert('Admission letter element not found. Please try again.');
       return;
     }
     
+    console.log('Step 1: Element found, proceeding with PDF generation');
     setIsGenerating(true);
     
     try {
-      console.log('Starting PDF generation...');
+      console.log('Step 2: Waiting for fonts to load');
+      await document.fonts.ready;
+      console.log('Step 2: Fonts loaded successfully');
+      
+      console.log('Step 3: Starting html2canvas capture');
+      console.log('Element:', letterRef.current);
+      console.log('Element dimensions:', letterRef.current.offsetWidth, 'x', letterRef.current.offsetHeight);
       
       // Capture the admission letter element as a canvas
       const canvas = await html2canvas(letterRef.current, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
-        logging: false,
+        logging: true,
         backgroundColor: '#ffffff',
         ignoreElements: (element) => {
-          // Skip any elements that might cause issues
           return element.classList?.contains('no-print');
         },
         onclone: (clonedDoc) => {
+          console.log('Step 3.1: Document cloned, applying color overrides');
+          
           // Force all colors to be PDF-safe
           const allElements = clonedDoc.querySelectorAll('*');
+          console.log(`Step 3.2: Processing ${allElements.length} elements`);
+          
           allElements.forEach((el) => {
             const htmlElement = el as HTMLElement;
             
@@ -115,6 +128,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             }
           });
           
+          console.log('Step 3.3: Adding style override to cloned document');
           // Add a style override to force RGB colors
           const style = clonedDoc.createElement('style');
           style.textContent = `
@@ -135,11 +149,14 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             .text-blue-600 { color: #2563eb !important; }
           `;
           clonedDoc.head.appendChild(style);
+          console.log('Step 3.4: Color overrides applied');
         },
       });
 
-      console.log('Canvas generated successfully:', canvas.width, 'x', canvas.height);
+      console.log('Step 4: Canvas generated successfully');
+      console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
 
+      console.log('Step 5: Creating PDF with jsPDF');
       // Create PDF with A4 dimensions
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
@@ -149,20 +166,35 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      console.log('PDF dimensions:', imgWidth, 'x', imgHeight);
+      console.log('Step 6: PDF dimensions calculated:', imgWidth, 'x', imgHeight);
 
+      console.log('Step 7: Converting canvas to image data');
       // Add the canvas image to PDF
       const imgData = canvas.toDataURL('image/png');
+      
+      console.log('Step 8: Adding image to PDF');
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
 
+      console.log('Step 9: Saving PDF');
       // Save with meaningful filename
       const filename = `Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`;
       pdf.save(filename);
       
-      console.log('PDF saved successfully:', filename);
+      console.log('=== PDF Generation Completed Successfully ===');
+      console.log('Filename:', filename);
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      console.error('=== PDF Generation Failed ===');
+      console.error('Error object:', error);
+      console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      const errorMessage = error instanceof Error 
+        ? `${error.name}: ${error.message}` 
+        : 'Unknown error';
+      
+      console.error('Displaying error to user:', errorMessage);
+      alert(`Failed to generate PDF: ${errorMessage}. Please check the browser console for details.`);
     } finally {
       setIsGenerating(false);
     }
