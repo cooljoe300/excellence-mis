@@ -26,14 +26,39 @@ export async function getMyStudentRecord() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
+  // First try to find student by profile_id (for self-registered students)
+  const { data: studentByProfile, error: profileError } = await supabase
     .from('students')
     .select('*, program:programs(*)')
     .eq('profile_id', user.id)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
-  return data;
+  if (profileError) throw new Error(profileError.message);
+  if (studentByProfile) return studentByProfile;
+
+  // Fallback: Try to find student by email (for admin-registered students)
+  const { data: studentByEmail, error: emailError } = await supabase
+    .from('students')
+    .select('*, program:programs(*)')
+    .eq('email', user.email)
+    .maybeSingle();
+
+  if (emailError) throw new Error(emailError.message);
+  
+  // If found by email, link the profile_id to the user for future queries
+  if (studentByEmail && !studentByEmail.profile_id) {
+    const { error: updateError } = await supabase
+      .from('students')
+      .update({ profile_id: user.id })
+      .eq('id', studentByEmail.id);
+    
+    if (updateError) {
+      console.error('Failed to link student profile:', updateError);
+      // Still return the student even if linking fails
+    }
+  }
+
+  return studentByEmail;
 }
 
 export async function getStudentRegisterPageData() {
@@ -43,7 +68,7 @@ export async function getStudentRegisterPageData() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [profileRes, programsRes, studentRes] = await Promise.all([
+  const [profileRes, programsRes, studentByProfileRes] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
     supabase.from('programs').select('id, code, name, duration_months, tuition_fee, is_active, description, created_at, updated_at').eq('is_active', true).order('name'),
     supabase
@@ -55,15 +80,44 @@ export async function getStudentRegisterPageData() {
 
   if (profileRes.error) throw new Error(profileRes.error.message);
   if (programsRes.error) throw new Error(programsRes.error.message);
-  if (studentRes.error) throw new Error(studentRes.error.message);
+  if (studentByProfileRes.error) throw new Error(studentByProfileRes.error.message);
+
+  let existingStudent = studentByProfileRes.data;
+
+  // Fallback: Try to find student by email (for admin-registered students)
+  if (!existingStudent && user.email) {
+    const { data: studentByEmail, error: emailError } = await supabase
+      .from('students')
+      .select('*, program:programs(id, code, name)')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (emailError) throw new Error(emailError.message);
+    
+    if (studentByEmail) {
+      existingStudent = studentByEmail;
+      
+      // Link the profile_id to the user for future queries
+      if (!studentByEmail.profile_id) {
+        const { error: updateError } = await supabase
+          .from('students')
+          .update({ profile_id: user.id })
+          .eq('id', studentByEmail.id);
+        
+        if (updateError) {
+          console.error('Failed to link student profile:', updateError);
+        }
+      }
+    }
+  }
 
   const nameParts = (profileRes.data?.full_name ?? '').trim().split(/\s+/);
 
   return {
     programs: programsRes.data ?? [],
-    existingStudent: studentRes.data,
-    defaultFirstName: studentRes.data?.first_name ?? nameParts[0] ?? '',
-    defaultLastName: studentRes.data?.last_name ?? nameParts.slice(1).join(' ') ?? '',
+    existingStudent,
+    defaultFirstName: existingStudent?.first_name ?? nameParts[0] ?? '',
+    defaultLastName: existingStudent?.last_name ?? nameParts.slice(1).join(' ') ?? '',
   };
 }
 
