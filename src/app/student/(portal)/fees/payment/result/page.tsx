@@ -30,8 +30,8 @@ export default async function PesapalPaymentResultPage({
   const errorMessage = params.error;
 
   return (
-    <div className="mx-auto max-w-lg py-8">
-      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+    <div className="py-8">
+      <div className="mx-auto max-w-lg rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         {completed ? (
           <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600" />
         ) : failed ? (

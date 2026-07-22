@@ -47,7 +47,7 @@ export function StudentShell({
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          <div className="px-4 py-6 sm:px-6 sm:py-8">{children}</div>
+          <div className="py-6 sm:py-8">{children}</div>
         </main>
       </div>
       <InstallAppPrompt />

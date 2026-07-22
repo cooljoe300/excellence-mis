@@ -11,7 +11,7 @@ export default async function StudentRegisterPage() {
   const { programs, existingStudent, defaultFirstName, defaultLastName } = data;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <PageHeader
         title={existingStudent ? 'Update your details' : 'Register your details'}
         description="Fill in your details to complete student registration. Your admission number will be generated automatically."

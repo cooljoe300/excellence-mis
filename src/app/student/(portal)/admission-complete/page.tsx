@@ -11,7 +11,7 @@ export default async function AdmissionCompletePage() {
   if (!student) redirect('/student/register');
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <PageHeader
         title="Admission Completed Successfully"
         description="You have been registered, enrolled, and your fee invoice has been generated"
