@@ -24,7 +24,13 @@ export async function getMyStudentRecord() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) {
+    console.log('[getMyStudentRecord] No authenticated user found');
+    return null;
+  }
+
+  console.log('[getMyStudentRecord] User ID:', user.id);
+  console.log('[getMyStudentRecord] User email:', user.email);
 
   // First try to find student by profile_id (for self-registered students)
   const { data: studentByProfile, error: profileError } = await supabase
@@ -33,28 +39,42 @@ export async function getMyStudentRecord() {
     .eq('profile_id', user.id)
     .maybeSingle();
 
-  if (profileError) throw new Error(profileError.message);
+  if (profileError) {
+    console.error('[getMyStudentRecord] Profile query error:', profileError);
+    throw new Error(profileError.message);
+  }
+  
+  console.log('[getMyStudentRecord] Student by profile_id:', studentByProfile);
   if (studentByProfile) return studentByProfile;
 
   // Fallback: Try to find student by email (for admin-registered students)
+  console.log('[getMyStudentRecord] Trying fallback query by email');
   const { data: studentByEmail, error: emailError } = await supabase
     .from('students')
     .select('*, program:programs(*)')
     .eq('email', user.email)
     .maybeSingle();
 
-  if (emailError) throw new Error(emailError.message);
+  if (emailError) {
+    console.error('[getMyStudentRecord] Email query error:', emailError);
+    throw new Error(emailError.message);
+  }
+  
+  console.log('[getMyStudentRecord] Student by email:', studentByEmail);
   
   // If found by email, link the profile_id to the user for future queries
   if (studentByEmail && !studentByEmail.profile_id) {
+    console.log('[getMyStudentRecord] Linking profile_id to student');
     const { error: updateError } = await supabase
       .from('students')
       .update({ profile_id: user.id })
       .eq('id', studentByEmail.id);
     
     if (updateError) {
-      console.error('Failed to link student profile:', updateError);
+      console.error('[getMyStudentRecord] Failed to link student profile:', updateError);
       // Still return the student even if linking fails
+    } else {
+      console.log('[getMyStudentRecord] Successfully linked profile_id');
     }
   }
 
