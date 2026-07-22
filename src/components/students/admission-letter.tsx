@@ -84,6 +84,23 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
           images.forEach((img) => {
             img.crossOrigin = 'anonymous';
           });
+          
+          // Convert any lab/lch colors to hex for PDF compatibility
+          const allElements = clonedDoc.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const htmlElement = el as HTMLElement;
+            const computedStyle = window.getComputedStyle(el);
+            const color = computedStyle.color;
+            const backgroundColor = computedStyle.backgroundColor;
+            
+            // Replace with PDF-compatible colors if needed
+            if (color && (color.includes('lab') || color.includes('lch'))) {
+              htmlElement.style.setProperty('color', '#0f172a', 'important');
+            }
+            if (backgroundColor && (backgroundColor.includes('lab') || backgroundColor.includes('lch'))) {
+              htmlElement.style.setProperty('background-color', '#ffffff', 'important');
+            }
+          });
         },
       });
 
