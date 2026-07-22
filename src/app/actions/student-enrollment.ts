@@ -39,11 +39,48 @@ export async function getMyUnitEnrollmentData() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: student, error: studentError } = await supabase
+  let student;
+  let studentError: { message: string } | null = null;
+
+  // First try to find student by profile_id (for self-registered students)
+  const { data: studentByProfile, error: profileError } = await supabase
     .from('students')
-    .select('id, program_id, program:programs(id, name, code)')
+    .select('id, program_id, program:programs(id, name, code), profile_id')
     .eq('profile_id', user.id)
     .maybeSingle();
+
+  if (profileError) {
+    studentError = profileError;
+  } else {
+    student = studentByProfile;
+  }
+
+  // Fallback: Try to find student by email (for admin-registered students)
+  if (!student && user.email) {
+    const { data: studentByEmail, error: emailError } = await supabase
+      .from('students')
+      .select('id, program_id, program:programs(id, name, code), profile_id')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (emailError) {
+      studentError = emailError;
+    } else {
+      student = studentByEmail;
+    }
+
+    // Link the profile_id to the user for future queries
+    if (student && !student.profile_id) {
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({ profile_id: user.id })
+        .eq('id', student.id);
+      
+      if (updateError) {
+        console.error('Failed to link student profile:', updateError);
+      }
+    }
+  }
 
   if (studentError) throw new Error(studentError.message);
   if (!student) return { needsRegistration: true as const };
@@ -96,11 +133,36 @@ export async function enrollMyUnits(courseIds: string[]) {
   } = await supabase.auth.getUser();
   if (!user) return { error: 'You must be signed in.' };
 
-  const { data: student, error: studentError } = await supabase
+  let student;
+  let studentError;
+
+  // First try to find student by profile_id (for self-registered students)
+  const { data: studentByProfile, error: profileError } = await supabase
     .from('students')
-    .select('id, program_id, first_name, last_name')
+    .select('id, program_id, first_name, last_name, profile_id')
     .eq('profile_id', user.id)
     .maybeSingle();
+
+  if (profileError) {
+    studentError = profileError;
+  } else {
+    student = studentByProfile;
+  }
+
+  // Fallback: Try to find student by email (for admin-registered students)
+  if (!student && user.email) {
+    const { data: studentByEmail, error: emailError } = await supabase
+      .from('students')
+      .select('id, program_id, first_name, last_name, profile_id')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (emailError) {
+      studentError = emailError;
+    } else {
+      student = studentByEmail;
+    }
+  }
 
   if (studentError) return { error: studentError.message };
   if (!student) return { error: 'Complete your student registration first.' };
@@ -150,7 +212,7 @@ export async function enrollMyUnits(courseIds: string[]) {
   }
 
   if (toAdd.length === 0) {
-    return { error: 'Select at least one new unit to register.' };
+    return { error: 'You are already registered for all selected units.' };
   }
 
   if (toAdd.length > 0) {
@@ -163,7 +225,13 @@ export async function enrollMyUnits(courseIds: string[]) {
       }))
     );
 
-    if (insertError) return { error: insertError.message };
+    if (insertError) {
+      // Check if it's a duplicate key error
+      if (insertError.code === '23505') {
+        return { error: 'You are already registered for one or more of these units.' };
+      }
+      return { error: insertError.message };
+    }
   }
 
   const unbilledEnrollments = await getUnbilledEnrollmentsForCourses(
