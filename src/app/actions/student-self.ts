@@ -153,13 +153,38 @@ export async function createMyStudentRecord(formData: FormData) {
     return { error: 'Please select a program. Your admission number is based on your program.' };
   }
 
+  // Check if student already exists with this email (prevents duplicates from admin registration)
+  const userEmail = user.email ?? (formData.get('email') as string);
+  if (userEmail) {
+    const { data: existingStudent } = await supabase
+      .from('students')
+      .select('id, profile_id')
+      .eq('email', userEmail)
+      .maybeSingle();
+
+    if (existingStudent) {
+      // If student exists but isn't linked to this user, link them
+      if (!existingStudent.profile_id) {
+        const { error: linkError } = await supabase
+          .from('students')
+          .update({ profile_id: user.id })
+          .eq('id', existingStudent.id);
+
+        if (linkError) {
+          console.error('Failed to link existing student:', linkError);
+        }
+      }
+      return { error: 'A student record with this email already exists. Please contact administration if this is incorrect.' };
+    }
+  }
+
   const { data, error } = await supabase
     .from('students')
     .insert({
       profile_id: user.id,
       first_name: formData.get('first_name') as string,
       last_name: formData.get('last_name') as string,
-      email: user.email ?? (formData.get('email') as string),
+      email: userEmail,
       phone: (formData.get('phone') as string) || null,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
       gender: (formData.get('gender') as string) || null,
