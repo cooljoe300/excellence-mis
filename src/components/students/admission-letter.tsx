@@ -233,19 +233,19 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             </div>
 
             {/* Body */}
-            <div className="text-xs text-slate-700 leading-relaxed mb-4">
-              <p className="text-justify mb-3">
+            <div className="text-xs text-slate-700 leading-relaxed mb-3">
+              <p className="text-justify mb-2">
                 We are pleased to inform you that you have been admitted to 
                 <span className="font-semibold"> Excellence Online College</span> to pursue 
                 <span className="font-semibold"> {program?.name}</span>, <span className="font-semibold">{program?.code}</span>.
               </p>
 
-              <p className="text-justify mb-3">
+              <p className="text-justify mb-2">
                 Your admission details are as follows:
               </p>
 
               {/* Student Details Table */}
-              <div className="my-3 border border-slate-300">
+              <div className="my-2 border border-slate-300">
                 <table className="w-full text-xs">
                   <tbody>
                     <tr className="border-b border-slate-200">
@@ -294,12 +294,12 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             </div>
 
             {/* Online Learning Statement */}
-            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded">
-              <p className="font-semibold mb-2 text-xs">Online Learning Information:</p>
-              <p className="mb-2 text-xs text-justify leading-relaxed">
+            <div className="mb-3 p-2 bg-slate-50 border border-slate-200 rounded">
+              <p className="font-semibold mb-1 text-xs">Online Learning Information:</p>
+              <p className="mb-1 text-xs text-justify leading-relaxed">
                 As an online student, you will access your learning resources, course materials, assignments, assessments, announcements, and other academic services through the Excellence Online College Student Portal/Learning Management System (LMS).
               </p>
-              <p className="mb-2 text-xs text-justify leading-relaxed">
+              <p className="mb-1 text-xs text-justify leading-relaxed">
                 You are required to log in to your student portal using the credentials provided to you and ensure that your student profile is complete. All important academic communication, including course registration, learning activities, examinations, and other institutional updates, will be communicated through the appropriate online platforms.
               </p>
               <p className="text-xs text-justify leading-relaxed">
@@ -308,21 +308,21 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             </div>
 
             {/* Closing */}
-            <div className="mb-4">
+            <div className="mb-3">
               <p className="font-semibold text-xs text-justify leading-relaxed">
                 We welcome you to Excellence Online College and look forward to supporting you throughout your academic journey. We wish you success in your studies.
               </p>
             </div>
 
             {/* Signature Section */}
-            <div className="mb-6">
-              <p className="text-xs text-slate-700 mb-4">
+            <div className="mb-4">
+              <p className="text-xs text-slate-700 mb-3">
                 Yours faithfully,
               </p>
               
               <div className="flex items-start gap-6">
                 <div className="flex-1">
-                  <div className="border-t border-slate-900 pt-2">
+                  <div className="border-t border-slate-900 pt-1">
                     <p className="text-xs font-semibold text-slate-900">Admissions Officer / Registrar</p>
                     <p className="text-[10px] text-slate-600">EXCELLENCE ONLINE COLLEGE</p>
                   </div>
@@ -358,6 +358,8 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             margin: 0;
             padding: 0;
             background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           
           body * {
@@ -370,9 +372,9 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
           }
           
           #admission-letter {
-            position: absolute;
-            left: 0;
-            top: 0;
+            position: relative;
+            left: auto;
+            top: auto;
             width: 210mm;
             min-height: 297mm;
             margin: 0;
@@ -380,6 +382,20 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             border: none !important;
             box-shadow: none !important;
             background: white !important;
+            overflow: visible;
+          }
+          
+          /* Ensure paragraphs don't overlap */
+          #admission-letter p {
+            display: block;
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+            page-break-inside: avoid;
+          }
+          
+          /* Ensure online learning section has proper spacing */
+          #admission-letter .bg-slate-50 {
+            page-break-inside: avoid;
           }
           
           .no-print {
@@ -392,6 +408,12 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
           
           .print\\:border-none {
             border: none !important;
+          }
+          
+          /* Ensure stamp renders correctly */
+          #admission-letter img {
+            max-width: 100%;
+            height: auto;
           }
           
           /* Ensure colors print correctly */
