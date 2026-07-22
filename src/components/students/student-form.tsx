@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Modal } from '@/components/ui/modal';
 import { createStudent, updateStudent } from '@/app/actions/students';
 import {
   getCurrentAcademicTermId,
@@ -15,7 +16,7 @@ import {
   setStudentEnrollmentsForTerm,
 } from '@/app/actions/enrollments';
 import type { Program, Student, Intake } from '@/lib/types';
-import { UserPlus, Info } from 'lucide-react';
+import { UserPlus, Info, Copy, Mail, Download, CheckCircle2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 const statusOptions = [
@@ -45,6 +46,14 @@ export function StudentForm({
   const router = useRouter();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginDetails, setLoginDetails] = useState<{
+    admissionNumber: string;
+    email: string;
+    temporaryPassword: string | null;
+    studentId: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const [programId, setProgramId] = useState(student?.program_id ?? '');
   const [termId, setTermId] = useState<string | null>(null);
@@ -139,6 +148,19 @@ export function StudentForm({
       feePaymentId = enrollResult.feePaymentId ?? null;
     }
 
+    // Show login details modal for new student registration
+    if (!student && 'temporaryPassword' in result && result.temporaryPassword) {
+      setLoginDetails({
+        admissionNumber: (result as any).admissionNumber || '',
+        email: (result as any).email || '',
+        temporaryPassword: result.temporaryPassword as string,
+        studentId: (result as any).id || '',
+      });
+      setShowLoginModal(true);
+      setLoading(false);
+      return;
+    }
+
     if ('id' in result && result.id) {
       const params = new URLSearchParams({ registered: 'true' });
       if (feePaymentId) params.set('invoice', feePaymentId);
@@ -147,6 +169,43 @@ export function StudentForm({
       router.push('/dashboard/students');
     }
     router.refresh();
+  }
+
+  function copyLoginDetails() {
+    if (!loginDetails) return;
+    const text = `Student Portal Login Details\n\nAdmission Number: ${loginDetails.admissionNumber}\nEmail: ${loginDetails.email}\nTemporary Password: ${loginDetails.temporaryPassword}\n\nStudent Portal: ${window.location.origin}/student`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function sendLoginDetailsEmail() {
+    if (!loginDetails) return;
+    const subject = encodeURIComponent('Excellence Online College – Student Portal Login Details');
+    const body = encodeURIComponent(`Dear Student,
+
+You have been successfully registered as a student at Excellence Online College.
+
+Your Student Portal login details are:
+
+Student Portal: ${window.location.origin}/student
+Admission Number: ${loginDetails.admissionNumber}
+Username: ${loginDetails.email}
+Temporary Password: ${loginDetails.temporaryPassword}
+
+Please log in to the Student Portal and change your password after your first login.
+
+Regards,
+Admissions Office
+Excellence Online College`);
+    window.open(`mailto:${loginDetails.email}?subject=${subject}&body=${body}`);
+  }
+
+  function closeModal() {
+    setShowLoginModal(false);
+    if (loginDetails) {
+      router.push(`/dashboard/students/${loginDetails.studentId}`);
+    }
   }
 
   const programOptions = [
@@ -160,7 +219,8 @@ export function StudentForm({
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-6">
       {!student && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
           <div className="flex gap-3">
@@ -321,5 +381,59 @@ export function StudentForm({
         </Button>
       </div>
     </form>
+
+    {/* Login Details Modal */}
+    <Modal
+      open={showLoginModal}
+      onClose={closeModal}
+      title="Student Registered Successfully"
+      size="lg"
+    >
+      <div className="space-y-6">
+        <div className="flex items-center justify-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Admission Number</p>
+            <p className="text-lg font-mono font-bold text-slate-900">{loginDetails?.admissionNumber}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Email</p>
+            <p className="text-sm font-medium text-slate-900">{loginDetails?.email}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Temporary Password</p>
+            <p className="text-lg font-mono font-bold text-slate-900">{loginDetails?.temporaryPassword}</p>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Student Portal</p>
+            <p className="text-sm font-medium text-blue-600">{window.location.origin}/student</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={copyLoginDetails} variant="secondary" className="flex-1">
+            <Copy className="h-4 w-4 mr-2" />
+            {copied ? 'Copied!' : 'Copy Details'}
+          </Button>
+          <Button onClick={sendLoginDetailsEmail} variant="secondary" className="flex-1">
+            <Mail className="h-4 w-4 mr-2" />
+            Send Email
+          </Button>
+          <Button onClick={closeModal} className="flex-1">
+            Done
+          </Button>
+        </div>
+
+        <p className="text-xs text-slate-500 text-center">
+          Please share these login details securely with the student. They should change their password after first login.
+        </p>
+      </div>
+    </Modal>
+  </>
   );
 }

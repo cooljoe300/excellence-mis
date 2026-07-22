@@ -8,6 +8,15 @@ import {
 } from '@/lib/student-deregistration-fees';
 import type { StudentStatus } from '@/lib/types';
 
+function generateTemporaryPassword(length = 12): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
 export async function getStudents(search?: string) {
   const supabase = await createClient();
   let query = supabase
@@ -44,12 +53,47 @@ export async function createStudent(formData: FormData) {
     return { error: 'Please select a program. Admission numbers are based on the student program.' };
   }
 
+  const email = formData.get('email') as string;
+  const firstName = formData.get('first_name') as string;
+  const lastName = formData.get('last_name') as string;
+
+  // Check if auth user already exists with this email
+  const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers();
+  let existingAuthUser = null;
+  if (!userCheckError && existingUser) {
+    existingAuthUser = existingUser.users.find(u => u.email === email);
+  }
+
+  let authUserId = existingAuthUser?.id;
+  let temporaryPassword = null;
+
+  // Create auth account if it doesn't exist
+  if (!existingAuthUser) {
+    temporaryPassword = generateTemporaryPassword();
+    const tableName = 'students';
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password: temporaryPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: `${firstName} ${lastName}`,
+        role: 'student',
+      },
+    });
+
+    if (authError) {
+      return { error: `Failed to create authentication account: ${authError.message}` };
+    }
+    authUserId = authData.user.id;
+  }
+
   const { data, error } = await supabase
     .from('students')
     .insert({
-      first_name: formData.get('first_name') as string,
-      last_name: formData.get('last_name') as string,
-      email: formData.get('email') as string,
+      profile_id: authUserId,
+      first_name: firstName,
+      last_name: lastName,
+      email: email,
       phone: (formData.get('phone') as string) || null,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
       gender: (formData.get('gender') as string) || null,
@@ -79,6 +123,9 @@ export async function createStudent(formData: FormData) {
     success: true,
     id: data.id,
     admissionNumber: data.admission_number ?? data.student_number,
+    temporaryPassword,
+    email,
+    authUserId,
   };
 }
 
