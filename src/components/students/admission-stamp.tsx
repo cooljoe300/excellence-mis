@@ -21,18 +21,19 @@ export function AdmissionStamp({ className = '' }: AdmissionStampProps) {
   }, []);
 
   return (
-    <div className={`relative inline-block ${className}`}>
-      <div className="relative">
+    <div className={`relative inline-block ${className}`} style={{ width: '170px', height: '113px' }}>
+      <div className="relative w-full h-full">
         <Image
           src="/eoc.png"
           alt="Excellence Online College Admissions Office Stamp"
           width={170}
           height={113}
-          className="drop-shadow-md"
+          className="w-full h-full object-contain"
           priority
+          unoptimized
         />
         {/* Dynamic date overlay */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <span className="text-[10px] font-bold text-red-700" style={{ marginTop: '2px' }}>
             {currentDate}
           </span>

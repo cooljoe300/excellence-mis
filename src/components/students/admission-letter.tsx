@@ -233,14 +233,14 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             </div>
 
             {/* Body */}
-            <div className="space-y-3 text-xs text-slate-700 leading-relaxed mb-4">
-              <p className="text-justify">
+            <div className="text-xs text-slate-700 leading-relaxed mb-4">
+              <p className="text-justify mb-3">
                 We are pleased to inform you that you have been admitted to 
                 <span className="font-semibold"> Excellence Online College</span> to pursue 
                 <span className="font-semibold"> {program?.name}</span>, <span className="font-semibold">{program?.code}</span>.
               </p>
 
-              <p className="text-justify">
+              <p className="text-justify mb-3">
                 Your admission details are as follows:
               </p>
 
@@ -291,44 +291,45 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
                   </tbody>
                 </table>
               </div>
+            </div>
 
-              {/* Online Learning Statement */}
-              <div className="my-3 p-3 bg-slate-50 border border-slate-200 rounded">
-                <p className="font-semibold mb-2 text-xs">Online Learning Information:</p>
-                <p className="mb-2 text-xs text-justify">
-                  As an online student, you will access your learning resources, course materials, assignments, assessments, announcements, and other academic services through the Excellence Online College Student Portal/Learning Management System (LMS).
-                </p>
-                <p className="mb-2 text-xs text-justify">
-                  You are required to log in to your student portal using the credentials provided to you and ensure that your student profile is complete. All important academic communication, including course registration, learning activities, examinations, and other institutional updates, will be communicated through the appropriate online platforms.
-                </p>
-                <p className="text-xs text-justify">
-                  You are encouraged to familiarize yourself with the Student Portal and LMS and participate actively in all online learning activities. Where applicable, virtual orientation sessions and other online student support services will be communicated through the official college channels.
-                </p>
-              </div>
-
-              {/* Closing */}
-              <p className="font-semibold text-xs text-justify">
-                We welcome you to Excellence Online College and look forward to supporting you throughout your academic journey. We wish you success in your studies.
+            {/* Online Learning Statement */}
+            <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded">
+              <p className="font-semibold mb-2 text-xs">Online Learning Information:</p>
+              <p className="mb-2 text-xs text-justify leading-relaxed">
+                As an online student, you will access your learning resources, course materials, assignments, assessments, announcements, and other academic services through the Excellence Online College Student Portal/Learning Management System (LMS).
+              </p>
+              <p className="mb-2 text-xs text-justify leading-relaxed">
+                You are required to log in to your student portal using the credentials provided to you and ensure that your student profile is complete. All important academic communication, including course registration, learning activities, examinations, and other institutional updates, will be communicated through the appropriate online platforms.
+              </p>
+              <p className="text-xs text-justify leading-relaxed">
+                You are encouraged to familiarize yourself with the Student Portal and LMS and participate actively in all online learning activities. Where applicable, virtual orientation sessions and other online student support services will be communicated through the official college channels.
               </p>
             </div>
 
             {/* Closing */}
             <div className="mb-4">
-              <p className="text-xs text-slate-700">
-                Yours faithfully,
+              <p className="font-semibold text-xs text-justify leading-relaxed">
+                We welcome you to Excellence Online College and look forward to supporting you throughout your academic journey. We wish you success in your studies.
               </p>
             </div>
 
             {/* Signature Section */}
-            <div className="flex items-start gap-6">
-              <div className="max-w-[200px]">
-                <div className="border-t border-slate-900 pt-1">
-                  <p className="text-xs font-semibold text-slate-900">Admissions Officer / Registrar</p>
-                  <p className="text-[10px] text-slate-600">EXCELLENCE ONLINE COLLEGE</p>
+            <div className="mb-6">
+              <p className="text-xs text-slate-700 mb-4">
+                Yours faithfully,
+              </p>
+              
+              <div className="flex items-start gap-6">
+                <div className="flex-1">
+                  <div className="border-t border-slate-900 pt-2">
+                    <p className="text-xs font-semibold text-slate-900">Admissions Officer / Registrar</p>
+                    <p className="text-[10px] text-slate-600">EXCELLENCE ONLINE COLLEGE</p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-1">
-                <AdmissionStamp />
+                <div className="flex-shrink-0">
+                  <AdmissionStamp />
+                </div>
               </div>
             </div>
 
