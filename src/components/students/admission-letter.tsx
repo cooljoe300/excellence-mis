@@ -61,18 +61,33 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   const totalFees = tuitionFee + unitFees;
 
   const handleDownloadPDF = async () => {
-    if (!letterRef.current) return;
+    if (!letterRef.current) {
+      alert('Admission letter element not found. Please try again.');
+      return;
+    }
     
     setIsGenerating(true);
     
     try {
+      console.log('Starting PDF generation...');
+      
       // Capture the admission letter element as a canvas
       const canvas = await html2canvas(letterRef.current, {
         scale: 2, // Higher scale for better quality
         useCORS: true, // Allow cross-origin images
-        logging: false,
+        allowTaint: true,
+        logging: true,
         backgroundColor: '#ffffff',
+        onclone: (clonedDoc) => {
+          // Ensure images are loaded in the cloned document
+          const images = clonedDoc.querySelectorAll('img');
+          images.forEach((img) => {
+            img.crossOrigin = 'anonymous';
+          });
+        },
       });
+
+      console.log('Canvas generated successfully:', canvas.width, 'x', canvas.height);
 
       // Create PDF with A4 dimensions
       const pdf = new jsPDF('p', 'mm', 'a4');
@@ -83,6 +98,8 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
+      console.log('PDF dimensions:', imgWidth, 'x', imgHeight);
+
       // Add the canvas image to PDF
       const imgData = canvas.toDataURL('image/png');
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
@@ -90,9 +107,11 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       // Save with meaningful filename
       const filename = `Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`;
       pdf.save(filename);
+      
+      console.log('PDF saved successfully:', filename);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Failed to generate PDF. Please try again.');
+      alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
     } finally {
       setIsGenerating(false);
     }
