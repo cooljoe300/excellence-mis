@@ -78,29 +78,63 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
         allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
+        ignoreElements: (element) => {
+          // Skip any elements that might cause issues
+          return element.classList?.contains('no-print');
+        },
         onclone: (clonedDoc) => {
-          // Ensure images are loaded
-          const images = clonedDoc.querySelectorAll('img');
-          images.forEach((img) => {
-            img.crossOrigin = 'anonymous';
-          });
-          
-          // Convert any lab/lch colors to hex for PDF compatibility
+          // Force all colors to be PDF-safe
           const allElements = clonedDoc.querySelectorAll('*');
           allElements.forEach((el) => {
             const htmlElement = el as HTMLElement;
-            const computedStyle = window.getComputedStyle(el);
-            const color = computedStyle.color;
-            const backgroundColor = computedStyle.backgroundColor;
             
-            // Replace with PDF-compatible colors if needed
-            if (color && (color.includes('lab') || color.includes('lch'))) {
-              htmlElement.style.setProperty('color', '#0f172a', 'important');
+            // Force inline styles for all colors to bypass computed lab() values
+            const computedStyle = window.getComputedStyle(el);
+            
+            // Convert color to RGB
+            const color = computedStyle.color;
+            if (color && color !== 'rgba(0, 0, 0, 0)' && color !== 'transparent') {
+              htmlElement.style.color = color;
             }
-            if (backgroundColor && (backgroundColor.includes('lab') || backgroundColor.includes('lch'))) {
-              htmlElement.style.setProperty('background-color', '#ffffff', 'important');
+            
+            // Convert background to RGB
+            const backgroundColor = computedStyle.backgroundColor;
+            if (backgroundColor && backgroundColor !== 'rgba(0, 0, 0, 0)' && backgroundColor !== 'transparent') {
+              htmlElement.style.backgroundColor = backgroundColor;
+            }
+            
+            // Convert border colors
+            const borderTopColor = computedStyle.borderTopColor;
+            if (borderTopColor && borderTopColor !== 'rgba(0, 0, 0, 0)' && borderTopColor !== 'transparent') {
+              htmlElement.style.borderTopColor = borderTopColor;
+            }
+            
+            // Ensure images are loaded
+            if (el.tagName === 'IMG') {
+              (el as HTMLImageElement).crossOrigin = 'anonymous';
             }
           });
+          
+          // Add a style override to force RGB colors
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            * {
+              color: #0f172a !important;
+              background-color: #ffffff !important;
+              border-color: #e2e8f0 !important;
+            }
+            .bg-slate-50 { background-color: #f8fafc !important; }
+            .bg-slate-900 { background-color: #0f172a !important; }
+            .text-slate-900 { color: #0f172a !important; }
+            .text-slate-600 { color: #475569 !important; }
+            .text-slate-500 { color: #64748b !important; }
+            .text-slate-700 { color: #334155 !important; }
+            .border-slate-200 { border-color: #e2e8f0 !important; }
+            .border-slate-300 { border-color: #cbd5e1 !important; }
+            .border-slate-900 { border-color: #0f172a !important; }
+            .text-blue-600 { color: #2563eb !important; }
+          `;
+          clonedDoc.head.appendChild(style);
         },
       });
 
