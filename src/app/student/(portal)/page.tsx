@@ -228,6 +228,9 @@ export default async function StudentPortalPage() {
         <Link href="/student/register">
           <Button variant="secondary">Update my details</Button>
         </Link>
+        <Link href="/student/admission-letter">
+          <Button variant="secondary">Admission Letter</Button>
+        </Link>
       </div>
     </div>
   );
