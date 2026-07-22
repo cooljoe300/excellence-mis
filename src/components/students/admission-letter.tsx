@@ -70,6 +70,10 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
     }
     
     console.log('Step 1: Element found, proceeding with PDF generation');
+    console.log('Element ID:', letterRef.current.id);
+    console.log('Element class:', letterRef.current.className);
+    console.log('Element dimensions:', letterRef.current.offsetWidth, 'x', letterRef.current.offsetHeight);
+    
     setIsGenerating(true);
     
     try {
@@ -77,9 +81,19 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       await document.fonts.ready;
       console.log('Step 2: Fonts loaded successfully');
       
-      console.log('Step 3: Starting html2canvas capture');
-      console.log('Element:', letterRef.current);
-      console.log('Element dimensions:', letterRef.current.offsetWidth, 'x', letterRef.current.offsetHeight);
+      console.log('Step 3: Checking images before capture');
+      const images = letterRef.current.querySelectorAll('img');
+      console.log(`Found ${images.length} images in admission letter`);
+      images.forEach((img, index) => {
+        console.log(`Image ${index}:`, {
+          src: (img as HTMLImageElement).src,
+          complete: (img as HTMLImageElement).complete,
+          naturalWidth: (img as HTMLImageElement).naturalWidth,
+          naturalHeight: (img as HTMLImageElement).naturalHeight,
+        });
+      });
+      
+      console.log('Step 4: Starting html2canvas capture');
       
       // Capture the admission letter element as a canvas
       const canvas = await html2canvas(letterRef.current, {
@@ -89,14 +103,19 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
         logging: true,
         backgroundColor: '#ffffff',
         ignoreElements: (element) => {
+          // Temporarily ignore images to test if they're the issue
+          if (element.tagName === 'IMG') {
+            console.log('Ignoring image element:', element);
+            return true;
+          }
           return element.classList?.contains('no-print');
         },
         onclone: (clonedDoc) => {
-          console.log('Step 3.1: Document cloned, applying color overrides');
+          console.log('Step 4.1: Document cloned, applying color overrides');
           
           // Force all colors to be PDF-safe
           const allElements = clonedDoc.querySelectorAll('*');
-          console.log(`Step 3.2: Processing ${allElements.length} elements`);
+          console.log(`Step 4.2: Processing ${allElements.length} elements`);
           
           allElements.forEach((el) => {
             const htmlElement = el as HTMLElement;
@@ -128,7 +147,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             }
           });
           
-          console.log('Step 3.3: Adding style override to cloned document');
+          console.log('Step 4.3: Adding style override to cloned document');
           // Add a style override to force RGB colors
           const style = clonedDoc.createElement('style');
           style.textContent = `
@@ -149,14 +168,14 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             .text-blue-600 { color: #2563eb !important; }
           `;
           clonedDoc.head.appendChild(style);
-          console.log('Step 3.4: Color overrides applied');
+          console.log('Step 4.4: Color overrides applied');
         },
       });
 
-      console.log('Step 4: Canvas generated successfully');
+      console.log('Step 5: Canvas generated successfully');
       console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
 
-      console.log('Step 5: Creating PDF with jsPDF');
+      console.log('Step 6: Creating PDF with jsPDF');
       // Create PDF with A4 dimensions
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
@@ -166,16 +185,16 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      console.log('Step 6: PDF dimensions calculated:', imgWidth, 'x', imgHeight);
+      console.log('Step 7: PDF dimensions calculated:', imgWidth, 'x', imgHeight);
 
-      console.log('Step 7: Converting canvas to image data');
+      console.log('Step 8: Converting canvas to image data');
       // Add the canvas image to PDF
       const imgData = canvas.toDataURL('image/png');
       
-      console.log('Step 8: Adding image to PDF');
+      console.log('Step 9: Adding image to PDF');
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
 
-      console.log('Step 9: Saving PDF');
+      console.log('Step 10: Saving PDF');
       // Save with meaningful filename
       const filename = `Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`;
       pdf.save(filename);
@@ -188,10 +207,11 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
       console.error('Error message:', error instanceof Error ? error.message : String(error));
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('Raw error:', JSON.stringify(error, null, 2));
       
       const errorMessage = error instanceof Error 
         ? `${error.name}: ${error.message}` 
-        : 'Unknown error';
+        : JSON.stringify(error);
       
       console.error('Displaying error to user:', errorMessage);
       alert(`Failed to generate PDF: ${errorMessage}. Please check the browser console for details.`);
