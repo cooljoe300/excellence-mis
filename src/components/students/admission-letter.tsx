@@ -7,8 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { Student } from '@/lib/types';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import printJS from 'print-js';
 import { AdmissionStamp } from './admission-stamp';
 
 interface AdmissionLetterProps {
@@ -71,65 +70,30 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
     try {
       console.log('Starting PDF generation...');
       
-      // Capture the admission letter element as a canvas
-      const canvas = await html2canvas(letterRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        ignoreElements: (element) => {
-          // Ignore elements that might cause issues
-          return element.tagName === 'SCRIPT' || element.tagName === 'STYLE';
-        },
-        onclone: (clonedDoc) => {
-          // Fix unsupported color functions
-          const allElements = clonedDoc.querySelectorAll('*');
-          allElements.forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            const computedStyle = window.getComputedStyle(el);
-            const color = computedStyle.color;
-            const backgroundColor = computedStyle.backgroundColor;
-            
-            // Replace lab/lch colors with hex equivalents
-            if (color && (color.includes('lab(') || color.includes('lch('))) {
-              htmlEl.style.color = '#000000';
-            }
-            if (backgroundColor && (backgroundColor.includes('lab(') || backgroundColor.includes('lch('))) {
-              htmlEl.style.backgroundColor = '#ffffff';
-            }
-          });
-          
-          // Ensure images are loaded
-          const images = clonedDoc.querySelectorAll('img');
-          images.forEach((img) => {
-            img.crossOrigin = 'anonymous';
-          });
-        },
+      // Use print-js to generate PDF
+      printJS({
+        printable: 'admission-letter',
+        type: 'html',
+        style: `
+          @page { size: A4; margin: 0; }
+          body { margin: 0; }
+          #admission-letter {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm;
+            margin: 0;
+            background: white !important;
+          }
+          #admission-letter * {
+            color: #000000 !important;
+            background-color: #ffffff !important;
+          }
+        `,
+        targetStyles: ['*'],
+        documentTitle: `Admission_Letter_${admissionNumber}`,
       });
-
-      console.log('Canvas generated successfully:', canvas.width, 'x', canvas.height);
-
-      // Create PDF with A4 dimensions
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      // Calculate dimensions to fit A4 while maintaining aspect ratio
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      console.log('PDF dimensions:', imgWidth, 'x', imgHeight);
-
-      // Add the canvas image to PDF
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-
-      // Save with meaningful filename
-      const filename = `Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`;
-      pdf.save(filename);
       
-      console.log('PDF saved successfully:', filename);
+      console.log('PDF generated successfully');
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
