@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { Student } from '@/lib/types';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { AdmissionStamp } from './admission-stamp';
 
 interface AdmissionLetterProps {
@@ -15,9 +17,11 @@ interface AdmissionLetterProps {
 }
 
 export function AdmissionLetter({ student, enrollments: initialEnrollments = [] }: AdmissionLetterProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [enrollments, setEnrollments] = useState<any[]>(initialEnrollments);
+  const letterRef = useRef<HTMLDivElement>(null);
 
   const admissionNumber = student.admission_number || student.student_number;
   const program = student.program as { name: string; code: string; description: string; duration_months: number; department?: string; tuition_fee: number } | null;
@@ -56,11 +60,45 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   }, 0);
   const totalFees = tuitionFee + unitFees;
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPDF = async () => {
+    if (!letterRef.current) return;
+    
+    setIsGenerating(true);
+    
+    try {
+      // Capture the admission letter element as a canvas
+      const canvas = await html2canvas(letterRef.current, {
+        scale: 2, // Higher scale for better quality
+        useCORS: true, // Allow cross-origin images
+        logging: false,
+        backgroundColor: '#ffffff',
+      });
+
+      // Create PDF with A4 dimensions
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Calculate dimensions to fit A4 while maintaining aspect ratio
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      // Add the canvas image to PDF
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+
+      // Save with meaningful filename
+      const filename = `Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`;
+      pdf.save(filename);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  const handleDownloadPDF = () => {
+  const handlePrint = () => {
     window.print();
   };
 
@@ -120,9 +158,9 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   return (
     <div className="space-y-4 no-print">
       <div className="flex flex-wrap gap-3 no-print">
-        <Button onClick={handleDownloadPDF}>
+        <Button onClick={handleDownloadPDF} disabled={isGenerating}>
           <Download className="h-4 w-4 mr-2" />
-          Download PDF
+          {isGenerating ? 'Generating...' : 'Download PDF'}
         </Button>
         <Button onClick={handlePrint} variant="secondary">
           <Printer className="h-4 w-4 mr-2" />
@@ -141,7 +179,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       {/* Print-friendly admission letter */}
       <Card className="print:shadow-none print:border-none">
         <CardContent className="p-0">
-          <div id="admission-letter" className="max-w-[210mm] mx-auto bg-white p-[15mm] border-2 border-slate-900 print:border-none" style={{ minHeight: '297mm' }}>
+          <div ref={letterRef} id="admission-letter" className="max-w-[210mm] mx-auto bg-white p-[15mm] border-2 border-slate-900 print:border-none" style={{ minHeight: '297mm' }}>
             {/* Header with Logo */}
             <div className="text-center mb-4 border-b-2 border-slate-900 pb-3">
               <div className="flex justify-center mb-2">
