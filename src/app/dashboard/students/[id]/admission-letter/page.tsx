@@ -22,10 +22,12 @@ export default async function AdmissionLetterPage({
 
   return (
     <div>
-      <PageHeader
-        title="Admission Letter"
-        description={`Official admission letter for ${student.first_name} ${student.last_name}`}
-      />
+      <div className="no-print">
+        <PageHeader
+          title="Admission Letter"
+          description={`Official admission letter for ${student.first_name} ${student.last_name}`}
+        />
+      </div>
       <AdmissionLetter student={student} enrollments={enrollments} />
     </div>
   );
