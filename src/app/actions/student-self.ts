@@ -220,7 +220,7 @@ export async function createMyStudentRecord(formData: FormData) {
       enrollment_date:
         (formData.get('enrollment_date') as string) ||
         new Date().toISOString().split('T')[0],
-      status: 'pending',
+      status: 'active',
       registration_source: 'self_registered',
       notes: (formData.get('notes') as string) || null,
       student_number: '',
