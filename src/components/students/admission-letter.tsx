@@ -19,7 +19,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [enrollments, setEnrollments] = useState<any[]>(initialEnrollments);
 
-  const admissionNumber = student.admission_number || student.student_number;
+  const admissionNumber = student.admission_number || student.student_number || '—';
   const program = student.program as { name: string; code: string; description: string; duration_months: number; department?: string; tuition_fee: number } | null;
   const intake = student.intake as { name: string; code: string } | null;
 
@@ -49,7 +49,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   const unitNames = enrollments
     .map((enrollment) => enrollment.course?.name)
     .filter(Boolean)
-    .join(', ');
+    .join(', ') || '—';
   const tuitionFee = program?.tuition_fee || 0;
   const unitFees = enrollments.reduce((sum, enrollment) => {
     return sum + (enrollment.course?.unit_fee || 0);
@@ -58,6 +58,16 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
 
   // Generate dynamic document title for print/PDF filename
   const documentTitle = `Admission Letter - ${student.first_name} ${student.last_name} - ${admissionNumber}`;
+
+  // Error handling for missing critical data
+  if (!student || !student.first_name || !student.last_name) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+        <p className="text-red-900 font-semibold">Unable to display admission letter</p>
+        <p className="text-red-700 text-sm mt-1">Student information is incomplete. Please contact the administrator.</p>
+      </div>
+    );
+  }
 
   const handleSendEmail = async () => {
     setIsSendingEmail(true);
@@ -113,7 +123,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   };
 
   return (
-    <div className="space-y-4 no-print">
+    <div className="space-y-4">
       <div className="flex flex-wrap gap-3 no-print">
         <DocumentPdfButton documentTitle={documentTitle} />
         <Button onClick={handleSendEmail} variant="secondary" disabled={isSendingEmail}>
@@ -167,7 +177,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             <p className="font-semibold">To:</p>
             <p className="font-semibold">{student.first_name} {student.last_name}</p>
             <p>Admission Number: {admissionNumber}</p>
-            <p className="mt-1 font-semibold">RE: ADMISSION TO {program?.name?.toUpperCase()}</p>
+            <p className="mt-1 font-semibold">RE: ADMISSION TO {program?.name?.toUpperCase() || 'YOUR PROGRAMME'}</p>
           </div>
 
           {/* Salutation */}
@@ -182,7 +192,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             <p className="text-justify mb-2">
               We are pleased to inform you that you have been admitted to 
               <span className="font-semibold"> Excellence Online College</span> to pursue 
-              <span className="font-semibold"> {program?.name}</span>, <span className="font-semibold">{program?.code}</span>.
+              <span className="font-semibold"> {program?.name || 'your chosen programme'}</span>{program?.code ? <span className="font-semibold">, {program.code}</span> : ''}.
             </p>
 
             <p className="text-justify mb-2">
@@ -203,11 +213,11 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-1 px-2 font-semibold bg-slate-50">Programme</td>
-                    <td className="py-1 px-2">{program?.name}</td>
+                    <td className="py-1 px-2">{program?.name || '—'}</td>
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-1 px-2 font-semibold bg-slate-50">Programme Code</td>
-                    <td className="py-1 px-2">{program?.code}</td>
+                    <td className="py-1 px-2">{program?.code || '—'}</td>
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-1 px-2 font-semibold bg-slate-50">Mode of Study</td>
@@ -215,7 +225,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-1 px-2 font-semibold bg-slate-50">Intake</td>
-                    <td className="py-1 px-2">{intake?.name}</td>
+                    <td className="py-1 px-2">{intake?.name || '—'}</td>
                   </tr>
                   <tr className="border-b border-slate-200">
                     <td className="py-1 px-2 font-semibold bg-slate-50">Academic Year</td>
