@@ -53,7 +53,7 @@ export function StudentSelfForm({
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
-  const [availableUnits, setAvailableUnits] = useState<{ id: string; code: string; name: string; unit_fee: number; credits: number }[]>([]);
+  const [availableUnits, setAvailableUnits] = useState<{ id: string; code: string; name: string; unit_fee: number; credits: number; isEnrolled: boolean }[]>([]);
   const [termId, setTermId] = useState<string | null>(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [studentCreated, setStudentCreated] = useState(false);
@@ -444,16 +444,23 @@ export function StudentSelfForm({
                   <div className="space-y-1">
                     {availableUnits.map((unit) => {
                       const checked = selectedUnitIds.includes(unit.id);
+                      const isEnrolled = unit.isEnrolled;
                       return (
                         <label
                           key={unit.id}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 cursor-pointer hover:border-blue-200 hover:bg-blue-50/30"
+                          className={cn(
+                            'flex items-center justify-between gap-3 rounded-lg border px-3 py-2',
+                            isEnrolled
+                              ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-60'
+                              : 'border-slate-200 bg-white cursor-pointer hover:border-blue-200 hover:bg-blue-50/30'
+                          )}
                         >
                           <div className="flex items-start gap-2 min-w-0">
                             <input
                               type="checkbox"
                               className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
                               checked={checked}
+                              disabled={isEnrolled}
                               onChange={(e) => {
                                 if (e.target.checked) {
                                   setSelectedUnitIds(prev => [...prev, unit.id]);
@@ -468,6 +475,11 @@ export function StudentSelfForm({
                                 <span className="font-normal text-slate-500"> — {unit.name}</span>
                               </p>
                               <p className="text-[11px] text-slate-500">{unit.credits} credits</p>
+                              {isEnrolled && (
+                                <p className="text-[10px] font-semibold text-emerald-600 mt-0.5">
+                                  ✓ Already Registered
+                                </p>
+                              )}
                             </div>
                           </div>
                           <span className="shrink-0 text-xs font-semibold text-slate-900">

@@ -19,8 +19,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get student record
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('id')
+      .eq('profile_id', user.id)
+      .maybeSingle();
+
+    const studentId = student?.id;
+
     const termId = await getCurrentAcademicTermId();
     const units = await getProgramCourses(programId);
+
+    // Get existing enrollments for the current term
+    let enrolledCourseIds: string[] = [];
+    if (studentId && termId) {
+      const { data: existingEnrollments } = await supabase
+        .from('enrollments')
+        .select('course_id')
+        .eq('student_id', studentId)
+        .eq('term_id', termId)
+        .in('status', ['active', 'pending']);
+      
+      enrolledCourseIds = (existingEnrollments ?? []).map((e) => e.course_id as string);
+    }
 
     return NextResponse.json({
       units: units.map((u: any) => ({
@@ -29,6 +51,7 @@ export async function POST(request: NextRequest) {
         name: u.name,
         unit_fee: Number(u.unit_fee ?? 0),
         credits: u.credits ?? 0,
+        isEnrolled: enrolledCourseIds.includes(u.id),
       })),
       termId,
     });
