@@ -268,24 +268,57 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
   const photoResult = await applyPhotoFromForm(supabase, studentId, formData);
   if (photoResult.error) return { error: photoResult.error };
 
+  // Build update object with only fields that are present in FormData
+  const updateData: Record<string, any> = {};
+  
+  // Only include fields that are actually provided in the form
+  if (formData.get('first_name') !== null) {
+    updateData.first_name = formData.get('first_name') as string;
+  }
+  if (formData.get('last_name') !== null) {
+    updateData.last_name = formData.get('last_name') as string;
+  }
+  if (formData.get('phone') !== null) {
+    updateData.phone = (formData.get('phone') as string) || null;
+  }
+  if (formData.get('date_of_birth') !== null) {
+    updateData.date_of_birth = (formData.get('date_of_birth') as string) || null;
+  }
+  if (formData.get('gender') !== null) {
+    updateData.gender = (formData.get('gender') as string) || null;
+  }
+  if (formData.get('nationality') !== null) {
+    updateData.nationality = (formData.get('nationality') as string) || null;
+  }
+  if (formData.get('address') !== null) {
+    updateData.address = (formData.get('address') as string) || null;
+  }
+  if (formData.get('city') !== null) {
+    updateData.city = (formData.get('city') as string) || null;
+  }
+  if (formData.get('country') !== null) {
+    updateData.country = (formData.get('country') as string) || 'Kenya';
+  }
+  if (formData.get('emergency_contact_name') !== null) {
+    updateData.emergency_contact_name = (formData.get('emergency_contact_name') as string) || null;
+  }
+  if (formData.get('emergency_contact_phone') !== null) {
+    updateData.emergency_contact_phone = (formData.get('emergency_contact_phone') as string) || null;
+  }
+  
+  // Add photo URL if uploaded
+  if (photoResult.photoUrl) {
+    updateData.photo_url = photoResult.photoUrl;
+  }
+
+  // Only perform update if there are fields to update
+  if (Object.keys(updateData).length === 0) {
+    return { success: true };
+  }
+
   const { error } = await supabase
     .from('students')
-    .update({
-      first_name: formData.get('first_name') as string,
-      last_name: formData.get('last_name') as string,
-      phone: (formData.get('phone') as string) || null,
-      date_of_birth: (formData.get('date_of_birth') as string) || null,
-      gender: (formData.get('gender') as string) || null,
-      nationality: (formData.get('nationality') as string) || null,
-      address: (formData.get('address') as string) || null,
-      city: (formData.get('city') as string) || null,
-      country: (formData.get('country') as string) || 'Kenya',
-      emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
-      emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-      program_id: (formData.get('program_id') as string) || null,
-      notes: (formData.get('notes') as string) || null,
-      ...(photoResult.photoUrl ? { photo_url: photoResult.photoUrl } : {}),
-    })
+    .update(updateData)
     .eq('id', studentId)
     .eq('profile_id', user.id);
 
@@ -295,5 +328,43 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
   revalidatePath('/student/register');
   revalidatePath(`/dashboard/students/${studentId}`);
   revalidatePath(`/dashboard/students/${studentId}/id-card`);
+  return { success: true };
+}
+
+export async function updateAcademicInfo(studentId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: 'You must be signed in.' };
+
+  // Build update object with only academic fields
+  const updateData: Record<string, any> = {};
+  
+  if (formData.get('program_id') !== null) {
+    updateData.program_id = (formData.get('program_id') as string) || null;
+  }
+  if (formData.get('enrollment_date') !== null) {
+    updateData.enrollment_date = (formData.get('enrollment_date') as string) || null;
+  }
+  if (formData.get('notes') !== null) {
+    updateData.notes = (formData.get('notes') as string) || null;
+  }
+
+  // Only perform update if there are fields to update
+  if (Object.keys(updateData).length === 0) {
+    return { success: true };
+  }
+
+  const { error } = await supabase
+    .from('students')
+    .update(updateData)
+    .eq('id', studentId)
+    .eq('profile_id', user.id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/student');
+  revalidatePath('/student/register');
+  revalidatePath(`/dashboard/students/${studentId}`);
   return { success: true };
 }

@@ -9,7 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import type { Program, Student } from '@/lib/types';
-import { createMyStudentRecord, updateMyStudentRecord } from '@/app/actions/student-self';
+import { createMyStudentRecord, updateMyStudentRecord, updateAcademicInfo } from '@/app/actions/student-self';
 import {
   PassportPhotoUpload,
   StudentIdCardPreview,
@@ -192,12 +192,12 @@ export function StudentSelfForm({
       
       // When moving from academics to fees, enroll units or mark as complete if existing
       if (currentStepId === 'academics') {
-        // Save academic information first
+        // Save academic information only (not personal info)
         if (!formRef.current) return;
         const formData = new FormData(formRef.current);
         
         const academicResult = existingStudent?.id
-          ? await updateMyStudentRecord(existingStudent.id, formData)
+          ? await updateAcademicInfo(existingStudent.id, formData)
           : await createMyStudentRecord(formData);
         
         if (academicResult?.error) {
@@ -206,7 +206,7 @@ export function StudentSelfForm({
           return;
         }
         
-        // Then handle unit enrollment
+        // Then handle unit enrollment (doesn't touch student record)
         if (selectedUnitIds.length > 0) {
           await enrollUnits();
           if (!enrollmentCompleted) {
