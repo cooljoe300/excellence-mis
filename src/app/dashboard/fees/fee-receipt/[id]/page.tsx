@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getFeePayment } from '@/app/actions/fees';
 import { FeeReceiptDocument } from '@/components/fees/fee-receipt-document';
-import { PrintInvoiceButton } from '@/components/fees/print-invoice-button';
+import { FeePdfButton } from '@/components/fees/fee-pdf-button';
 import { Button } from '@/components/ui/button';
 import type { FeePayment, Student } from '@/lib/types';
 
@@ -30,7 +30,10 @@ export default async function AdminFeeReceiptPage({
             Back to fees
           </Button>
         </Link>
-        <PrintInvoiceButton label="Save as PDF" />
+        <FeePdfButton 
+          documentId="fee-receipt"
+          filename={`Excellence_Online_College_Fee_Receipt_${fee.receipt_number || fee.id.slice(0, 8).toUpperCase()}.pdf`}
+        />
       </div>
       <FeeReceiptDocument
         fee={fee as FeePayment}
