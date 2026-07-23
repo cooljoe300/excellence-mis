@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'staff' | 'teacher' | 'student';
+export type UserRole = 'admin' | 'staff' | 'teacher' | 'student' | 'inactive';
 export type StudentStatus = 'active' | 'inactive' | 'graduated' | 'suspended' | 'withdrawn';
 export type EnrollmentStatus = 'pending' | 'active' | 'completed' | 'dropped';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
@@ -10,6 +10,7 @@ export type LmsSyncStatus = 'not_synced' | 'synced' | 'failed';
 export type TimetableStatus = 'draft' | 'active' | 'archived';
 export type TeachingMode = 'physical' | 'online' | 'hybrid';
 export type RoomType = 'lecture_hall' | 'computer_lab' | 'laboratory' | 'seminar_room' | 'boardroom';
+export type RegistrationSource = 'staff_registered' | 'self_registered';
 
 export interface Profile {
   id: string;
@@ -93,6 +94,7 @@ export interface Student {
   intake_id: string | null;
   enrollment_date: string;
   status: StudentStatus;
+  registration_source: RegistrationSource | null;
   lms_username: string | null;
   lms_user_id: string | null;
   lms_sync_status: LmsSyncStatus;
