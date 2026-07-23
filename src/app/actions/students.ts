@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { revalidatePath } from 'next/cache';
 import {
   deregisterStudentEnrollmentsAndFees,
@@ -48,6 +49,7 @@ export async function getStudent(id: string) {
 
 export async function createStudent(formData: FormData) {
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
   const programId = (formData.get('program_id') as string)?.trim();
   if (!programId) {
     return { error: 'Please select a program. Admission numbers are based on the student program.' };
@@ -58,7 +60,7 @@ export async function createStudent(formData: FormData) {
   const lastName = formData.get('last_name') as string;
 
   // Check if auth user already exists with this email
-  const { data: existingUser, error: userCheckError } = await supabase.auth.admin.listUsers();
+  const { data: existingUser, error: userCheckError } = await adminSupabase.auth.admin.listUsers();
   let existingAuthUser = null;
   if (!userCheckError && existingUser) {
     existingAuthUser = existingUser.users.find(u => u.email === email);
@@ -70,8 +72,7 @@ export async function createStudent(formData: FormData) {
   // Create auth account if it doesn't exist
   if (!existingAuthUser) {
     temporaryPassword = generateTemporaryPassword();
-    const tableName = 'students';
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
       email,
       password: temporaryPassword,
       email_confirm: true,
