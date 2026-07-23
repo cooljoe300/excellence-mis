@@ -214,3 +214,62 @@ export async function getFeePaymentSubmission(submissionId: string) {
   if (error) throw new Error(error.message);
   return data;
 }
+
+export async function markFeeAsPaid(feeId: string, formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  
+  if (!user) return { error: 'You must be signed in.' };
+
+  const paymentMethod = (formData.get('payment_method') as string) || null;
+  const referenceNumber = (formData.get('reference_number') as string) || null;
+  const paymentDate = (formData.get('payment_date') as string) || new Date().toISOString().split('T')[0];
+  const notes = (formData.get('notes') as string) || null;
+
+  // Get the current fee payment
+  const { data: fee, error: fetchError } = await supabase
+    .from('fee_payments')
+    .select('*')
+    .eq('id', feeId)
+    .single();
+
+  if (fetchError || !fee) {
+    return { error: 'Fee payment not found.' };
+  }
+
+  // Update the fee payment to paid
+  const { error } = await supabase
+    .from('fee_payments')
+    .update({
+      amount_paid: fee.amount,
+      status: 'paid',
+      payment_method: paymentMethod || fee.payment_method,
+      reference_number: referenceNumber || fee.reference_number,
+      paid_date: paymentDate,
+      notes: notes ? `${fee.notes ? fee.notes + '\n' : ''}[Admin mark as paid] ${notes}` : fee.notes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', feeId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Create an audit log entry in the notes or a separate audit table if exists
+  // For now, we'll add it to the notes field
+  const adminNote = `[Marked as paid by admin on ${new Date().toISOString()} - User: ${user.email}]`;
+  await supabase
+    .from('fee_payments')
+    .update({
+      notes: `${fee.notes ? fee.notes + '\n' : ''}${adminNote}`,
+    })
+    .eq('id', feeId);
+
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
+
+  return { success: true };
+}

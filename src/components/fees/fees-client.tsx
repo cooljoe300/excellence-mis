@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
-import { createFeePayment, approveFeePaymentSubmission } from '@/app/actions/fees';
+import { createFeePayment, approveFeePaymentSubmission, markFeeAsPaid } from '@/app/actions/fees';
 import type { AcademicTerm, FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import {
   formatCurrency,
@@ -96,6 +96,87 @@ function FeeFormModal({
   );
 }
 
+function MarkAsPaidModal({
+  fee,
+  onClose,
+}: {
+  fee: FeePayment;
+  onClose: () => void;
+}) {
+  const router = useRouter();
+  const { success } = useToast();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    const result = await markFeeAsPaid(fee.id, new FormData(e.currentTarget));
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
+      return;
+    }
+    success('Fee payment marked as paid successfully');
+    router.refresh();
+    onClose();
+  }
+
+  const student = fee.student as Student;
+  const balance = getFeeBalance(fee);
+
+  return (
+    <Modal open onClose={onClose} title="Mark Fee as Paid" size="md">
+      <div className="mb-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="flex justify-between">
+          <span className="text-sm text-slate-600">Student:</span>
+          <span className="text-sm font-medium text-slate-900">
+            {student?.first_name} {student?.last_name}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-slate-600">Admission Number:</span>
+          <span className="text-sm font-mono text-slate-900">{student?.admission_number || '—'}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-slate-600">Amount:</span>
+          <span className="text-sm font-semibold text-slate-900">{formatCurrency(fee.amount)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-sm text-slate-600">Current Status:</span>
+          <Badge status={fee.status}>{fee.status}</Badge>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Select
+          name="payment_method"
+          label="Payment method"
+          options={[
+            { value: '', label: 'Select method' },
+            { value: 'M-Pesa', label: 'M-Pesa' },
+            { value: 'Bank', label: 'Bank' },
+            { value: 'Cash', label: 'Cash' },
+            { value: 'Card', label: 'Card' },
+            { value: 'Other', label: 'Other' },
+          ]}
+          defaultValue={fee.payment_method || ''}
+        />
+        <Input name="reference_number" label="Reference number / Receipt number" defaultValue={fee.reference_number || ''} />
+        <Input name="payment_date" label="Payment date" type="date" defaultValue={new Date().toISOString().split('T')[0]} />
+        <Input name="notes" label="Notes (optional)" placeholder="Additional details about this payment" />
+        {error && <Alert variant="error">{error}</Alert>}
+        <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={loading}>{loading ? 'Processing...' : 'Confirm Payment'}</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export function FeesClient({
   fees,
   students,
@@ -111,6 +192,7 @@ export function FeesClient({
 }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
+  const [markAsPaidFee, setMarkAsPaidFee] = useState<FeePayment | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [approveError, setApproveError] = useState<string | null>(null);
   const [approveSuccess, setApproveSuccess] = useState<string | null>(null);
@@ -357,8 +439,20 @@ export function FeesClient({
                             </div>
                           ))}
                         </div>
+                      ) : fee.status !== 'paid' ? (
+                        <Button
+                          size="sm"
+                          onClick={() => setMarkAsPaidFee(fee)}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Mark as Paid
+                        </Button>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Paid ✓
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -371,6 +465,10 @@ export function FeesClient({
 
       {showForm && (
         <FeeFormModal students={students} terms={terms} onClose={() => setShowForm(false)} />
+      )}
+      
+      {markAsPaidFee && (
+        <MarkAsPaidModal fee={markAsPaidFee} onClose={() => setMarkAsPaidFee(null)} />
       )}
     </div>
   );
