@@ -110,6 +110,7 @@ export async function createStudent(formData: FormData) {
         (formData.get('enrollment_date') as string) ||
         new Date().toISOString().split('T')[0],
       status: (formData.get('status') as StudentStatus) || 'active',
+      registration_source: 'staff_registered',
       notes: (formData.get('notes') as string) || null,
       student_number: '',
       admission_number: '',

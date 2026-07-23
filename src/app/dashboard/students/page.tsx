@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getStudents } from '@/app/actions/students';
 import { formatDate, getAdmissionNumber } from '@/lib/utils';
-import { isSelfRegisteredStudent } from '@/lib/auth';
+import { getRegistrationSourceLabel } from '@/lib/auth';
 import { StudentSearch } from '@/components/students/student-search';
 
 export default async function StudentsPage({
@@ -69,11 +69,11 @@ export default async function StudentsPage({
                     {(student.program as { name: string } | null)?.name ?? '—'}
                   </td>
                   <td className="px-6 py-4">
-                    {isSelfRegisteredStudent(student) ? (
-                      <Badge status="pending">Self-registered</Badge>
-                    ) : (
-                      <span className="text-slate-500 text-xs">Staff</span>
-                    )}
+                    <Badge
+                      status={student.registration_source === 'self_registered' ? 'pending' : 'active'}
+                    >
+                      {getRegistrationSourceLabel(student.registration_source)}
+                    </Badge>
                   </td>
                   <td className="px-6 py-4">
                     <Badge

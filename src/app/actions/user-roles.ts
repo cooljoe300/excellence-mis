@@ -81,7 +81,19 @@ export async function getManagedUsers() {
     created_at: row.created_at as string,
   }));
 
-  return rows as ManagedUserRow[];
+  // Filter out profiles that have linked student records
+  const profilesWithStudents = await supabase
+    .from('students')
+    .select('profile_id')
+    .not('profile_id', 'is', null);
+
+  const studentProfileIds = new Set(
+    (profilesWithStudents.data ?? []).map((s) => s.profile_id)
+  );
+
+  const filteredRows = rows.filter((row) => !studentProfileIds.has(row.id));
+
+  return filteredRows as ManagedUserRow[];
 }
 
 export async function updateUserRole(userId: string, role: string, reason?: string) {

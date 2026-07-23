@@ -37,6 +37,12 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
   return null;
 }
 
-export function isSelfRegisteredStudent(student: { profile_id: string | null }) {
-  return !!student.profile_id;
+export function isSelfRegisteredStudent(student: { registration_source: string | null }) {
+  return student.registration_source === 'self_registered';
+}
+
+export function getRegistrationSourceLabel(source: string | null): string {
+  if (source === 'self_registered') return 'Self Registered';
+  if (source === 'staff_registered') return 'Registered by Staff';
+  return 'Unknown';
 }
