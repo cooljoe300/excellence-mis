@@ -54,6 +54,7 @@ export function StudentSelfForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
   const [availableUnits, setAvailableUnits] = useState<{ id: string; code: string; name: string; unit_fee: number; credits: number; isEnrolled: boolean }[]>([]);
+  const [existingEnrollments, setExistingEnrollments] = useState<any[]>([]);
   const [termId, setTermId] = useState<string | null>(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [studentCreated, setStudentCreated] = useState(false);
@@ -75,6 +76,7 @@ export function StudentSelfForm({
     if (!programId) {
       setAvailableUnits([]);
       setSelectedUnitIds([]);
+      setExistingEnrollments([]);
       return;
     }
     
@@ -91,6 +93,10 @@ export function StudentSelfForm({
         setAvailableUnits(data.units || []);
         setTermId(data.termId || null);
         setSelectedUnitIds([]);
+        
+        // Track which units are already enrolled
+        const enrolledUnits = (data.units || []).filter((u: any) => u.isEnrolled);
+        setExistingEnrollments(enrolledUnits);
       }
     } catch (error) {
       console.error('Failed to load units:', error);
@@ -126,31 +132,28 @@ export function StudentSelfForm({
       const formProgramId = formData.get('program_id') as string;
       const existingProgramId = existingStudent?.program_id;
       
-      // Debug logging
-      console.log('=== Program Validation Debug ===');
-      console.log('formProgramId:', formProgramId);
-      console.log('existingProgramId:', existingProgramId);
-      console.log('selectedProgramId:', selectedProgramId);
-      
       // Use existing program_id if available, otherwise check form selection or state
       const hasProgram = formProgramId || existingProgramId || selectedProgramId;
-      
-      console.log('hasProgram:', hasProgram);
-      console.log('=================================');
       
       if (!hasProgram) {
         setError('Please select a program.');
         return false;
       }
-      if (selectedUnitIds.length === 0) {
+      
+      // Check units: allow Next if either new units are selected OR existing enrollments exist
+      const hasNewUnits = selectedUnitIds.length > 0;
+      const hasExistingUnits = existingEnrollments.length > 0;
+      
+      if (!hasNewUnits && !hasExistingUnits) {
         setError('Please select at least one unit to enroll.');
         return false;
       }
     }
 
     if (currentStepId === 'fees') {
-      if (!studentCreated || !enrollmentCompleted) {
-        setError('Please complete registration and enrollment before paying fees.');
+      // Allow access to fees if student exists and has either new or existing enrollments
+      if (!existingStudent?.id && !studentCreated) {
+        setError('Please complete registration before paying fees.');
         return false;
       }
     }
@@ -162,20 +165,100 @@ export function StudentSelfForm({
   async function handleNext() {
     if (!validateCurrentStep()) return;
     
-    // When moving from academics to fees, create student and enroll units
-    if (currentStepId === 'academics' && !studentCreated) {
-      await createStudentAndEnroll();
-      if (!studentCreated) return; // Creation failed
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Save personal information when moving from personal to academics
+      if (currentStepId === 'personal') {
+        if (!formRef.current) return;
+        const formData = new FormData(formRef.current);
+        
+        const result = existingStudent?.id
+          ? await updateMyStudentRecord(existingStudent.id, formData)
+          : await createMyStudentRecord(formData);
+        
+        if (result?.error) {
+          setError(result.error);
+          setLoading(false);
+          return;
+        }
+        
+        // If a new student was created, update the state
+        if (!existingStudent?.id && (result as any)?.id) {
+          setStudentCreated(true);
+        }
+      }
+      
+      // When moving from academics to fees, enroll units or mark as complete if existing
+      if (currentStepId === 'academics') {
+        // Save academic information first
+        if (!formRef.current) return;
+        const formData = new FormData(formRef.current);
+        
+        const academicResult = existingStudent?.id
+          ? await updateMyStudentRecord(existingStudent.id, formData)
+          : await createMyStudentRecord(formData);
+        
+        if (academicResult?.error) {
+          setError(academicResult.error);
+          setLoading(false);
+          return;
+        }
+        
+        // Then handle unit enrollment
+        if (selectedUnitIds.length > 0) {
+          await enrollUnits();
+          if (!enrollmentCompleted) {
+            setLoading(false);
+            return; // Enrollment failed
+          }
+        } else if (existingEnrollments.length > 0) {
+          // Student has existing enrollments, mark as complete
+          setEnrollmentCompleted(true);
+        }
+        
+        setStudentCreated(true);
+      }
+      
+      // Load fees data when entering fees step
+      if (currentStepId === 'academics' && STEPS[currentStep + 1].id === 'fees') {
+        await loadFeesData();
+      }
+      
+      setCompletedSteps(prev => new Set([...prev, currentStep]));
+      if (currentStep < STEPS.length - 1) {
+        setCurrentStep(currentStep + 1);
+      }
+    } catch (error) {
+      console.error('Error saving data:', error);
+      setError('Unable to save your information. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function enrollUnits() {
+    if (selectedUnitIds.length === 0) {
+      setEnrollmentCompleted(true);
+      return;
     }
     
-    // Load fees data when entering fees step
-    if (currentStepId === 'academics' && STEPS[currentStep + 1].id === 'fees') {
-      await loadFeesData();
-    }
-    
-    setCompletedSteps(prev => new Set([...prev, currentStep]));
-    if (currentStep < STEPS.length - 1) {
-      setCurrentStep(currentStep + 1);
+    try {
+      const enrollResponse = await fetch('/api/enrollments/enroll-units', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ unitIds: selectedUnitIds }),
+      });
+      
+      if (!enrollResponse.ok) {
+        const errorData = await enrollResponse.json();
+        setError(errorData.error || 'Failed to enroll in units.');
+        return;
+      }
+      setEnrollmentCompleted(true);
+    } catch (error) {
+      setError('Failed to enroll in units. Please try again.');
     }
   }
 
