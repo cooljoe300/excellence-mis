@@ -35,7 +35,7 @@ export function AdmissionStamp({ className = '' }: AdmissionStampProps) {
         {/* Dynamic date overlay */}
         <div className="absolute inset-0 pointer-events-none">
           <span 
-            className="absolute text-[10px] font-bold text-red-700 whitespace-nowrap"
+            className="stamp-date absolute text-[10px] font-bold text-red-700 whitespace-nowrap"
             style={{ 
               left: '50%', 
               top: '50%', 
@@ -46,6 +46,20 @@ export function AdmissionStamp({ className = '' }: AdmissionStampProps) {
           </span>
         </div>
       </div>
+
+      {/* Print-specific styles to preserve stamp date centering */}
+      <style jsx global>{`
+        @media print {
+          .stamp-date {
+            position: absolute !important;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
