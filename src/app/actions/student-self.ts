@@ -168,6 +168,13 @@ export async function createMyStudentRecord(formData: FormData) {
     return { error: 'Please select a program. Your admission number is based on your program.' };
   }
 
+  const firstName = (formData.get('first_name') as string)?.trim();
+  const lastName = (formData.get('last_name') as string)?.trim();
+  
+  if (!firstName || !lastName) {
+    return { error: 'First name and last name are required.' };
+  }
+
   // Check if student already exists with this email (prevents duplicates from admin registration)
   const userEmail = user.email ?? (formData.get('email') as string);
   if (userEmail) {

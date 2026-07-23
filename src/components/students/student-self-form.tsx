@@ -61,6 +61,7 @@ export function StudentSelfForm({
   const [enrollmentCompleted, setEnrollmentCompleted] = useState(false);
   const [feesData, setFeesData] = useState<any>(null);
   const [loadingFees, setLoadingFees] = useState(false);
+  const [personalInfo, setPersonalInfo] = useState<Record<string, string>>({});
 
   const currentStepId = STEPS[currentStep].id;
 
@@ -170,40 +171,75 @@ export function StudentSelfForm({
     
     try {
       // Save personal information when moving from personal to academics
+      // But do NOT create the student record yet - defer until program is selected
       if (currentStepId === 'personal') {
-        if (!formRef.current) return;
-        const formData = new FormData(formRef.current);
-        
-        const result = existingStudent?.id
-          ? await updateMyStudentRecord(existingStudent.id, formData)
-          : await createMyStudentRecord(formData);
-        
-        if (result?.error) {
-          setError(result.error);
-          setLoading(false);
-          return;
+        if (existingStudent?.id) {
+          // Update existing student's personal info
+          if (!formRef.current) return;
+          const formData = new FormData(formRef.current);
+          
+          const result = await updateMyStudentRecord(existingStudent.id, formData);
+          
+          if (result?.error) {
+            setError(result.error);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // For new students, save personal info to state for later
+          if (!formRef.current) return;
+          const formData = new FormData(formRef.current);
+          const info: Record<string, string> = {};
+          formData.forEach((value, key) => {
+            if (typeof value === 'string') {
+              info[key] = value;
+            }
+          });
+          setPersonalInfo(info);
         }
-        
-        // If a new student was created, update the state
-        if (!existingStudent?.id && (result as any)?.id) {
-          setStudentCreated(true);
-        }
+        // Move to the next step without creating the record yet
       }
       
-      // When moving from academics to fees, enroll units or mark as complete if existing
+      // When moving from academics to fees, create/update student record and enroll units
       if (currentStepId === 'academics') {
-        // Save academic information only (not personal info)
         if (!formRef.current) return;
         const formData = new FormData(formRef.current);
         
-        const academicResult = existingStudent?.id
-          ? await updateAcademicInfo(existingStudent.id, formData)
-          : await createMyStudentRecord(formData);
-        
-        if (academicResult?.error) {
-          setError(academicResult.error);
-          setLoading(false);
-          return;
+        // For existing students, update academic info only
+        if (existingStudent?.id) {
+          const academicResult = await updateAcademicInfo(existingStudent.id, formData);
+          
+          if (academicResult?.error) {
+            setError(academicResult.error);
+            setLoading(false);
+            return;
+          }
+        } else {
+          // For new students, merge saved personal info with current form data
+          // and create the student record now that program_id is available
+          const mergedFormData = new FormData();
+          
+          // Add saved personal info
+          Object.entries(personalInfo).forEach(([key, value]) => {
+            mergedFormData.append(key, value);
+          });
+          
+          // Add current form data (academic info)
+          formData.forEach((value, key) => {
+            mergedFormData.append(key, value);
+          });
+          
+          const createResult = await createMyStudentRecord(mergedFormData);
+          
+          if (createResult?.error) {
+            setError(createResult.error);
+            setLoading(false);
+            return;
+          }
+          
+          if (createResult?.id) {
+            setStudentCreated(true);
+          }
         }
         
         // Then handle unit enrollment (doesn't touch student record)
@@ -217,8 +253,6 @@ export function StudentSelfForm({
           // Student has existing enrollments, mark as complete
           setEnrollmentCompleted(true);
         }
-        
-        setStudentCreated(true);
       }
       
       // Load fees data when entering fees step
@@ -444,19 +478,19 @@ export function StudentSelfForm({
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <Input name="first_name" label="First name" defaultValue={existingStudent?.first_name ?? defaultFirstName} required completed={!!existingStudent?.first_name} />
-            <Input name="last_name" label="Last name" defaultValue={existingStudent?.last_name ?? defaultLastName} required completed={!!existingStudent?.last_name} />
-            <Input name="phone" label="Phone" defaultValue={existingStudent?.phone ?? ''} completed={!!existingStudent?.phone} />
-            <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={existingStudent?.date_of_birth ?? ''} completed={!!existingStudent?.date_of_birth} />
-            <Select name="gender" label="Gender" defaultValue={existingStudent?.gender ?? ''} options={genderOptions} completed={!!existingStudent?.gender} />
-            <Input name="nationality" label="Nationality" defaultValue={existingStudent?.nationality ?? 'Kenyan'} completed={!!existingStudent?.nationality} />
+            <Input name="first_name" label="First name" defaultValue={personalInfo.first_name ?? existingStudent?.first_name ?? defaultFirstName} required completed={!!(personalInfo.first_name || existingStudent?.first_name)} />
+            <Input name="last_name" label="Last name" defaultValue={personalInfo.last_name ?? existingStudent?.last_name ?? defaultLastName} required completed={!!(personalInfo.last_name || existingStudent?.last_name)} />
+            <Input name="phone" label="Phone" defaultValue={personalInfo.phone ?? existingStudent?.phone ?? ''} completed={!!(personalInfo.phone || existingStudent?.phone)} />
+            <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={personalInfo.date_of_birth ?? existingStudent?.date_of_birth ?? ''} completed={!!(personalInfo.date_of_birth || existingStudent?.date_of_birth)} />
+            <Select name="gender" label="Gender" defaultValue={personalInfo.gender ?? existingStudent?.gender ?? ''} options={genderOptions} completed={!!(personalInfo.gender || existingStudent?.gender)} />
+            <Input name="nationality" label="Nationality" defaultValue={personalInfo.nationality ?? existingStudent?.nationality ?? 'Kenyan'} completed={!!(personalInfo.nationality || existingStudent?.nationality)} />
             <div className="sm:col-span-2">
-              <Input name="address" label="Street address" defaultValue={existingStudent?.address ?? ''} completed={!!existingStudent?.address} />
+              <Input name="address" label="Street address" defaultValue={personalInfo.address ?? existingStudent?.address ?? ''} completed={!!(personalInfo.address || existingStudent?.address)} />
             </div>
-            <Input name="city" label="City" defaultValue={existingStudent?.city ?? ''} completed={!!existingStudent?.city} />
-            <Input name="country" label="Country" defaultValue={existingStudent?.country ?? 'Kenyan'} completed={!!existingStudent?.country} />
-            <Input name="emergency_contact_name" label="Emergency contact name" defaultValue={existingStudent?.emergency_contact_name ?? ''} completed={!!existingStudent?.emergency_contact_name} />
-            <Input name="emergency_contact_phone" label="Emergency contact phone" defaultValue={existingStudent?.emergency_contact_phone ?? ''} completed={!!existingStudent?.emergency_contact_phone} />
+            <Input name="city" label="City" defaultValue={personalInfo.city ?? existingStudent?.city ?? ''} completed={!!(personalInfo.city || existingStudent?.city)} />
+            <Input name="country" label="Country" defaultValue={personalInfo.country ?? existingStudent?.country ?? 'Kenyan'} completed={!!(personalInfo.country || existingStudent?.country)} />
+            <Input name="emergency_contact_name" label="Emergency contact name" defaultValue={personalInfo.emergency_contact_name ?? existingStudent?.emergency_contact_name ?? ''} completed={!!(personalInfo.emergency_contact_name || existingStudent?.emergency_contact_name)} />
+            <Input name="emergency_contact_phone" label="Emergency contact phone" defaultValue={personalInfo.emergency_contact_phone ?? existingStudent?.emergency_contact_phone ?? ''} completed={!!(personalInfo.emergency_contact_phone || existingStudent?.emergency_contact_phone)} />
           </CardContent>
         </Card>
       )}
