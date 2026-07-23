@@ -35,6 +35,30 @@ export function DocumentPdfButton({
     try {
       await document.fonts.ready;
 
+      // Store original styles
+      const originalStyles = {
+        width: element.style.width,
+        maxWidth: element.style.maxWidth,
+        padding: element.style.padding,
+        border: element.style.border,
+        boxShadow: element.style.boxShadow,
+        margin: element.style.margin,
+        position: element.style.position,
+        left: element.style.left,
+        top: element.style.top,
+      };
+
+      // Apply print-specific styles to match @media print
+      element.style.width = '210mm';
+      element.style.maxWidth = '210mm';
+      element.style.padding = '15mm';
+      element.style.border = 'none';
+      element.style.boxShadow = 'none';
+      element.style.margin = '0';
+      element.style.position = 'relative';
+      element.style.left = 'auto';
+      element.style.top = 'auto';
+
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
@@ -88,6 +112,17 @@ export function DocumentPdfButton({
           clonedDoc.head.appendChild(style);
         },
       });
+
+      // Restore original styles
+      element.style.width = originalStyles.width;
+      element.style.maxWidth = originalStyles.maxWidth;
+      element.style.padding = originalStyles.padding;
+      element.style.border = originalStyles.border;
+      element.style.boxShadow = originalStyles.boxShadow;
+      element.style.margin = originalStyles.margin;
+      element.style.position = originalStyles.position;
+      element.style.left = originalStyles.left;
+      element.style.top = originalStyles.top;
 
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pageWidth = pdf.internal.pageSize.getWidth();
