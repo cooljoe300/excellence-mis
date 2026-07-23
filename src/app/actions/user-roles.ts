@@ -224,7 +224,7 @@ export async function deleteUser(userId: string) {
 
     if (updateError) return { error: updateError.message };
 
-    // Also update auth user metadata
+    // Also update auth user metadata and disable the account
     const authUserResult = await admin.auth.admin.getUserById(userId);
     if (authUserResult.data?.user) {
       const currentMeta = (authUserResult.data.user.user_metadata ?? {}) as Record<string, unknown>;
@@ -233,6 +233,8 @@ export async function deleteUser(userId: string) {
           ...currentMeta,
           role: 'inactive',
         },
+        // Disable the auth account to prevent login
+        email_confirm: false,
       });
     }
 

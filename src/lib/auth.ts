@@ -31,9 +31,12 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
     .maybeSingle();
 
   const role = profile?.role;
-  if (role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student') {
+  if (role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student' || role === 'inactive') {
     return role;
   }
+  
+  // Return null if role cannot be determined - do NOT default to staff
+  // This prevents unauthorized access when role is missing
   return null;
 }
 

@@ -11,6 +11,7 @@ function resolveRole(
   if (role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student') {
     return role;
   }
+  // Return null for inactive or unknown roles - do NOT default to staff
   return null;
 }
 
@@ -89,6 +90,13 @@ export async function updateSession(request: NextRequest) {
           .eq('id', user.id)
           .maybeSingle();
         role = resolveRole(user.user_metadata, profile?.role);
+      }
+
+      // If role cannot be determined, redirect to error page
+      if (!role && (isDashboard || isStudentPortal || isAuthPage || isStudentSignup || isHome)) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/role-error';
+        return NextResponse.redirect(url);
       }
 
       if (role === 'student' && isDashboard) {

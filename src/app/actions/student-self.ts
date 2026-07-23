@@ -148,6 +148,21 @@ export async function createMyStudentRecord(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) return { error: 'You must be signed in.' };
 
+  // Ensure the user has the student role in their profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+  
+  if (profile && profile.role !== 'student') {
+    // Update profile role to student
+    await supabase
+      .from('profiles')
+      .update({ role: 'student' })
+      .eq('id', user.id);
+  }
+
   const programId = (formData.get('program_id') as string)?.trim();
   if (!programId) {
     return { error: 'Please select a program. Your admission number is based on your program.' };

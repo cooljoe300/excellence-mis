@@ -86,6 +86,34 @@ export async function createStudent(formData: FormData) {
       return { error: `Failed to create authentication account: ${authError.message}` };
     }
     authUserId = authData.user.id;
+  } else {
+    // If auth user exists, ensure profile has correct role
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', existingAuthUser.id)
+      .maybeSingle();
+    
+    if (profile && profile.role !== 'student') {
+      // Update profile role to student
+      await supabase
+        .from('profiles')
+        .update({ role: 'student' })
+        .eq('id', existingAuthUser.id);
+    }
+    
+    // Also update auth user metadata
+    const currentMeta = (existingAuthUser.user_metadata ?? {}) as Record<string, unknown>;
+    if (currentMeta.role !== 'student') {
+      await adminSupabase.auth.admin.updateUserById(existingAuthUser.id, {
+        user_metadata: {
+          ...currentMeta,
+          role: 'student',
+        },
+      });
+    }
+    
+    authUserId = existingAuthUser.id;
   }
 
   const { data, error } = await supabase
