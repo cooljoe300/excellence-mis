@@ -171,6 +171,9 @@ export async function approveFeePaymentSubmission(submissionId: string) {
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
+  revalidatePath('/student/(portal)/fees');
+  revalidatePath('/student/(portal)');
+  revalidatePath('/student/(portal)/page');
 
   return {
     success: true,
@@ -305,6 +308,9 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
+  revalidatePath('/student/(portal)/fees');
+  revalidatePath('/student/(portal)');
+  revalidatePath('/student/(portal)/page');
 
   return { success: true, receiptNumber };
 }
