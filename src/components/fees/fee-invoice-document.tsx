@@ -2,6 +2,7 @@ import { DocumentLetterhead } from '@/components/documents/document-letterhead';
 import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/lib/system-settings';
+import Image from 'next/image';
 
 export function FeeInvoiceDocument({
   fee,
@@ -17,6 +18,9 @@ export function FeeInvoiceDocument({
   const termName = (fee.term as { name: string } | null)?.name ?? '—';
   const items = fee.items ?? [];
   const balance = getFeeBalance(fee);
+  
+  // Use invoice_date from database, or current date if viewing
+  const invoiceDate = fee.invoice_date || new Date().toISOString().split('T')[0];
 
   return (
     <div
@@ -24,17 +28,17 @@ export function FeeInvoiceDocument({
       className="print-document mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-8 shadow-sm print:rounded-none print:border-0 print:p-0 print:shadow-none"
     >
       <DocumentLetterhead
-        documentTitle="Fee Invoice"
+        documentTitle="OFFICIAL FEE INVOICE"
         documentSubtitle={`Invoice #${fee.id.slice(0, 8).toUpperCase()}`}
         rightMeta={
           <>
             <p>
-              <span className="text-slate-500">Date:</span>{' '}
-              <span className="font-medium text-slate-900">{formatDate(fee.created_at)}</span>
+              <span className="text-slate-500">Invoice Date:</span>{' '}
+              <span className="font-medium text-slate-900">{formatDate(invoiceDate)}</span>
             </p>
             {fee.due_date && (
               <p>
-                <span className="text-slate-500">Due:</span>{' '}
+                <span className="text-slate-500">Due Date:</span>{' '}
                 <span className="font-medium text-slate-900">{formatDate(fee.due_date)}</span>
               </p>
             )}
@@ -132,9 +136,34 @@ export function FeeInvoiceDocument({
         </div>
       )}
 
-      <footer className="mt-8 border-t border-slate-200 pt-4 text-center text-xs text-slate-400">
-        Official fee invoice — Excellence Online College
-      </footer>
+      <div className="mt-8 grid gap-6 border-t border-slate-200 pt-6 text-sm">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Authorized by</p>
+            <p className="mt-2 font-medium text-slate-900">Excellence Online College</p>
+            <p className="text-slate-600">Finance Office</p>
+          </div>
+          <div className="relative h-20 w-32 shrink-0">
+            <Image
+              src="/eoc finance.png"
+              alt="EOC Finance Stamp"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <div>
+            <p>Official Fee Invoice</p>
+            <p>Excellence Online College</p>
+          </div>
+          <div className="text-right">
+            <p>Generated: {formatDate(new Date().toISOString())}</p>
+            <p>Invoice #: {fee.id.slice(0, 8).toUpperCase()}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

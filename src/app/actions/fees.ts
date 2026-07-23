@@ -79,14 +79,18 @@ export async function createFeePayment(formData: FormData) {
   if (amountPaid >= amount) status = 'paid';
   else if (amountPaid > 0) status = 'partial';
 
+  const today = new Date().toISOString().split('T')[0];
+
   const { error } = await supabase.from('fee_payments').insert({
     student_id: formData.get('student_id') as string,
     term_id: (formData.get('term_id') as string) || null,
     amount,
     amount_paid: amountPaid,
     status,
+    invoice_date: today,
     due_date: (formData.get('due_date') as string) || null,
-    paid_date: amountPaid > 0 ? (formData.get('paid_date') as string) || new Date().toISOString().split('T')[0] : null,
+    paid_date: amountPaid > 0 ? (formData.get('paid_date') as string) || today : null,
+    receipt_date: amountPaid >= amount ? today : null,
     payment_method: (formData.get('payment_method') as string) || null,
     reference_number: (formData.get('reference_number') as string) || null,
     description: (formData.get('description') as string) || null,
@@ -227,6 +231,7 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
   const referenceNumber = (formData.get('reference_number') as string) || null;
   const paymentDate = (formData.get('payment_date') as string) || new Date().toISOString().split('T')[0];
   const notes = (formData.get('notes') as string) || null;
+  const amountPaid = parseFloat(formData.get('amount_paid') as string) || null;
 
   // Get the current fee payment
   const { data: fee, error: fetchError } = await supabase
@@ -239,15 +244,46 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
     return { error: 'Fee payment not found.' };
   }
 
+  // Generate unique receipt number if not already exists
+  let receiptNumber = fee.receipt_number;
+  if (!receiptNumber) {
+    const year = new Date().getFullYear();
+    const prefix = `EOC/RCP/${year}/`;
+    
+    // Get the last receipt number for this year
+    const { data: lastReceipt } = await supabase
+      .from('fee_payments')
+      .select('receipt_number')
+      .like('receipt_number', `${prefix}%`)
+      .order('receipt_number', { ascending: false })
+      .limit(1)
+      .single();
+    
+    let nextNumber = 1;
+    if (lastReceipt?.receipt_number) {
+      const lastNum = parseInt(lastReceipt.receipt_number.split('/').pop() || '0');
+      nextNumber = lastNum + 1;
+    }
+    
+    receiptNumber = `${prefix}${String(nextNumber).padStart(6, '0')}`;
+  }
+
+  // Use the provided amount_paid or default to full amount
+  const finalAmountPaid = amountPaid !== null ? amountPaid : fee.amount;
+  const today = new Date().toISOString().split('T')[0];
+
   // Update the fee payment to paid
   const { error } = await supabase
     .from('fee_payments')
     .update({
-      amount_paid: fee.amount,
-      status: 'paid',
+      amount_paid: finalAmountPaid,
+      status: finalAmountPaid >= fee.amount ? 'paid' : 'partial',
       payment_method: paymentMethod || fee.payment_method,
       reference_number: referenceNumber || fee.reference_number,
       paid_date: paymentDate,
+      receipt_number: receiptNumber,
+      receipt_date: today,
+      invoice_date: fee.invoice_date || today,
       notes: notes ? `${fee.notes ? fee.notes + '\n' : ''}[Admin mark as paid] ${notes}` : fee.notes,
       updated_at: new Date().toISOString(),
     })
@@ -257,9 +293,8 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
     return { error: error.message };
   }
 
-  // Create an audit log entry in the notes or a separate audit table if exists
-  // For now, we'll add it to the notes field
-  const adminNote = `[Marked as paid by admin on ${new Date().toISOString()} - User: ${user.email}]`;
+  // Create an audit log entry in the notes
+  const adminNote = `[Marked as paid by admin on ${new Date().toISOString()} - User: ${user.email} - Receipt: ${receiptNumber}]`;
   await supabase
     .from('fee_payments')
     .update({
@@ -271,5 +306,5 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
   revalidatePath('/student/fees');
   revalidatePath('/student');
 
-  return { success: true };
+  return { success: true, receiptNumber };
 }

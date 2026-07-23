@@ -144,8 +144,11 @@ export interface FeePayment {
   status: PaymentStatus;
   due_date: string | null;
   paid_date: string | null;
+  invoice_date: string | null;
+  receipt_date: string | null;
   payment_method: string | null;
   reference_number: string | null;
+  receipt_number: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;

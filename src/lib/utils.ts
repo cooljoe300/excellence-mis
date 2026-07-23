@@ -132,3 +132,53 @@ export function getStatusColor(status: string): string {
   };
   return colors[status] ?? 'bg-slate-100 text-slate-600';
 }
+
+export function numberToWords(amount: number): string {
+  if (amount === 0) return 'Zero';
+  
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen',
+    'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  
+  function convertLessThanThousand(n: number): string {
+    if (n === 0) return '';
+    
+    let words = '';
+    
+    if (n >= 100) {
+      words += ones[Math.floor(n / 100)] + ' Hundred ';
+      n %= 100;
+    }
+    
+    if (n >= 20) {
+      words += tens[Math.floor(n / 10)] + ' ';
+      n %= 10;
+    }
+    
+    if (n > 0) {
+      words += ones[n] + ' ';
+    }
+    
+    return words.trim();
+  }
+  
+  let words = '';
+  let remaining = Math.round(amount);
+  
+  if (remaining >= 1000000) {
+    words += convertLessThanThousand(Math.floor(remaining / 1000000)) + ' Million ';
+    remaining %= 1000000;
+  }
+  
+  if (remaining >= 1000) {
+    words += convertLessThanThousand(Math.floor(remaining / 1000)) + ' Thousand ';
+    remaining %= 1000;
+  }
+  
+  if (remaining > 0) {
+    words += convertLessThanThousand(remaining);
+  }
+  
+  return words.trim() + ' Kenyan Shillings Only';
+}

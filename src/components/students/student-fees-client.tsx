@@ -978,6 +978,14 @@ export function StudentFeesClient({
                         View invoice
                       </Button>
                     </Link>
+                    {isPaid && fee.receipt_number && (
+                      <Link href={`/student/fees/fee-receipt/${fee.id}`} target="_blank">
+                        <Button size="sm" variant="secondary">
+                          <Receipt className="mr-1.5 h-4 w-4" />
+                          View receipt
+                        </Button>
+                      </Link>
+                    )}
                     {!isPaid && !paymentsBlocked && (
                       <>
                         <Button size="sm" onClick={() => openPayModal(fee, 'online')}>

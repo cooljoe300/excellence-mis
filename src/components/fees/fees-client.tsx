@@ -141,7 +141,7 @@ function MarkAsPaidModal({
           <span className="text-sm font-mono text-slate-900">{student?.admission_number || '—'}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-sm text-slate-600">Amount:</span>
+          <span className="text-sm text-slate-600">Total Amount:</span>
           <span className="text-sm font-semibold text-slate-900">{formatCurrency(fee.amount)}</span>
         </div>
         <div className="flex justify-between">
@@ -151,6 +151,14 @@ function MarkAsPaidModal({
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        <Input 
+          name="amount_paid" 
+          label="Amount Paid (KES)" 
+          type="number" 
+          step="0.01" 
+          defaultValue={fee.amount}
+          required
+        />
         <Select
           name="payment_method"
           label="Payment method"
@@ -449,10 +457,18 @@ export function FeesClient({
                           Mark as Paid
                         </Button>
                       ) : (
-                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Paid ✓
-                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          <Link href={`/dashboard/fees/fee-receipt/${fee.id}`} target="_blank">
+                            <Button size="sm" variant="secondary">
+                              View Receipt
+                            </Button>
+                          </Link>
+                          <Link href={`/dashboard/fees/fee-receipt/${fee.id}`} target="_blank">
+                            <Button size="sm" variant="ghost">
+                              Download PDF
+                            </Button>
+                          </Link>
+                        </div>
                       )}
                     </td>
                   </tr>
