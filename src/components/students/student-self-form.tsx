@@ -338,19 +338,19 @@ export function StudentSelfForm({
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <Input name="first_name" label="First name" defaultValue={existingStudent?.first_name ?? defaultFirstName} required />
-            <Input name="last_name" label="Last name" defaultValue={existingStudent?.last_name ?? defaultLastName} required />
-            <Input name="phone" label="Phone" defaultValue={existingStudent?.phone ?? ''} />
-            <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={existingStudent?.date_of_birth ?? ''} />
-            <Select name="gender" label="Gender" defaultValue={existingStudent?.gender ?? ''} options={genderOptions} />
-            <Input name="nationality" label="Nationality" defaultValue={existingStudent?.nationality ?? 'Kenyan'} />
+            <Input name="first_name" label="First name" defaultValue={existingStudent?.first_name ?? defaultFirstName} required completed={!!existingStudent?.first_name} />
+            <Input name="last_name" label="Last name" defaultValue={existingStudent?.last_name ?? defaultLastName} required completed={!!existingStudent?.last_name} />
+            <Input name="phone" label="Phone" defaultValue={existingStudent?.phone ?? ''} completed={!!existingStudent?.phone} />
+            <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={existingStudent?.date_of_birth ?? ''} completed={!!existingStudent?.date_of_birth} />
+            <Select name="gender" label="Gender" defaultValue={existingStudent?.gender ?? ''} options={genderOptions} completed={!!existingStudent?.gender} />
+            <Input name="nationality" label="Nationality" defaultValue={existingStudent?.nationality ?? 'Kenyan'} completed={!!existingStudent?.nationality} />
             <div className="sm:col-span-2">
-              <Input name="address" label="Street address" defaultValue={existingStudent?.address ?? ''} />
+              <Input name="address" label="Street address" defaultValue={existingStudent?.address ?? ''} completed={!!existingStudent?.address} />
             </div>
-            <Input name="city" label="City" defaultValue={existingStudent?.city ?? ''} />
-            <Input name="country" label="Country" defaultValue={existingStudent?.country ?? 'Kenya'} />
-            <Input name="emergency_contact_name" label="Emergency contact name" defaultValue={existingStudent?.emergency_contact_name ?? ''} />
-            <Input name="emergency_contact_phone" label="Emergency contact phone" defaultValue={existingStudent?.emergency_contact_phone ?? ''} />
+            <Input name="city" label="City" defaultValue={existingStudent?.city ?? ''} completed={!!existingStudent?.city} />
+            <Input name="country" label="Country" defaultValue={existingStudent?.country ?? 'Kenyan'} completed={!!existingStudent?.country} />
+            <Input name="emergency_contact_name" label="Emergency contact name" defaultValue={existingStudent?.emergency_contact_name ?? ''} completed={!!existingStudent?.emergency_contact_name} />
+            <Input name="emergency_contact_phone" label="Emergency contact phone" defaultValue={existingStudent?.emergency_contact_phone ?? ''} completed={!!existingStudent?.emergency_contact_phone} />
           </CardContent>
         </Card>
       )}
@@ -402,6 +402,18 @@ export function StudentSelfForm({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {existingStudent?.admission_number && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-slate-900">Admission Number</span>
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Already Assigned
+                  </span>
+                </div>
+                <p className="mt-1 text-sm font-mono font-bold text-emerald-700">{existingStudent.admission_number}</p>
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <Select
                 name="program_id"
@@ -410,6 +422,8 @@ export function StudentSelfForm({
                 options={programOptions}
                 onChange={(e) => setSelectedProgramId(e.target.value)}
                 required
+                disabled={!!existingStudent?.program_id}
+                completed={!!existingStudent?.program_id}
               />
               <p className="sm:col-span-2 text-[11px] text-slate-500 -mt-2">
                 Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
@@ -419,6 +433,7 @@ export function StudentSelfForm({
                 label="Enrollment date"
                 type="date"
                 defaultValue={existingStudent?.enrollment_date ?? new Date().toISOString().split('T')[0]}
+                completed={!!existingStudent?.enrollment_date}
               />
               <div className="sm:col-span-2">
                 <Textarea name="notes" label="Notes (optional)" rows={3} defaultValue={existingStudent?.notes ?? ''} />
