@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { getFeePayment } from '@/app/actions/fees';
 import { getPaymentSettings } from '@/app/actions/system-settings';
 import { FeeInvoiceDocument } from '@/components/fees/fee-invoice-document';
-import { FeePdfButton } from '@/components/fees/fee-pdf-button';
+import { DocumentPdfButton } from '@/components/fees/fee-pdf-button';
 import type { FeePayment, Student } from '@/lib/types';
 
 export default async function AdminFeeInvoicePage({
@@ -25,7 +25,7 @@ export default async function AdminFeeInvoicePage({
   return (
     <div className="bg-slate-100 p-6 print:bg-white print:p-0">
       <div className="mx-auto mb-6 max-w-2xl no-print">
-        <FeePdfButton 
+        <DocumentPdfButton 
           documentId="fee-invoice"
           filename={`Excellence_Online_College_Fee_Invoice_${fee.id.slice(0, 8).toUpperCase()}.pdf`}
         />

@@ -1,21 +1,27 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Printer } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-interface FeePdfButtonProps {
+interface DocumentPdfButtonProps {
   documentId: string;
   filename: string;
   label?: string;
   className?: string;
+  showPrintButton?: boolean;
 }
 
-export function FeePdfButton({ documentId, filename, label = 'Save as PDF', className }: FeePdfButtonProps) {
+export function DocumentPdfButton({ 
+  documentId, 
+  filename, 
+  label = 'Save as PDF', 
+  className,
+  showPrintButton = true 
+}: DocumentPdfButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
-  const documentRef = useRef<HTMLDivElement>(null);
 
   const handleDownloadPDF = async () => {
     const element = document.getElementById(documentId);
@@ -112,10 +118,15 @@ export function FeePdfButton({ documentId, filename, label = 'Save as PDF', clas
         <Download className="h-4 w-4 mr-2" />
         {isGenerating ? 'Generating...' : label}
       </Button>
-      <Button onClick={handlePrint} variant="secondary" className={className}>
-        <Printer className="h-4 w-4 mr-2" />
-        Print
-      </Button>
+      {showPrintButton && (
+        <Button onClick={handlePrint} variant="secondary" className={className}>
+          <Printer className="h-4 w-4 mr-2" />
+          Print
+        </Button>
+      )}
     </div>
   );
 }
+
+// Export as FeePdfButton for backward compatibility
+export { DocumentPdfButton as FeePdfButton };

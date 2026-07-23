@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Download, Printer, FileText, Mail, MessageCircle } from 'lucide-react';
+import { Mail, MessageCircle } from 'lucide-react';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import type { Student } from '@/lib/types';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { DocumentPdfButton } from '@/components/fees/fee-pdf-button';
 import { AdmissionStamp } from './admission-stamp';
 
 interface AdmissionLetterProps {
@@ -17,11 +16,9 @@ interface AdmissionLetterProps {
 }
 
 export function AdmissionLetter({ student, enrollments: initialEnrollments = [] }: AdmissionLetterProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
   const [enrollments, setEnrollments] = useState<any[]>(initialEnrollments);
-  const letterRef = useRef<HTMLDivElement>(null);
 
   const admissionNumber = student.admission_number || student.student_number;
   const program = student.program as { name: string; code: string; description: string; duration_months: number; department?: string; tuition_fee: number } | null;
@@ -59,170 +56,6 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
     return sum + (enrollment.course?.unit_fee || 0);
   }, 0);
   const totalFees = tuitionFee + unitFees;
-
-  const handleDownloadPDF = async () => {
-    console.log('=== PDF Generation Started ===');
-    
-    if (!letterRef.current) {
-      console.error('ERROR: Admission letter element not found');
-      alert('Admission letter element not found. Please try again.');
-      return;
-    }
-    
-    console.log('Step 1: Element found, proceeding with PDF generation');
-    console.log('Element ID:', letterRef.current.id);
-    console.log('Element class:', letterRef.current.className);
-    console.log('Element dimensions:', letterRef.current.offsetWidth, 'x', letterRef.current.offsetHeight);
-    
-    setIsGenerating(true);
-    
-    try {
-      console.log('Step 2: Waiting for fonts to load');
-      await document.fonts.ready;
-      console.log('Step 2: Fonts loaded successfully');
-      
-      console.log('Step 3: Checking images before capture');
-      const images = letterRef.current.querySelectorAll('img');
-      console.log(`Found ${images.length} images in admission letter`);
-      images.forEach((img, index) => {
-        console.log(`Image ${index}:`, {
-          src: (img as HTMLImageElement).src,
-          complete: (img as HTMLImageElement).complete,
-          naturalWidth: (img as HTMLImageElement).naturalWidth,
-          naturalHeight: (img as HTMLImageElement).naturalHeight,
-        });
-      });
-      
-      console.log('Step 4: Starting html2canvas capture');
-      
-      // Capture the admission letter element as a canvas
-      const canvas = await html2canvas(letterRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: true,
-        backgroundColor: '#ffffff',
-        ignoreElements: (element) => {
-          // Temporarily ignore images to test if they're the issue
-          if (element.tagName === 'IMG') {
-            console.log('Ignoring image element:', element);
-            return true;
-          }
-          return element.classList?.contains('no-print');
-        },
-        onclone: (clonedDoc) => {
-          console.log('Step 4.1: Document cloned, applying color overrides');
-          
-          // Force all colors to be PDF-safe
-          const allElements = clonedDoc.querySelectorAll('*');
-          console.log(`Step 4.2: Processing ${allElements.length} elements`);
-          
-          allElements.forEach((el) => {
-            const htmlElement = el as HTMLElement;
-            
-            // Force inline styles for all colors to bypass computed lab() values
-            const computedStyle = window.getComputedStyle(el);
-            
-            // Convert color to RGB
-            const color = computedStyle.color;
-            if (color && color !== 'rgba(0, 0, 0, 0)' && color !== 'transparent') {
-              htmlElement.style.color = color;
-            }
-            
-            // Convert background to RGB
-            const backgroundColor = computedStyle.backgroundColor;
-            if (backgroundColor && backgroundColor !== 'rgba(0, 0, 0, 0)' && backgroundColor !== 'transparent') {
-              htmlElement.style.backgroundColor = backgroundColor;
-            }
-            
-            // Convert border colors
-            const borderTopColor = computedStyle.borderTopColor;
-            if (borderTopColor && borderTopColor !== 'rgba(0, 0, 0, 0)' && borderTopColor !== 'transparent') {
-              htmlElement.style.borderTopColor = borderTopColor;
-            }
-            
-            // Ensure images are loaded
-            if (el.tagName === 'IMG') {
-              (el as HTMLImageElement).crossOrigin = 'anonymous';
-            }
-          });
-          
-          console.log('Step 4.3: Adding style override to cloned document');
-          // Add a style override to force RGB colors
-          const style = clonedDoc.createElement('style');
-          style.textContent = `
-            * {
-              color: #0f172a !important;
-              background-color: #ffffff !important;
-              border-color: #e2e8f0 !important;
-            }
-            .bg-slate-50 { background-color: #f8fafc !important; }
-            .bg-slate-900 { background-color: #0f172a !important; }
-            .text-slate-900 { color: #0f172a !important; }
-            .text-slate-600 { color: #475569 !important; }
-            .text-slate-500 { color: #64748b !important; }
-            .text-slate-700 { color: #334155 !important; }
-            .border-slate-200 { border-color: #e2e8f0 !important; }
-            .border-slate-300 { border-color: #cbd5e1 !important; }
-            .border-slate-900 { border-color: #0f172a !important; }
-            .text-blue-600 { color: #2563eb !important; }
-          `;
-          clonedDoc.head.appendChild(style);
-          console.log('Step 4.4: Color overrides applied');
-        },
-      });
-
-      console.log('Step 5: Canvas generated successfully');
-      console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
-
-      console.log('Step 6: Creating PDF with jsPDF');
-      // Create PDF with A4 dimensions
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      // Calculate dimensions to fit A4 while maintaining aspect ratio
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      console.log('Step 7: PDF dimensions calculated:', imgWidth, 'x', imgHeight);
-
-      console.log('Step 8: Converting canvas to image data');
-      // Add the canvas image to PDF
-      const imgData = canvas.toDataURL('image/png');
-      
-      console.log('Step 9: Adding image to PDF');
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-
-      console.log('Step 10: Saving PDF');
-      // Save with meaningful filename
-      const filename = `Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`;
-      pdf.save(filename);
-      
-      console.log('=== PDF Generation Completed Successfully ===');
-      console.log('Filename:', filename);
-    } catch (error) {
-      console.error('=== PDF Generation Failed ===');
-      console.error('Error object:', error);
-      console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
-      console.error('Error message:', error instanceof Error ? error.message : String(error));
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('Raw error:', JSON.stringify(error, null, 2));
-      
-      const errorMessage = error instanceof Error 
-        ? `${error.name}: ${error.message}` 
-        : JSON.stringify(error);
-      
-      console.error('Displaying error to user:', errorMessage);
-      alert(`Failed to generate PDF: ${errorMessage}. Please check the browser console for details.`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   const handleSendEmail = async () => {
     setIsSendingEmail(true);
@@ -280,14 +113,10 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   return (
     <div className="space-y-4 no-print">
       <div className="flex flex-wrap gap-3 no-print">
-        <Button onClick={handleDownloadPDF} disabled={isGenerating}>
-          <Download className="h-4 w-4 mr-2" />
-          {isGenerating ? 'Generating...' : 'Download PDF'}
-        </Button>
-        <Button onClick={handlePrint} variant="secondary">
-          <Printer className="h-4 w-4 mr-2" />
-          Print
-        </Button>
+        <DocumentPdfButton 
+          documentId="admission-letter"
+          filename={`Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`}
+        />
         <Button onClick={handleSendEmail} variant="secondary" disabled={isSendingEmail}>
           <Mail className="h-4 w-4 mr-2" />
           {isSendingEmail ? 'Opening...' : 'Send Email'}
@@ -301,7 +130,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
       {/* Print-friendly admission letter */}
       <Card className="print:shadow-none print:border-none">
         <CardContent className="p-0">
-          <div ref={letterRef} id="admission-letter" className="max-w-[210mm] mx-auto bg-white p-[15mm] border-2 border-slate-900 print:border-none">
+          <div id="admission-letter" className="max-w-[210mm] mx-auto bg-white p-[15mm] border-2 border-slate-900 print:border-none">
             {/* Header with Logo */}
             <div className="text-center mb-3 border-b-2 border-slate-900 pb-2">
               <div className="flex justify-center mb-1">
