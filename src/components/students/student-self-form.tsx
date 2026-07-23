@@ -63,6 +63,13 @@ export function StudentSelfForm({
 
   const currentStepId = STEPS[currentStep].id;
 
+  // Sync selectedProgramId with existing student's program
+  useEffect(() => {
+    if (existingStudent?.program_id && !selectedProgramId) {
+      setSelectedProgramId(existingStudent.program_id);
+    }
+  }, [existingStudent?.program_id, selectedProgramId]);
+
   // Load available units when program is selected
   async function loadUnitsForProgram(programId: string) {
     if (!programId) {
@@ -119,8 +126,19 @@ export function StudentSelfForm({
       const formProgramId = formData.get('program_id') as string;
       const existingProgramId = existingStudent?.program_id;
       
-      // Use existing program_id if available, otherwise check form selection
-      if (!formProgramId && !existingProgramId) {
+      // Debug logging
+      console.log('=== Program Validation Debug ===');
+      console.log('formProgramId:', formProgramId);
+      console.log('existingProgramId:', existingProgramId);
+      console.log('selectedProgramId:', selectedProgramId);
+      
+      // Use existing program_id if available, otherwise check form selection or state
+      const hasProgram = formProgramId || existingProgramId || selectedProgramId;
+      
+      console.log('hasProgram:', hasProgram);
+      console.log('=================================');
+      
+      if (!hasProgram) {
         setError('Please select a program.');
         return false;
       }
