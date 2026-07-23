@@ -2,7 +2,7 @@ import { DocumentLetterhead } from '@/components/documents/document-letterhead';
 import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/lib/system-settings';
-import Image from 'next/image';
+import { FinanceStamp } from '@/components/fees/finance-stamp';
 
 export function FeeInvoiceDocument({
   fee,
@@ -143,15 +143,7 @@ export function FeeInvoiceDocument({
             <p className="mt-2 font-medium text-slate-900">Excellence Online College</p>
             <p className="text-slate-600">Finance Office</p>
           </div>
-          <div className="relative h-20 w-32 shrink-0">
-            <Image
-              src="/eoc finance.png"
-              alt="EOC Finance Stamp"
-              fill
-              className="object-contain"
-              priority
-            />
-          </div>
+          <FinanceStamp />
         </div>
         <div className="flex items-center justify-between text-xs text-slate-400">
           <div>
