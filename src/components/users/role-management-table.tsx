@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { updateUserRole, type ManagedUserRow } from '@/app/actions/user-roles';
+import { Modal } from '@/components/ui/modal';
+import { updateUserRole, deleteUser, type ManagedUserRow } from '@/app/actions/user-roles';
 import { formatDate } from '@/lib/utils';
 import type { UserRole } from '@/lib/types';
+import { Trash2 } from 'lucide-react';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
@@ -27,6 +29,9 @@ export function RoleManagementTable({
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<ManagedUserRow | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   async function saveRole(userId: string) {
     const role = roleDrafts[userId];
@@ -47,6 +52,32 @@ export function RoleManagementTable({
     setBusyUserId(null);
   }
 
+  function openDeleteDialog(user: ManagedUserRow) {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+    setError(null);
+  }
+
+  async function confirmDelete() {
+    if (!userToDelete) return;
+
+    setDeleteLoading(true);
+    setError(null);
+    setMessage(null);
+
+    const result = await deleteUser(userToDelete.id);
+    if (result.error) {
+      setError(result.error);
+      setDeleteLoading(false);
+      return;
+    }
+
+    setMessage(result.softDeleted ? 'User deactivated successfully.' : 'User deleted successfully.');
+    setDeleteDialogOpen(false);
+    setUserToDelete(null);
+    setDeleteLoading(false);
+  }
+
   return (
     <div className="space-y-4">
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -63,6 +94,7 @@ export function RoleManagementTable({
               <th className="px-4 py-3 font-medium">Current role</th>
               <th className="px-4 py-3 font-medium">Created</th>
               <th className="px-4 py-3 font-medium">Update role</th>
+              <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
@@ -101,12 +133,53 @@ export function RoleManagementTable({
                       </Button>
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => openDeleteDialog(user)}
+                      disabled={isCurrentUser}
+                      title={isCurrentUser ? "You cannot delete your own account" : "Delete user"}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        title="Delete User?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Are you sure you want to delete <strong>{userToDelete?.full_name || 'this user'}</strong>? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDelete}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? 'Deleting...' : 'Delete User'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

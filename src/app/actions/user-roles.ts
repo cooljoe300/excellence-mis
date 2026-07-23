@@ -155,3 +155,98 @@ export async function updateUserRole(userId: string, role: string, reason?: stri
   return { success: true };
 }
 
+export async function deleteUser(userId: string) {
+  const gate = await requireAdmin();
+  if (gate.error) return { error: gate.error };
+  if (!userId) return { error: 'User id is required.' };
+
+  // Prevent deleting own account
+  if (gate.userId === userId) {
+    return { error: 'You cannot delete your own account while logged in.' };
+  }
+
+  const supabase = await createClient();
+  const admin = createAdminClient();
+
+  // Get user info
+  const { data: user, error: userError } = await supabase
+    .from('profiles')
+    .select('role, full_name')
+    .eq('id', userId)
+    .single();
+
+  if (userError || !user) {
+    return { error: 'User not found.' };
+  }
+
+  // Prevent deleting the last admin
+  if (user.role === 'admin') {
+    const { count, error: countError } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'admin');
+
+    if (countError) return { error: countError.message };
+    if (count && count <= 1) {
+      return { error: 'The last Super Admin account cannot be deleted.' };
+    }
+  }
+
+  // Check for associated records
+  const checks = await Promise.all([
+    supabase.from('students').select('id').eq('profile_id', userId).limit(1),
+    supabase.from('profiles').select('id').eq('id', userId).limit(1),
+  ]);
+
+  const hasStudentRecords = checks[0].data && checks[0].data.length > 0;
+
+  if (hasStudentRecords) {
+    // Use soft delete instead - mark as inactive
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ 
+        role: 'inactive',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    if (updateError) return { error: updateError.message };
+
+    // Also update auth user metadata
+    const authUserResult = await admin.auth.admin.getUserById(userId);
+    if (authUserResult.data?.user) {
+      const currentMeta = (authUserResult.data.user.user_metadata ?? {}) as Record<string, unknown>;
+      await admin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...currentMeta,
+          role: 'inactive',
+        },
+      });
+    }
+
+    revalidatePath('/dashboard/users');
+    revalidatePath('/dashboard');
+    return { success: true, softDeleted: true };
+  }
+
+  // Hard delete if no associated records
+  const { error: deleteError } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', userId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  // Delete auth user
+  const { error: authDeleteError } = await admin.auth.admin.deleteUser(userId);
+  if (authDeleteError) {
+    console.error('Failed to delete auth user:', authDeleteError);
+    // Continue anyway - profile is deleted
+  }
+
+  revalidatePath('/dashboard/users');
+  revalidatePath('/dashboard');
+
+  return { success: true };
+}
+
