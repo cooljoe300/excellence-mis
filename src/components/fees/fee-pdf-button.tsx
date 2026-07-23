@@ -6,14 +6,26 @@ import { Printer } from 'lucide-react';
 interface DocumentPdfButtonProps {
   label?: string;
   className?: string;
+  documentTitle?: string;
 }
 
 export function DocumentPdfButton({ 
   label = 'Print', 
-  className 
+  className,
+  documentTitle 
 }: DocumentPdfButtonProps) {
   const handlePrint = () => {
+    const originalTitle = document.title;
+    
+    if (documentTitle) {
+      document.title = documentTitle;
+    }
+    
     window.print();
+    
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 100);
   };
 
   return (

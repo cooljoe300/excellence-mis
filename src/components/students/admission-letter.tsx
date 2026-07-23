@@ -56,6 +56,9 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   }, 0);
   const totalFees = tuitionFee + unitFees;
 
+  // Generate dynamic document title for print/PDF filename
+  const documentTitle = `Admission Letter - ${student.first_name} ${student.last_name} - ${admissionNumber}`;
+
   const handleSendEmail = async () => {
     setIsSendingEmail(true);
     try {
@@ -112,7 +115,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   return (
     <div className="space-y-4 no-print">
       <div className="flex flex-wrap gap-3 no-print">
-        <DocumentPdfButton />
+        <DocumentPdfButton documentTitle={documentTitle} />
         <Button onClick={handleSendEmail} variant="secondary" disabled={isSendingEmail}>
           <Mail className="h-4 w-4 mr-2" />
           {isSendingEmail ? 'Opening...' : 'Send Email'}
