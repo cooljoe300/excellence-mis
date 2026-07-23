@@ -63,7 +63,7 @@ export function StudentWorkflow({
       done: true,
       icon: LetterIcon,
       action: (
-        <Link href={`/dashboard/students/${student.id}/admission-letter`} target="_blank">
+        <Link href={`/dashboard/admission-letter/${student.id}`} target="_blank">
           <Button size="sm" variant="secondary">
             View Admission Letter
           </Button>
