@@ -25,10 +25,7 @@ export default async function AdminFeeInvoicePage({
   return (
     <div className="bg-slate-100 p-6 print:bg-white print:p-0">
       <div className="mx-auto mb-6 max-w-2xl no-print">
-        <DocumentPdfButton 
-          documentId="fee-invoice"
-          filename={`Excellence_Online_College_Fee_Invoice_${fee.id.slice(0, 8).toUpperCase()}.pdf`}
-        />
+        <DocumentPdfButton />
       </div>
       <FeeInvoiceDocument
         fee={fee as FeePayment}

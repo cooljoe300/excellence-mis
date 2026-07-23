@@ -37,10 +37,7 @@ export default async function StudentFeeReceiptPage({
             Back to fees
           </Button>
         </Link>
-        <DocumentPdfButton 
-          documentId="fee-receipt"
-          filename={`Excellence_Online_College_Fee_Receipt_${fee.receipt_number || fee.id.slice(0, 8).toUpperCase()}.pdf`}
-        />
+        <DocumentPdfButton />
       </div>
       <FeeReceiptDocument
         fee={fee as FeePayment}

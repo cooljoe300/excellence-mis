@@ -113,10 +113,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
   return (
     <div className="space-y-4 no-print">
       <div className="flex flex-wrap gap-3 no-print">
-        <DocumentPdfButton 
-          documentId="admission-letter"
-          filename={`Excellence_Online_College_Admission_Letter_${admissionNumber}.pdf`}
-        />
+        <DocumentPdfButton />
         <Button onClick={handleSendEmail} variant="secondary" disabled={isSendingEmail}>
           <Mail className="h-4 w-4 mr-2" />
           {isSendingEmail ? 'Opening...' : 'Send Email'}
@@ -309,7 +306,7 @@ export function AdmissionLetter({ student, enrollments: initialEnrollments = [] 
             print-color-adjust: exact !important;
           }
           
-          body > * {
+          .no-print {
             display: none !important;
           }
           
