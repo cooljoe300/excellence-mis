@@ -116,7 +116,11 @@ export function StudentSelfForm({
     }
     
     if (currentStepId === 'academics') {
-      if (!formData.get('program_id')) {
+      const formProgramId = formData.get('program_id') as string;
+      const existingProgramId = existingStudent?.program_id;
+      
+      // Use existing program_id if available, otherwise check form selection
+      if (!formProgramId && !existingProgramId) {
         setError('Please select a program.');
         return false;
       }
@@ -163,7 +167,8 @@ export function StudentSelfForm({
     
     const firstName = formData.get('first_name') as string || existingStudent?.first_name || defaultFirstName;
     const lastName = formData.get('last_name') as string || existingStudent?.last_name || defaultLastName;
-    const programId = formData.get('program_id') as string || selectedProgramId;
+    const formProgramId = formData.get('program_id') as string;
+    const programId = formProgramId || selectedProgramId || existingStudent?.program_id;
     
     if (!firstName || !lastName) {
       setError('First name and last name are required.');
@@ -183,7 +188,7 @@ export function StudentSelfForm({
     // Ensure form data has the required values
     if (!formData.get('first_name')) formData.set('first_name', firstName);
     if (!formData.get('last_name')) formData.set('last_name', lastName);
-    if (!formData.get('program_id')) formData.set('program_id', programId);
+    if (!formData.get('program_id') && programId) formData.set('program_id', programId);
     
     setLoading(true);
     setError(null);
@@ -425,6 +430,10 @@ export function StudentSelfForm({
                 disabled={!!existingStudent?.program_id}
                 completed={!!existingStudent?.program_id}
               />
+              {/* Hidden input to ensure program_id is submitted when field is disabled */}
+              {existingStudent?.program_id && (
+                <input type="hidden" name="program_id" value={existingStudent.program_id} />
+              )}
               <p className="sm:col-span-2 text-[11px] text-slate-500 -mt-2">
                 Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
               </p>
