@@ -236,6 +236,11 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
   const notes = (formData.get('notes') as string) || null;
   const amountPaid = parseFloat(formData.get('amount_paid') as string) || null;
 
+  console.log('[markFeeAsPaid] Fee ID:', feeId);
+  console.log('[markFeeAsPaid] Amount paid:', amountPaid);
+  console.log('[markFeeAsPaid] Payment method:', paymentMethod);
+  console.log('[markFeeAsPaid] Reference number:', referenceNumber);
+
   // Get the current fee payment
   const { data: fee, error: fetchError } = await supabase
     .from('fee_payments')
@@ -244,8 +249,13 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
     .single();
 
   if (fetchError || !fee) {
+    console.error('[markFeeAsPaid] Fee payment not found:', fetchError);
     return { error: 'Fee payment not found.' };
   }
+
+  console.log('[markFeeAsPaid] Fee student_id:', fee.student_id);
+  console.log('[markFeeAsPaid] Fee status before:', fee.status);
+  console.log('[markFeeAsPaid] Fee amount_paid before:', fee.amount_paid);
 
   // Generate unique receipt number if not already exists
   let receiptNumber = fee.receipt_number;
@@ -275,6 +285,10 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
   const finalAmountPaid = amountPaid !== null ? amountPaid : fee.amount;
   const today = new Date().toISOString().split('T')[0];
 
+  console.log('[markFeeAsPaid] Final amount paid:', finalAmountPaid);
+  console.log('[markFeeAsPaid] Receipt number:', receiptNumber);
+  console.log('[markFeeAsPaid] Payment date:', paymentDate);
+
   // Update the fee payment to paid
   const { error } = await supabase
     .from('fee_payments')
@@ -293,8 +307,11 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
     .eq('id', feeId);
 
   if (error) {
+    console.error('[markFeeAsPaid] Update error:', error);
     return { error: error.message };
   }
+
+  console.log('[markFeeAsPaid] Update successful');
 
   // Create an audit log entry in the notes
   const adminNote = `[Marked as paid by admin on ${new Date().toISOString()} - User: ${user.email} - Receipt: ${receiptNumber}]`;

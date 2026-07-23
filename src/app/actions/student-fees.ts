@@ -13,6 +13,10 @@ export async function getMyFeesPageData() {
   const student = await getMyStudentRecord();
   if (!student) return null;
 
+  console.log('[getMyFeesPageData] Student ID:', student.id);
+  console.log('[getMyFeesPageData] Student email:', student.email);
+  console.log('[getMyFeesPageData] Student profile_id:', student.profile_id);
+
   const supabase = await createClient();
   const [paymentSettings, feesRes] = await Promise.all([
     getPaymentSettings(),
@@ -24,6 +28,9 @@ export async function getMyFeesPageData() {
       .eq('student_id', student.id)
       .order('created_at', { ascending: false }),
   ]);
+
+  console.log('[getMyFeesPageData] Fees query error:', feesRes.error);
+  console.log('[getMyFeesPageData] Fees count:', feesRes.data?.length || 0);
 
   let fees = (feesRes.data ?? []) as FeePayment[];
 
