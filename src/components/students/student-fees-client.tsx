@@ -11,7 +11,8 @@ import { Select } from '@/components/ui/select';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/lib/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';
-import { initiateMyPesapalPayment } from '@/app/actions/pesapal';
+// Pesapal temporarily disabled from frontend - do not delete backend integration
+// import { initiateMyPesapalPayment } from '@/app/actions/pesapal';
 import {
   getMpesaStkAvailability,
   getMyStkPushStatus,
@@ -33,6 +34,10 @@ import {
   FileText,
   ArrowRight,
 } from 'lucide-react';
+
+// Pesapal temporarily disabled from frontend
+// Re-enable when Pesapal payment integration is ready
+const ENABLE_PESAPAL = false;
 
 function StatTile({
   label,
@@ -206,13 +211,13 @@ function PayFeeModal({
   const pendingAmount = getPendingSubmissionAmount(fee.submissions);
   const availableBalance = getAvailableFeeBalance(fee, fee.submissions);
   const onlineMaxAmount =
-    pesapalMaxAmount !== null && pesapalMaxAmount > 0
+    ENABLE_PESAPAL && pesapalMaxAmount !== null && pesapalMaxAmount > 0
       ? Math.min(availableBalance, pesapalMaxAmount)
       : availableBalance;
   const presets = getPartialPaymentPresets(onlineMaxAmount).filter(
-    (preset) => pesapalMaxAmount === null || preset.amount <= pesapalMaxAmount
+    (preset) => !ENABLE_PESAPAL || pesapalMaxAmount === null || preset.amount <= pesapalMaxAmount
   );
-  const onlineVisible = paymentSettings.pesapalEnabled || pesapalConfigured;
+  const onlineVisible = ENABLE_PESAPAL && (paymentSettings.pesapalEnabled || pesapalConfigured);
   const onlineReady = onlineVisible && pesapalConfigured;
   const stkVisible = paymentSettings.mpesaStkEnabled;
 
@@ -252,7 +257,12 @@ function PayFeeModal({
     ? Math.max(0, availableBalance - parsedAmount)
     : availableBalance;
 
+  // Pesapal temporarily disabled from frontend
   async function handlePesapalSubmit(e: React.FormEvent) {
+    if (!ENABLE_PESAPAL) {
+      setError('PesaPal payments are temporarily disabled.');
+      return;
+    }
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -278,7 +288,8 @@ function PayFeeModal({
       return;
     }
 
-    const result = await initiateMyPesapalPayment(fee.id, paidAmount);
+    // const result = await initiateMyPesapalPayment(fee.id, paidAmount);
+    const result = { error: 'PesaPal is temporarily disabled.' };
     if (result.error) {
       setError(result.error);
       setLoading(false);
@@ -745,7 +756,7 @@ export function StudentFeesClient({
   const [payingFee, setPayingFee] = useState<FeePayment | null>(null);
   const [payMode, setPayMode] = useState<'online' | 'manual' | 'stk'>('online');
   const admissionNumber = getAdmissionNumber(student);
-  const onlineVisible = paymentSettings.pesapalEnabled || pesapalConfigured;
+  const onlineVisible = ENABLE_PESAPAL && (paymentSettings.pesapalEnabled || pesapalConfigured);
   const paymentsBlocked = isRestrictedStudentStatus(student.status);
 
   function openPayModal(fee: FeePayment, mode: 'online' | 'manual' | 'stk' = 'online') {
@@ -773,7 +784,7 @@ export function StudentFeesClient({
               {student.first_name}&apos;s fee account
             </h1>
             <p className="mt-1.5 max-w-xl text-xs text-blue-100/90">
-              Pay any amount — PesaPal, M-Pesa STK, paybill, or bank. Partial payments welcome.
+              Pay any amount — M-Pesa STK, paybill, or bank. Partial payments welcome.
             </p>
             <p className="mt-2 inline-block rounded-lg bg-white/10 px-2 py-1 font-mono text-xs text-white">
               {admissionNumber}
@@ -843,7 +854,7 @@ export function StudentFeesClient({
           <h2 className="text-base font-bold text-slate-900">Payment methods</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {onlineVisible && (
+          {ENABLE_PESAPAL && onlineVisible && (
             <PaymentMethodCard
               title="PesaPal online"
               description="Instant payment with M-Pesa or card on a secure page."

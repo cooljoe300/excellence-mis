@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { setPaymentSettings } from '@/app/actions/system-settings';
 import type { PaymentSettings } from '@/lib/system-settings';
 
+// Pesapal temporarily disabled from frontend - do not delete backend integration
+// Re-enable when Pesapal payment integration is ready
+const ENABLE_PESAPAL = false;
+
 export function PaymentSettingsCard({
   initialSettings,
   pesapalConfigured,
@@ -42,33 +46,35 @@ export function PaymentSettingsCard({
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-slate-600">
-          Online payments via PesaPal and manual paybill/bank instructions for students.
+          Manual paybill/bank instructions for students.
         </p>
 
-        <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
-          <input
-            type="checkbox"
-            className="mt-1"
-            checked={settings.pesapalEnabled}
-            onChange={(e) => setSettings((s) => ({ ...s, pesapalEnabled: e.target.checked }))}
-          />
-          <span>
-            <span className="font-medium text-slate-900">Enable PesaPal online payments</span>
-            <span className="mt-1 block text-slate-600">
-              Students pay via PesaPal (M-Pesa, card, etc.) and are redirected back after payment.
-              Requires PesaPal credentials in server environment variables.
+        {ENABLE_PESAPAL && (
+          <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={settings.pesapalEnabled}
+              onChange={(e) => setSettings((s) => ({ ...s, pesapalEnabled: e.target.checked }))}
+            />
+            <span>
+              <span className="font-medium text-slate-900">Enable PesaPal online payments</span>
+              <span className="mt-1 block text-slate-600">
+                Students pay via PesaPal (M-Pesa, card, etc.) and are redirected back after payment.
+                Requires PesaPal credentials in server environment variables.
+              </span>
+              <span
+                className={`mt-2 inline-block text-xs font-medium ${
+                  pesapalConfigured ? 'text-emerald-700' : 'text-amber-700'
+                }`}
+              >
+                {pesapalConfigured
+                  ? 'PesaPal credentials detected on server.'
+                  : `Missing on server: ${pesapalMissingConfig.join(', ') || 'PESAPAL_* env vars'}`}
+              </span>
             </span>
-            <span
-              className={`mt-2 inline-block text-xs font-medium ${
-                pesapalConfigured ? 'text-emerald-700' : 'text-amber-700'
-              }`}
-            >
-              {pesapalConfigured
-                ? 'PesaPal credentials detected on server.'
-                : `Missing on server: ${pesapalMissingConfig.join(', ') || 'PESAPAL_* env vars'}`}
-            </span>
-          </span>
-        </label>
+          </label>
+        )}
 
         <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-4">
           <input
