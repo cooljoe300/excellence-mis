@@ -172,23 +172,61 @@ export async function createUser(formData: {
     },
   });
 
-  if (authError) return { error: authError.message };
-  if (!authData.user) return { error: 'Failed to create user account.' };
+  if (authError) {
+    console.error('Auth user creation error:', authError);
+    return { error: authError.message };
+  }
+  
+  if (!authData.user) {
+    console.error('Auth user creation failed: no user returned');
+    return { error: 'Failed to create user account.' };
+  }
 
-  // Create profile with must_change_password = true
-  const { error: profileError } = await supabase.from('profiles').insert({
-    id: authData.user.id,
-    email: email.toLowerCase().trim(),
-    full_name: `${firstName} ${lastName}`.trim(),
-    role,
-    phone: phone || null,
-    must_change_password: true,
-  });
+  console.log('Auth user created with ID:', authData.user.id);
+
+  // Check if profile already exists for this auth user ID
+  const { data: existingProfileForUser } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .eq('id', authData.user.id)
+    .maybeSingle();
+
+  let profileError;
+  if (existingProfileForUser) {
+    // Profile exists, update it
+    console.log('Profile already exists, updating it');
+    ({ error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        email: email.toLowerCase().trim(),
+        full_name: `${firstName} ${lastName}`.trim(),
+        role,
+        phone: phone || null,
+        must_change_password: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', authData.user.id));
+  } else {
+    // Profile doesn't exist, insert it
+    console.log('Creating new profile');
+    ({ error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        email: email.toLowerCase().trim(),
+        full_name: `${firstName} ${lastName}`.trim(),
+        role,
+        phone: phone || null,
+        must_change_password: true,
+        updated_at: new Date().toISOString(),
+      }));
+  }
 
   if (profileError) {
-    // Rollback auth user creation if profile creation fails
+    console.error('Profile operation error:', profileError);
+    // Rollback auth user creation if profile operation fails
     await admin.auth.admin.deleteUser(authData.user.id);
-    return { error: profileError.message };
+    return { error: `Failed to create profile: ${profileError.message}` };
   }
 
   revalidatePath('/dashboard/users');
