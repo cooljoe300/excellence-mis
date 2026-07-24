@@ -9,12 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Logo } from '@/components/ui/logo';
 import { Alert } from '@/components/ui/alert';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function StudentSignupPage() {
   const router = useRouter();
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,13 +28,25 @@ export default function StudentSignupPage() {
     setError(null);
     setInfo(null);
 
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { full_name: fullName, role: 'student' },
+          data: { role: 'student' },
         },
       });
 
@@ -67,13 +82,6 @@ export default function StudentSignupPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
-            label="Full name"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder="Jane Doe"
-            required
-          />
-          <Input
             label="Email"
             type="email"
             value={email}
@@ -81,15 +89,43 @@ export default function StudentSignupPage() {
             placeholder="you@example.com"
             required
           />
-          <Input
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 6 characters"
-            minLength={6}
-            required
-          />
+          <div className="relative">
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Min. 6 characters"
+              minLength={6}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-9 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <div className="relative">
+            <Input
+              label="Confirm Password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm your password"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-9 text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
           {error && <Alert variant="error">{error}</Alert>}
           {info && <Alert variant="info">{info}</Alert>}
           <Button type="submit" className="w-full" size="lg" disabled={loading}>
