@@ -1,3 +1,5 @@
+'use client';
+
 import { DocumentLetterhead } from '@/components/documents/document-letterhead';
 import { formatCurrency, formatDate, getAdmissionNumber, numberToWords } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
