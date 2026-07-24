@@ -12,9 +12,3 @@ SET raw_user_meta_data = jsonb_set(
   '"superadmin"'::jsonb
 )
 WHERE email = 'johngathigia@gmail.com';
-
--- Also update profiles table for consistency
-UPDATE profiles
-SET role = 'superadmin',
-    updated_at = NOW()
-WHERE email = 'johngathigia@gmail.com';
