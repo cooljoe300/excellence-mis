@@ -1,6 +1,5 @@
 import type { User } from '@supabase/supabase-js';
 import type { UserRole } from '@/lib/types';
-import { createClient } from '@/lib/supabase/server';
 
 export function getRoleFromMetadata(metadata: Record<string, unknown> | undefined): UserRole | null {
   const metaRole = metadata?.role;
@@ -15,6 +14,7 @@ export function getRoleFromUser(user: User): UserRole | null {
 }
 
 export async function getCurrentUserRole(): Promise<UserRole | null> {
+  const { createClient } = await import('@/lib/supabase/server');
   const supabase = await createClient();
   const {
     data: { user },

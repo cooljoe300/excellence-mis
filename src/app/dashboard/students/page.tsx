@@ -9,9 +9,14 @@ import { Modal } from '@/components/ui/modal';
 import { getStudents } from '@/app/actions/students';
 import { generateStudentLoginDetails } from '@/app/actions/students';
 import { formatDate, getAdmissionNumber } from '@/lib/utils';
-import { getRegistrationSourceLabel } from '@/lib/auth';
 import { StudentSearch } from '@/components/students/student-search';
 import { MessageCircle, Copy, CheckCircle2 } from 'lucide-react';
+
+function getRegistrationSourceLabel(source: string | null): string {
+  if (source === 'self_registered') return 'Self Registered';
+  if (source === 'staff_registered') return 'Registered by Staff';
+  return 'Unknown';
+}
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<any[]>([]);
