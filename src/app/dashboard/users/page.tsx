@@ -5,7 +5,6 @@ import { redirect } from 'next/navigation';
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
-import { getCurrentUserRole } from '@/lib/auth';
 import { getManagedUsers } from '@/app/actions/user-roles';
 import { RoleManagementTable } from '@/components/users/role-management-table';
 import { AddUserDialog } from '@/components/users/add-user-dialog';
@@ -15,21 +14,24 @@ export default function UserRolesPage() {
   const [users, setUsers] = useState<ManagedUserRow[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [currentUserRole, setCurrentUserRole] = useState<'superadmin' | 'admin' | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
-      const role = await getCurrentUserRole();
-      if (role !== 'superadmin' && role !== 'admin') {
-        redirect('/dashboard');
-        return;
-      }
-
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      
       if (!user) {
         redirect('/login');
+        return;
+      }
+
+      // Get user role from metadata or profile
+      const role = user.user_metadata?.role;
+      if (role !== 'superadmin' && role !== 'admin') {
+        redirect('/dashboard');
         return;
       }
 
@@ -38,6 +40,7 @@ export default function UserRolesPage() {
       
       const managedUsers = await getManagedUsers();
       setUsers(managedUsers);
+      setLoading(false);
     }
     loadData();
   }, []);
@@ -51,8 +54,12 @@ export default function UserRolesPage() {
     refreshUsers();
   };
 
-  if (!currentUserRole) {
+  if (loading) {
     return null; // Loading
+  }
+
+  if (!currentUserRole) {
+    return null; // Should redirect
   }
 
   return (
