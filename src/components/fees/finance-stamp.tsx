@@ -33,12 +33,33 @@ export function FinanceStamp({ className = '' }: FinanceStampProps) {
           unoptimized
         />
         {/* Dynamic date overlay */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-[10px] font-bold text-red-700" style={{ marginTop: '2px' }}>
+        <div className="absolute inset-0 pointer-events-none">
+          <span 
+            className="stamp-date absolute text-[10px] font-bold text-red-700 whitespace-nowrap"
+            style={{ 
+              left: '50%', 
+              top: '50%', 
+              transform: 'translate(-50%, -50%)' 
+            }}
+          >
             {currentDate}
           </span>
         </div>
       </div>
+
+      {/* Print-specific styles to preserve stamp date centering */}
+      <style jsx global>{`
+        @media print {
+          .stamp-date {
+            position: absolute !important;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            text-align: center !important;
+            white-space: nowrap !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

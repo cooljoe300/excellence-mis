@@ -4,6 +4,7 @@ import { getFeePayment } from '@/app/actions/fees';
 import { FeeReceiptDocument } from '@/components/fees/fee-receipt-document';
 import { DocumentPdfButton } from '@/components/fees/fee-pdf-button';
 import { Button } from '@/components/ui/button';
+import { getAdmissionNumber } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
 
 export default async function AdminFeeReceiptPage({
@@ -21,6 +22,12 @@ export default async function AdminFeeReceiptPage({
   }
 
   const student = fee.student as Student;
+  const admissionNumber = getAdmissionNumber(student);
+  const receiptNumber = fee.receipt_number || `#${fee.id.slice(0, 8).toUpperCase()}`;
+  
+  // Sanitize admission number for filename (replace / with -)
+  const sanitizedAdmissionNumber = admissionNumber.replace(/\//g, '-');
+  const documentTitle = `${sanitizedAdmissionNumber}_${receiptNumber}.pdf`;
 
   return (
     <div className="bg-slate-100 p-6 print:bg-white print:p-0">
@@ -30,7 +37,7 @@ export default async function AdminFeeReceiptPage({
             Back to fees
           </Button>
         </Link>
-        <DocumentPdfButton />
+        <DocumentPdfButton documentTitle={documentTitle} />
       </div>
       <FeeReceiptDocument
         fee={fee as FeePayment}

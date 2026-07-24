@@ -151,7 +151,7 @@ export async function approveFeePaymentSubmission(submissionId: string) {
   if (error) {
     if (error.message.includes('approve_fee_payment_submission')) {
       return {
-        error: 'Payment approval is not set up yet. Ask admin to run migration 011_fee_payment_approval.sql in Supabase.',
+        error: 'Payment approval is not set up yet. Ask admin to run migration 011_fee_payment_approval.sql and 024_update_approval_with_receipt.sql in Supabase.',
       };
     }
     return { error: error.message };
@@ -163,6 +163,7 @@ export async function approveFeePaymentSubmission(submissionId: string) {
     amount_paid?: number;
     balance?: number;
     status?: string;
+    receipt_number?: string;
   };
 
   if (result?.error) return { error: result.error };
@@ -180,6 +181,7 @@ export async function approveFeePaymentSubmission(submissionId: string) {
     amountPaid: result.amount_paid,
     balance: result.balance,
     status: result.status,
+    receiptNumber: result.receipt_number,
   };
 }
 

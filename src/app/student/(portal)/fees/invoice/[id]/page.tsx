@@ -6,6 +6,7 @@ import { getPaymentSettings } from '@/app/actions/system-settings';
 import { FeeInvoiceDocument } from '@/components/fees/fee-invoice-document';
 import { PrintInvoiceButton } from '@/components/fees/print-invoice-button';
 import { Button } from '@/components/ui/button';
+import { getAdmissionNumber } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
 
 export default async function StudentFeeInvoicePage({
@@ -22,6 +23,15 @@ export default async function StudentFeeInvoicePage({
     notFound();
   }
 
+  const student = data.student as Student;
+  const fee = data.fee as FeePayment;
+  const admissionNumber = getAdmissionNumber(student);
+  const invoiceNumber = `INV-${fee.id.slice(0, 8).toUpperCase()}`;
+  
+  // Sanitize admission number for filename (replace / with -)
+  const sanitizedAdmissionNumber = admissionNumber.replace(/\//g, '-');
+  const documentTitle = `${sanitizedAdmissionNumber}_${invoiceNumber}.pdf`;
+
   const paymentSettings = await getPaymentSettings();
 
   return (
@@ -32,7 +42,7 @@ export default async function StudentFeeInvoicePage({
             Back to fees
           </Button>
         </Link>
-        <PrintInvoiceButton label="Save as PDF" />
+        <PrintInvoiceButton label="Save as PDF" documentTitle={documentTitle} />
       </div>
       <FeeInvoiceDocument
         fee={data.fee as FeePayment}
