@@ -14,7 +14,6 @@ import { Eye, EyeOff } from 'lucide-react';
 export default function StudentSignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [admissionNumber, setAdmissionNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -44,12 +43,12 @@ export default function StudentSignupPage() {
     try {
       const supabase = createClient();
       
-      // First, check if an existing student record exists with this admission number
+      // First, check if an existing student record exists with this email
       // This handles the case where Admin already registered the student
       const { data: existingStudent, error: checkError } = await supabase
         .from('students')
         .select('id, admission_number, first_name, last_name, email, profile_id, program:programs(*)')
-        .eq('admission_number', admissionNumber.trim().toUpperCase())
+        .eq('email', email.toLowerCase().trim())
         .maybeSingle();
 
       if (checkError) {
@@ -58,27 +57,7 @@ export default function StudentSignupPage() {
         return;
       }
 
-      if (!existingStudent) {
-        setError('No student found with this admission number. Please contact administration or check your admission number.');
-        setLoading(false);
-        return;
-      }
-
-      // Check if student already has a portal account linked
-      if (existingStudent.profile_id) {
-        setError('This admission number is already linked to a portal account. Please sign in instead.');
-        setLoading(false);
-        return;
-      }
-
-      // Verify email matches the existing student record (for security)
-      if (existingStudent.email && existingStudent.email.toLowerCase() !== email.toLowerCase().trim()) {
-        setError('The email does not match the email on file for this admission number. Please use the email you provided to administration.');
-        setLoading(false);
-        return;
-      }
-
-      // Create the auth account using Supabase Auth (if enabled) or create a custom account
+      // Create the auth account
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password,
@@ -99,8 +78,8 @@ export default function StudentSignupPage() {
         return;
       }
 
-      // Link the auth user to the existing student record
-      if (data.user) {
+      // If an existing student was found and they don't have a profile_id yet, link them
+      if (existingStudent && !existingStudent.profile_id && data.user) {
         const { error: linkError } = await supabase
           .from('students')
           .update({ profile_id: data.user.id })
@@ -108,7 +87,7 @@ export default function StudentSignupPage() {
 
         if (linkError) {
           console.error('Failed to link existing student:', linkError);
-          setError('Account created but failed to link to student record. Please contact administration.');
+          setError('Account created but failed to link to existing student record. Please contact administration.');
           setLoading(false);
           return;
         }
@@ -118,7 +97,8 @@ export default function StudentSignupPage() {
         return;
       }
 
-      setLoading(false);
+      // If no existing student or already linked, go to registration
+      router.replace('/student/register');
     } catch (err) {
       setError(getErrorMessage(err));
       setLoading(false);
@@ -132,18 +112,11 @@ export default function StudentSignupPage() {
           <Logo size="lg" href={null} priority className="mb-4" />
           <h1 className="text-2xl font-bold text-slate-900">Student registration</h1>
           <p className="mt-2 text-sm text-muted">
-            Create your portal account using your admission number.
+            Create your portal account.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Admission Number"
-            value={admissionNumber}
-            onChange={(e) => setAdmissionNumber(e.target.value)}
-            placeholder="EOC/CPAF/008/26"
-            required
-          />
           <Input
             label="Email"
             type="email"
