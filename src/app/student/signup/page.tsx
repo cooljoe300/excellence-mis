@@ -14,6 +14,7 @@ import { Eye, EyeOff } from 'lucide-react';
 export default function StudentSignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
+  const [admissionNumber, setAdmissionNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -43,12 +44,12 @@ export default function StudentSignupPage() {
     try {
       const supabase = createClient();
       
-      // First, check if an existing student record exists with this email
+      // First, check if an existing student record exists with this admission number
       // This handles the case where Admin already registered the student
       const { data: existingStudent, error: checkError } = await supabase
         .from('students')
-        .select('id, admission_number, first_name, last_name, profile_id')
-        .eq('email', email.toLowerCase().trim())
+        .select('id, admission_number, first_name, last_name, email, profile_id, program:programs(*)')
+        .eq('admission_number', admissionNumber.trim().toUpperCase())
         .maybeSingle();
 
       if (checkError) {
@@ -57,7 +58,27 @@ export default function StudentSignupPage() {
         return;
       }
 
-      // Create the auth account
+      if (!existingStudent) {
+        setError('No student found with this admission number. Please contact administration or check your admission number.');
+        setLoading(false);
+        return;
+      }
+
+      // Check if student already has a portal account linked
+      if (existingStudent.profile_id) {
+        setError('This admission number is already linked to a portal account. Please sign in instead.');
+        setLoading(false);
+        return;
+      }
+
+      // Verify email matches the existing student record (for security)
+      if (existingStudent.email && existingStudent.email.toLowerCase() !== email.toLowerCase().trim()) {
+        setError('The email does not match the email on file for this admission number. Please use the email you provided to administration.');
+        setLoading(false);
+        return;
+      }
+
+      // Create the auth account using Supabase Auth (if enabled) or create a custom account
       const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.toLowerCase().trim(),
         password,
@@ -78,8 +99,8 @@ export default function StudentSignupPage() {
         return;
       }
 
-      // If an existing student was found and they don't have a profile_id yet, link them
-      if (existingStudent && !existingStudent.profile_id && data.user) {
+      // Link the auth user to the existing student record
+      if (data.user) {
         const { error: linkError } = await supabase
           .from('students')
           .update({ profile_id: data.user.id })
@@ -87,15 +108,17 @@ export default function StudentSignupPage() {
 
         if (linkError) {
           console.error('Failed to link existing student:', linkError);
-        } else {
-          // Successfully linked - redirect to student portal instead of registration
-          router.replace('/student');
+          setError('Account created but failed to link to student record. Please contact administration.');
+          setLoading(false);
           return;
         }
+
+        // Successfully linked - redirect to student portal
+        router.replace('/student');
+        return;
       }
 
-      // If no existing student or linking failed, go to registration
-      router.replace('/student/register');
+      setLoading(false);
     } catch (err) {
       setError(getErrorMessage(err));
       setLoading(false);
@@ -109,11 +132,18 @@ export default function StudentSignupPage() {
           <Logo size="lg" href={null} priority className="mb-4" />
           <h1 className="text-2xl font-bold text-slate-900">Student registration</h1>
           <p className="mt-2 text-sm text-muted">
-            Create your account to register your details.
+            Create your portal account using your admission number.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <Input
+            label="Admission Number"
+            value={admissionNumber}
+            onChange={(e) => setAdmissionNumber(e.target.value)}
+            placeholder="EOC/CPAF/008/26"
+            required
+          />
           <Input
             label="Email"
             type="email"
