@@ -139,14 +139,25 @@ export async function createUser(formData: {
   const supabase = await createClient();
   const admin = createAdminClient();
 
-  // Check if email already exists
-  const { data: existingUser } = await supabase
+  // Check if email already exists in auth.users
+  const { data: existingAuthUser, error: authCheckError } = await admin.auth.admin.listUsers();
+  if (!authCheckError && existingAuthUser.users) {
+    const authUserExists = existingAuthUser.users.some(
+      (u) => u.email === email.toLowerCase().trim()
+    );
+    if (authUserExists) {
+      return { error: 'A user with this email already exists in the authentication system. Please edit the existing user instead.' };
+    }
+  }
+
+  // Check if email already exists in profiles
+  const { data: existingProfile } = await supabase
     .from('profiles')
     .select('id, email')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle();
 
-  if (existingUser) {
+  if (existingProfile) {
     return { error: 'A user with this email already exists. Please edit the existing user instead.' };
   }
 
@@ -183,7 +194,13 @@ export async function createUser(formData: {
   revalidatePath('/dashboard/users');
   revalidatePath('/dashboard');
 
-  return { success: true, userId: authData.user.id };
+  return { 
+    success: true, 
+    userId: authData.user.id,
+    email: email.toLowerCase().trim(),
+    fullName: `${firstName} ${lastName}`.trim(),
+    role,
+  };
 }
 
 export async function updateUserRole(userId: string, role: string, reason?: string) {
