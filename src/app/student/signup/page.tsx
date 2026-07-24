@@ -42,8 +42,24 @@ export default function StudentSignupPage() {
 
     try {
       const supabase = createClient();
+      
+      // First, check if an existing student record exists with this email
+      // This handles the case where Admin already registered the student
+      const { data: existingStudent, error: checkError } = await supabase
+        .from('students')
+        .select('id, admission_number, first_name, last_name, profile_id')
+        .eq('email', email.toLowerCase().trim())
+        .maybeSingle();
+
+      if (checkError) {
+        setError('Error checking for existing student. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Create the auth account
       const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.toLowerCase().trim(),
         password,
         options: {
           data: { role: 'student' },
@@ -62,6 +78,23 @@ export default function StudentSignupPage() {
         return;
       }
 
+      // If an existing student was found and they don't have a profile_id yet, link them
+      if (existingStudent && !existingStudent.profile_id && data.user) {
+        const { error: linkError } = await supabase
+          .from('students')
+          .update({ profile_id: data.user.id })
+          .eq('id', existingStudent.id);
+
+        if (linkError) {
+          console.error('Failed to link existing student:', linkError);
+        } else {
+          // Successfully linked - redirect to student portal instead of registration
+          router.replace('/student');
+          return;
+        }
+      }
+
+      // If no existing student or linking failed, go to registration
       router.replace('/student/register');
     } catch (err) {
       setError(getErrorMessage(err));

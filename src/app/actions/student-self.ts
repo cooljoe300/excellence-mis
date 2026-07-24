@@ -178,11 +178,11 @@ export async function createMyStudentRecord(formData: FormData) {
   const userEmail = user.email ?? (formData.get('email') as string);
   const phone = (formData.get('phone') as string) || null;
 
-  // Check if student already exists with this email (prevents duplicates from admin registration)
+  // Check if student already exists with this email (for admin-registered students)
   if (userEmail) {
     const { data: existingStudent } = await supabase
       .from('students')
-      .select('id, profile_id')
+      .select('id, profile_id, admission_number, email, phone, first_name, last_name')
       .eq('email', userEmail)
       .maybeSingle();
 
@@ -196,9 +196,37 @@ export async function createMyStudentRecord(formData: FormData) {
 
         if (linkError) {
           console.error('Failed to link existing student:', linkError);
+          return { error: 'Failed to link your account to existing student record. Please contact administration.' };
         }
+
+        // Successfully linked - return success with existing student info
+        revalidatePath('/student');
+        revalidatePath('/student/register');
+        after(() => {
+          revalidatePath('/dashboard/students');
+        });
+
+        return {
+          success: true,
+          id: existingStudent.id,
+          admissionNumber: existingStudent.admission_number,
+        };
+      } else if (existingStudent.profile_id !== user.id) {
+        // Student is already linked to a different account
+        return { 
+          error: `A student with this email already exists and is linked to another account. Your admission number is ${existingStudent.admission_number}. Please contact administration if this is incorrect.` 
+        };
+      } else {
+        // Student is already linked to this user - just update their info
+        const updateResult = await updateMyStudentRecord(existingStudent.id, formData);
+        if (updateResult.error) return updateResult;
+        
+        return {
+          success: true,
+          id: existingStudent.id,
+          admissionNumber: existingStudent.admission_number,
+        };
       }
-      return { error: 'A student record with this email already exists. Please contact administration if this is incorrect.' };
     }
   }
 
@@ -206,7 +234,7 @@ export async function createMyStudentRecord(formData: FormData) {
   if (phone) {
     const { data: existingStudentByPhone, error: phoneCheckError } = await supabase
       .from('students')
-      .select('id, admission_number, email, phone, first_name, last_name')
+      .select('id, admission_number, email, phone, first_name, last_name, profile_id')
       .eq('phone', phone)
       .limit(1)
       .maybeSingle();
@@ -216,9 +244,34 @@ export async function createMyStudentRecord(formData: FormData) {
     }
 
     if (existingStudentByPhone) {
-      return { 
-        error: `A student with this phone number already exists. Your admission number is ${existingStudentByPhone.admission_number}. Please contact administration if you need to update your information.` 
-      };
+      // If student exists by phone but isn't linked to this user, link them
+      if (!existingStudentByPhone.profile_id) {
+        const { error: linkError } = await supabase
+          .from('students')
+          .update({ profile_id: user.id })
+          .eq('id', existingStudentByPhone.id);
+
+        if (linkError) {
+          console.error('Failed to link existing student by phone:', linkError);
+          return { error: 'Failed to link your account to existing student record. Please contact administration.' };
+        }
+
+        revalidatePath('/student');
+        revalidatePath('/student/register');
+        after(() => {
+          revalidatePath('/dashboard/students');
+        });
+
+        return {
+          success: true,
+          id: existingStudentByPhone.id,
+          admissionNumber: existingStudentByPhone.admission_number,
+        };
+      } else if (existingStudentByPhone.profile_id !== user.id) {
+        return { 
+          error: `A student with this phone number already exists and is linked to another account. Your admission number is ${existingStudentByPhone.admission_number}. Please contact administration if you need to update your information.` 
+        };
+      }
     }
   }
 
