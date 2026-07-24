@@ -53,7 +53,13 @@ export function LoginForm() {
       .maybeSingle();
 
     if (profile?.must_change_password) {
-      router.replace('/change-password');
+      // Redirect to appropriate password change page based on role
+      const role = data.user?.user_metadata?.role || profile?.role;
+      if (role === 'student') {
+        router.replace('/student/change-password');
+      } else {
+        router.replace('/change-password');
+      }
       return;
     }
 

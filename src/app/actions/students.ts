@@ -108,6 +108,23 @@ export async function createStudent(formData: FormData) {
       return { error: `Failed to create authentication account: ${authError.message}` };
     }
     authUserId = authData.user.id;
+
+    // Create profile with must_change_password = true
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: authUserId,
+        email: email,
+        full_name: `${firstName} ${lastName}`,
+        role: 'student',
+        must_change_password: true,
+      });
+
+    if (profileError) {
+      // Rollback auth user creation if profile creation fails
+      await adminSupabase.auth.admin.deleteUser(authUserId);
+      return { error: `Failed to create profile: ${profileError.message}` };
+    }
   } else {
     // If auth user exists, ensure profile has correct role
     const { data: profile } = await supabase
@@ -185,6 +202,9 @@ export async function createStudent(formData: FormData) {
     admissionNumber: data.admission_number ?? data.student_number,
     temporaryPassword,
     email,
+    phone,
+    first_name: firstName,
+    last_name: lastName,
     authUserId,
   };
 }
@@ -278,4 +298,58 @@ export async function deleteStudent(id: string) {
   revalidatePath('/dashboard/students');
   revalidatePath('/dashboard/fees');
   return { success: true };
+}
+
+export async function generateStudentLoginDetails(studentId: string) {
+  const supabase = await createClient();
+  const admin = createAdminClient();
+
+  // Get student details
+  const { data: student, error: studentError } = await supabase
+    .from('students')
+    .select('id, admission_number, first_name, last_name, email, phone, profile_id')
+    .eq('id', studentId)
+    .single();
+
+  if (studentError || !student) {
+    return { error: 'Student not found.' };
+  }
+
+  if (!student.profile_id) {
+    return { error: 'Student does not have a portal account.' };
+  }
+
+  // Generate new temporary password
+  const temporaryPassword = generateTemporaryPassword();
+
+  // Update auth user password
+  const { error: authError } = await admin.auth.admin.updateUserById(student.profile_id, {
+    password: temporaryPassword,
+  });
+
+  if (authError) {
+    return { error: 'Failed to update password: ' + authError.message };
+  }
+
+  // Set must_change_password to true
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ must_change_password: true, updated_at: new Date().toISOString() })
+    .eq('id', student.profile_id);
+
+  if (profileError) {
+    console.error('Failed to set must_change_password:', profileError);
+  }
+
+  revalidatePath('/dashboard/students');
+
+  return {
+    success: true,
+    admissionNumber: student.admission_number,
+    email: student.email,
+    temporaryPassword,
+    phone: student.phone,
+    firstName: student.first_name,
+    lastName: student.last_name,
+  };
 }

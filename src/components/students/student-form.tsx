@@ -16,7 +16,7 @@ import {
   setStudentEnrollmentsForTerm,
 } from '@/app/actions/enrollments';
 import type { Program, Student, Intake } from '@/lib/types';
-import { UserPlus, Info, Copy, Mail, Download, CheckCircle2 } from 'lucide-react';
+import { UserPlus, Info, Copy, Mail, Download, CheckCircle2, MessageCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 const statusOptions = [
@@ -52,6 +52,9 @@ export function StudentForm({
     email: string;
     temporaryPassword: string | null;
     studentId: string;
+    phone: string;
+    firstName: string;
+    lastName: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -155,6 +158,9 @@ export function StudentForm({
         email: (result as any).email || '',
         temporaryPassword: result.temporaryPassword as string,
         studentId: (result as any).id || '',
+        phone: (result as any).phone || '',
+        firstName: (result as any).first_name || '',
+        lastName: (result as any).last_name || '',
       });
       setShowLoginModal(true);
       setLoading(false);
@@ -199,6 +205,60 @@ Regards,
 Admissions Office
 Excellence Online College`);
     window.open(`mailto:${loginDetails.email}?subject=${subject}&body=${body}`);
+  }
+
+  function formatPhoneForWhatsApp(phone: string): string {
+    if (!phone) return '';
+    // Remove all non-digit characters
+    let cleaned = phone.replace(/\D/g, '');
+    
+    // If starts with 0, replace with 254 (Kenya)
+    if (cleaned.startsWith('0')) {
+      cleaned = '254' + cleaned.substring(1);
+    }
+    
+    // If starts with +254, remove the +
+    if (cleaned.startsWith('+254')) {
+      cleaned = cleaned.substring(1);
+    }
+    
+    // If already starts with 254, use as is
+    if (!cleaned.startsWith('254')) {
+      cleaned = '254' + cleaned;
+    }
+    
+    return cleaned;
+  }
+
+  function sendLoginDetailsWhatsApp() {
+    if (!loginDetails) return;
+    
+    const formattedPhone = formatPhoneForWhatsApp(loginDetails.phone);
+    if (!formattedPhone) {
+      alert('No phone number available for this student.');
+      return;
+    }
+    
+    const message = `Hello ${loginDetails.firstName} ${loginDetails.lastName},
+
+Your Excellence Online College Student Portal account has been created successfully.
+
+Student Portal Login Details:
+
+Admission Number: ${loginDetails.admissionNumber}
+Email: ${loginDetails.email}
+Temporary Password: ${loginDetails.temporaryPassword}
+
+Student Portal: ${window.location.origin}/student
+
+Please log in using the temporary password. For security purposes, you will be required to create a new password immediately after your first login.
+
+Regards,
+Excellence Online College`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
   }
 
   function closeModal() {
@@ -419,6 +479,10 @@ Excellence Online College`);
           <Button onClick={copyLoginDetails} variant="secondary" className="flex-1">
             <Copy className="h-4 w-4 mr-2" />
             {copied ? 'Copied!' : 'Copy Details'}
+          </Button>
+          <Button onClick={sendLoginDetailsWhatsApp} variant="secondary" className="flex-1">
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Send via WhatsApp
           </Button>
           <Button onClick={sendLoginDetailsEmail} variant="secondary" className="flex-1">
             <Mail className="h-4 w-4 mr-2" />

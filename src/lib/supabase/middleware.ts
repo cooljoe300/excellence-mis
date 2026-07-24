@@ -82,8 +82,9 @@ export async function updateSession(request: NextRequest) {
       // Always check must_change_password for protected routes
       const isProtectedRoute = isDashboard || isStudentPortal || isAuthPage || isStudentSignup || isHome;
       const isChangePasswordPage = pathname === '/change-password';
+      const isStudentChangePasswordPage = pathname === '/student/change-password';
 
-      if (isProtectedRoute && !isChangePasswordPage) {
+      if (isProtectedRoute && !isChangePasswordPage && !isStudentChangePasswordPage) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('role, must_change_password')
@@ -93,7 +94,13 @@ export async function updateSession(request: NextRequest) {
         // Check if user must change password - this takes priority over everything
         if (profile?.must_change_password) {
           const url = request.nextUrl.clone();
-          url.pathname = '/change-password';
+          // Redirect to appropriate password change page based on role
+          const role = getRoleFromMetadata(user.user_metadata) || profile?.role;
+          if (role === 'student') {
+            url.pathname = '/student/change-password';
+          } else {
+            url.pathname = '/change-password';
+          }
           return NextResponse.redirect(url);
         }
 

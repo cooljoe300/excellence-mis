@@ -1,20 +1,110 @@
-import { Suspense } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PageHeader, DataTable } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
 import { getStudents } from '@/app/actions/students';
+import { generateStudentLoginDetails } from '@/app/actions/students';
 import { formatDate, getAdmissionNumber } from '@/lib/utils';
 import { getRegistrationSourceLabel } from '@/lib/auth';
 import { StudentSearch } from '@/components/students/student-search';
+import { MessageCircle, Copy, CheckCircle2 } from 'lucide-react';
 
-export default async function StudentsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
-  const { q } = await searchParams;
-  const students = await getStudents(q);
+export default function StudentsPage() {
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [loginDetails, setLoginDetails] = useState<any | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    async function loadStudents() {
+      const data = await getStudents();
+      setStudents(data);
+      setLoading(false);
+    }
+    loadStudents();
+  }, []);
+
+  async function handleSendWhatsApp(studentId: string) {
+    setGenerating(true);
+    const result = await generateStudentLoginDetails(studentId);
+    setGenerating(false);
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    setLoginDetails(result);
+    setWhatsappModalOpen(true);
+  }
+
+  function formatPhoneForWhatsApp(phone: string): string {
+    if (!phone) return '';
+    let cleaned = phone.replace(/\D/g, '');
+    
+    if (cleaned.startsWith('0')) {
+      cleaned = '254' + cleaned.substring(1);
+    }
+    
+    if (cleaned.startsWith('+254')) {
+      cleaned = cleaned.substring(1);
+    }
+    
+    if (!cleaned.startsWith('254')) {
+      cleaned = '254' + cleaned;
+    }
+    
+    return cleaned;
+  }
+
+  function sendWhatsApp() {
+    if (!loginDetails) return;
+    
+    const formattedPhone = formatPhoneForWhatsApp(loginDetails.phone);
+    if (!formattedPhone) {
+      alert('No phone number available for this student.');
+      return;
+    }
+    
+    const message = `Hello ${loginDetails.firstName} ${loginDetails.lastName},
+
+Your Excellence Online College Student Portal login details have been reset.
+
+Student Portal Login Details:
+
+Admission Number: ${loginDetails.admissionNumber}
+Email: ${loginDetails.email}
+Temporary Password: ${loginDetails.temporaryPassword}
+
+Student Portal: ${window.location.origin}/student
+
+Please log in using the temporary password. For security purposes, you will be required to create a new password immediately after your first login.
+
+Regards,
+Excellence Online College`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  }
+
+  function copyLoginDetails() {
+    if (!loginDetails) return;
+    const text = `Student Portal Login Details\n\nAdmission Number: ${loginDetails.admissionNumber}\nEmail: ${loginDetails.email}\nTemporary Password: ${loginDetails.temporaryPassword}\n\nStudent Portal: ${window.location.origin}/student`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (loading) {
+    return <div className="p-8 text-center text-slate-500">Loading students...</div>;
+  }
 
   return (
     <div>
@@ -29,9 +119,7 @@ export default async function StudentsPage({
       />
 
       <div className="mb-6">
-        <Suspense fallback={<div className="h-10 max-w-md animate-pulse rounded-lg bg-slate-100" />}>
-          <StudentSearch defaultValue={q} />
-        </Suspense>
+        <StudentSearch />
       </div>
 
       {students.length === 0 ? (
@@ -97,9 +185,22 @@ export default async function StudentsPage({
                   </td>
                   <td className="px-6 py-4 text-slate-500">{formatDate(student.enrollment_date)}</td>
                   <td className="px-6 py-4 text-right">
-                    <Link href={`/dashboard/students/${student.id}`}>
-                      <Button variant="ghost" size="sm">View</Button>
-                    </Link>
+                    <div className="flex justify-end gap-2">
+                      {student.profile_id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSendWhatsApp(student.id)}
+                          disabled={generating}
+                          title="Send login details via WhatsApp"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Link href={`/dashboard/students/${student.id}`}>
+                        <Button variant="ghost" size="sm">View</Button>
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -107,6 +208,59 @@ export default async function StudentsPage({
           </table>
         </DataTable>
       )}
+
+      {/* WhatsApp Modal */}
+      <Modal
+        open={whatsappModalOpen}
+        onClose={() => setWhatsappModalOpen(false)}
+        title="Student Login Details"
+        size="lg"
+      >
+        <div className="space-y-6">
+          <div className="flex items-center justify-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase">Admission Number</p>
+              <p className="text-lg font-mono font-bold text-slate-900">{loginDetails?.admissionNumber}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase">Email</p>
+              <p className="text-sm font-medium text-slate-900">{loginDetails?.email}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase">Temporary Password</p>
+              <p className="text-lg font-mono font-bold text-slate-900">{loginDetails?.temporaryPassword}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase">Student Portal</p>
+              <p className="text-sm font-medium text-blue-600">{window.location.origin}/student</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={copyLoginDetails} variant="secondary" className="flex-1">
+              <Copy className="h-4 w-4 mr-2" />
+              {copied ? 'Copied!' : 'Copy Details'}
+            </Button>
+            <Button onClick={sendWhatsApp} variant="secondary" className="flex-1">
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Send via WhatsApp
+            </Button>
+            <Button onClick={() => setWhatsappModalOpen(false)} className="flex-1">
+              Done
+            </Button>
+          </div>
+
+          <p className="text-xs text-slate-500 text-center">
+            A new temporary password has been generated. The student will be required to change it on next login.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }
