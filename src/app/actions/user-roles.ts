@@ -43,6 +43,24 @@ export interface ManagedUserRow {
   created_at: string;
 }
 
+async function requireSuperadmin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: 'You must be signed in.', userId: null as string | null };
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error) return { error: error.message, userId: user.id };
+  if (profile?.role !== 'superadmin') return { error: 'Only superadmins can perform this action.', userId: user.id };
+  return { error: null, userId: user.id };
+}
+
 async function requireAdmin() {
   const supabase = await createClient();
   const {
@@ -96,14 +114,92 @@ export async function getManagedUsers() {
   return filteredRows as ManagedUserRow[];
 }
 
+export async function createUser(formData: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  temporaryPassword: string;
+  role: string;
+}) {
+  const gate = await requireAdmin();
+  if (gate.error) return { error: gate.error };
+
+  const { firstName, lastName, email, phone, temporaryPassword, role } = formData;
+
+  // Validate role
+  if (!isValidRole(role)) return { error: 'Invalid role selected.' };
+
+  // Only superadmin can assign superadmin role
+  if (role === 'superadmin') {
+    const superadminGate = await requireSuperadmin();
+    if (superadminGate.error) return { error: 'Only superadmins can assign the superadmin role.' };
+  }
+
+  const supabase = await createClient();
+  const admin = createAdminClient();
+
+  // Check if email already exists
+  const { data: existingUser } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .eq('email', email.toLowerCase().trim())
+    .maybeSingle();
+
+  if (existingUser) {
+    return { error: 'A user with this email already exists. Please edit the existing user instead.' };
+  }
+
+  // Create auth user
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    email: email.toLowerCase().trim(),
+    password: temporaryPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: `${firstName} ${lastName}`.trim(),
+      role,
+    },
+  });
+
+  if (authError) return { error: authError.message };
+  if (!authData.user) return { error: 'Failed to create user account.' };
+
+  // Create profile with must_change_password = true
+  const { error: profileError } = await supabase.from('profiles').insert({
+    id: authData.user.id,
+    email: email.toLowerCase().trim(),
+    full_name: `${firstName} ${lastName}`.trim(),
+    role,
+    phone: phone || null,
+    must_change_password: true,
+  });
+
+  if (profileError) {
+    // Rollback auth user creation if profile creation fails
+    await admin.auth.admin.deleteUser(authData.user.id);
+    return { error: profileError.message };
+  }
+
+  revalidatePath('/dashboard/users');
+  revalidatePath('/dashboard');
+
+  return { success: true, userId: authData.user.id };
+}
+
 export async function updateUserRole(userId: string, role: string, reason?: string) {
   const gate = await requireAdmin();
   if (gate.error) return { error: gate.error };
   if (!userId) return { error: 'User id is required.' };
   if (!isValidRole(role)) return { error: 'Invalid role selected.' };
 
-  if (gate.userId === userId && role !== 'admin') {
-    return { error: 'You cannot remove your own admin role.' };
+  // Only superadmin can assign superadmin role
+  if (role === 'superadmin') {
+    const superadminGate = await requireSuperadmin();
+    if (superadminGate.error) return { error: 'Only superadmins can assign the superadmin role.' };
+  }
+
+  if (gate.userId === userId && role !== 'superadmin' && role !== 'admin') {
+    return { error: 'You cannot demote your own admin role.' };
   }
 
   // Prevent removing the last administrator
@@ -163,6 +259,37 @@ export async function updateUserRole(userId: string, role: string, reason?: stri
   revalidatePath('/dashboard/users');
   revalidatePath('/dashboard/settings');
   revalidatePath('/dashboard');
+
+  return { success: true };
+}
+
+export async function resetUserPassword(userId: string, temporaryPassword: string) {
+  const gate = await requireAdmin();
+  if (gate.error) return { error: gate.error };
+  if (!userId) return { error: 'User id is required.' };
+  if (!temporaryPassword || temporaryPassword.length < 6) {
+    return { error: 'Password must be at least 6 characters.' };
+  }
+
+  const admin = createAdminClient();
+  const supabase = await createClient();
+
+  // Update auth user password
+  const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+    password: temporaryPassword,
+  });
+
+  if (authError) return { error: authError.message };
+
+  // Set must_change_password to true
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ must_change_password: true, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+
+  if (profileError) return { error: profileError.message };
+
+  revalidatePath('/dashboard/users');
 
   return { success: true };
 }

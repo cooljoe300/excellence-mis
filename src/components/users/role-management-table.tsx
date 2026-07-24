@@ -4,12 +4,21 @@ import { useState } from 'react';
 import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
-import { updateUserRole, deleteUser, type ManagedUserRow } from '@/app/actions/user-roles';
+import { Input } from '@/components/ui/input';
+import { updateUserRole, deleteUser, resetUserPassword, type ManagedUserRow } from '@/app/actions/user-roles';
 import { formatDate } from '@/lib/utils';
 import type { UserRole } from '@/lib/types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, KeyRound } from 'lucide-react';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'staff', label: 'Staff' },
+  { value: 'teacher', label: 'Teacher' },
+  { value: 'student', label: 'Student' },
+];
+
+const SUPERADMIN_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
+  { value: 'superadmin', label: 'Superadmin' },
   { value: 'admin', label: 'Admin' },
   { value: 'staff', label: 'Staff' },
   { value: 'teacher', label: 'Teacher' },
@@ -19,10 +28,13 @@ const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 export function RoleManagementTable({
   users,
   currentUserId,
+  currentUserRole,
 }: {
   users: ManagedUserRow[];
   currentUserId: string;
+  currentUserRole: UserRole;
 }) {
+  const roleOptions = currentUserRole === 'superadmin' ? SUPERADMIN_ROLE_OPTIONS : ROLE_OPTIONS;
   const [roleDrafts, setRoleDrafts] = useState<Record<string, UserRole>>(
     Object.fromEntries(users.map((user) => [user.id, user.role]))
   );
@@ -32,6 +44,11 @@ export function RoleManagementTable({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<ManagedUserRow | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [userToResetPassword, setUserToResetPassword] = useState<ManagedUserRow | null>(null);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
 
   async function saveRole(userId: string) {
     const role = roleDrafts[userId];
@@ -78,6 +95,38 @@ export function RoleManagementTable({
     setDeleteLoading(false);
   }
 
+  function openResetPasswordDialog(user: ManagedUserRow) {
+    setUserToResetPassword(user);
+    setTemporaryPassword('');
+    setResetPasswordError(null);
+    setResetPasswordDialogOpen(true);
+  }
+
+  async function confirmResetPassword() {
+    if (!userToResetPassword || !temporaryPassword) return;
+    setResetPasswordLoading(true);
+    setResetPasswordError(null);
+
+    if (temporaryPassword.length < 6) {
+      setResetPasswordError('Password must be at least 6 characters.');
+      setResetPasswordLoading(false);
+      return;
+    }
+
+    const result = await resetUserPassword(userToResetPassword.id, temporaryPassword);
+    if (result.error) {
+      setResetPasswordError(result.error);
+      setResetPasswordLoading(false);
+      return;
+    }
+
+    setResetPasswordDialogOpen(false);
+    setUserToResetPassword(null);
+    setResetPasswordLoading(false);
+    setMessage('Password reset successfully. User will need to change it on next login.');
+    setTimeout(() => setMessage(null), 3000);
+  }
+
   return (
     <div className="space-y-4">
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -121,7 +170,7 @@ export function RoleManagementTable({
                           onChange={(e) =>
                             setRoleDrafts((prev) => ({ ...prev, [user.id]: e.target.value as UserRole }))
                           }
-                          options={ROLE_OPTIONS}
+                          options={roleOptions}
                         />
                       </div>
                       <Button
@@ -134,15 +183,25 @@ export function RoleManagementTable({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => openDeleteDialog(user)}
-                      disabled={isCurrentUser}
-                      title={isCurrentUser ? "You cannot delete your own account" : "Delete user"}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => openResetPasswordDialog(user)}
+                        title="Reset password"
+                      >
+                        <KeyRound className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => openDeleteDialog(user)}
+                        disabled={isCurrentUser}
+                        title={isCurrentUser ? "You cannot delete your own account" : "Delete user"}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -176,6 +235,48 @@ export function RoleManagementTable({
               disabled={deleteLoading}
             >
               {deleteLoading ? 'Deleting...' : 'Delete User'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reset Password Modal */}
+      <Modal
+        open={resetPasswordDialogOpen}
+        onClose={() => setResetPasswordDialogOpen(false)}
+        title="Reset Password"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Set a new temporary password for <strong>{userToResetPassword?.full_name || 'this user'}</strong>. They will need to change it on next login.
+          </p>
+          <Input
+            label="Temporary Password"
+            type="password"
+            value={temporaryPassword}
+            onChange={(e) => setTemporaryPassword(e.target.value)}
+            placeholder="Min. 6 characters"
+            minLength={6}
+          />
+          {resetPasswordError && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {resetPasswordError}
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setResetPasswordDialogOpen(false)}
+              disabled={resetPasswordLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmResetPassword}
+              disabled={resetPasswordLoading}
+            >
+              {resetPasswordLoading ? 'Resetting...' : 'Reset Password'}
             </Button>
           </div>
         </div>

@@ -86,10 +86,17 @@ export async function updateSession(request: NextRequest) {
       if (needsRoleFromDb) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, must_change_password')
           .eq('id', user.id)
           .maybeSingle();
         role = resolveRole(user.user_metadata, profile?.role);
+
+        // Check if user must change password
+        if (profile?.must_change_password && pathname !== '/change-password') {
+          const url = request.nextUrl.clone();
+          url.pathname = '/change-password';
+          return NextResponse.redirect(url);
+        }
       }
 
       // If role cannot be determined, redirect to error page

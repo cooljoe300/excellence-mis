@@ -5,10 +5,11 @@ import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserRole } from '@/lib/auth';
 import { getManagedUsers } from '@/app/actions/user-roles';
 import { RoleManagementTable } from '@/components/users/role-management-table';
+import { AddUserDialog } from '@/components/users/add-user-dialog';
 
 export default async function UserRolesPage() {
   const role = await getCurrentUserRole();
-  if (role !== 'admin') redirect('/dashboard');
+  if (role !== 'superadmin' && role !== 'admin') redirect('/dashboard');
 
   const supabase = await createClient();
   const {
@@ -23,6 +24,7 @@ export default async function UserRolesPage() {
       <PageHeader
         title="Users & Roles"
         description="Manage account access levels for staff, teachers, admins, and students"
+        action={<AddUserDialog currentUserId={user.id} currentUserRole={role} />}
       />
 
       <Card>
@@ -33,7 +35,7 @@ export default async function UserRolesPage() {
           <p className="text-sm text-slate-600">
             Change a user&apos;s role to control what they can access in the portal.
           </p>
-          <RoleManagementTable users={users} currentUserId={user.id} />
+          <RoleManagementTable users={users} currentUserId={user.id} currentUserRole={role} />
         </CardContent>
       </Card>
     </div>
