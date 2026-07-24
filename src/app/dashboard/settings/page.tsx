@@ -10,9 +10,10 @@ import { ExternalLink } from 'lucide-react';
 
 export default async function SettingsPage() {
   const profile = await getProfile();
-  const admissionFormat = profile?.role === 'admin' ? await getAdmissionNumberFormat() : null;
-  const programs = profile?.role === 'admin' ? await getPrograms() : [];
-  const paymentSettings = profile?.role === 'admin' ? await getPaymentSettings() : null;
+  const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin';
+  const admissionFormat = isAdmin ? await getAdmissionNumberFormat() : null;
+  const programs = isAdmin ? await getPrograms() : [];
+  const paymentSettings = isAdmin ? await getPaymentSettings() : null;
   const pesapalConfigured = isPesapalConfigured();
   const pesapalMissingConfig = getPesapalMissingConfig();
 
@@ -44,11 +45,11 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
 
-        {profile?.role === 'admin' && admissionFormat && (
+        {isAdmin && admissionFormat && (
           <AdmissionFormatCard initialFormat={admissionFormat} programs={programs} />
         )}
 
-        {profile?.role === 'admin' && paymentSettings && (
+        {isAdmin && paymentSettings && (
           <PaymentSettingsCard
             initialSettings={paymentSettings}
             pesapalConfigured={pesapalConfigured}

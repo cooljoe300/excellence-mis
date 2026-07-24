@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { UserRole } from '@/lib/types';
 
-const VALID_ROLES: UserRole[] = ['admin', 'staff', 'teacher', 'student'];
+const VALID_ROLES: UserRole[] = ['superadmin', 'admin', 'staff', 'teacher', 'student'];
 
 interface RoleChangeLog {
   userId: string;
@@ -57,7 +57,7 @@ async function requireAdmin() {
     .maybeSingle();
 
   if (error) return { error: error.message, userId: user.id };
-  if (profile?.role !== 'admin') return { error: 'Only admins can manage user roles.', userId: user.id };
+  if (profile?.role !== 'superadmin' && profile?.role !== 'admin') return { error: 'Only admins can manage user roles.', userId: user.id };
   return { error: null, userId: user.id };
 }
 

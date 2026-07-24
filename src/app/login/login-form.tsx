@@ -49,7 +49,7 @@ export function LoginForm() {
       router.replace('/student');
       return;
     }
-    if (role === 'admin' || role === 'staff' || role === 'teacher') {
+    if (role === 'superadmin' || role === 'admin' || role === 'staff' || role === 'teacher') {
       router.replace('/dashboard');
       return;
     }

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export function getRoleFromMetadata(metadata: Record<string, unknown> | undefined): UserRole | null {
   const metaRole = metadata?.role;
-  if (metaRole === 'admin' || metaRole === 'staff' || metaRole === 'teacher' || metaRole === 'student') {
+  if (metaRole === 'superadmin' || metaRole === 'admin' || metaRole === 'staff' || metaRole === 'teacher' || metaRole === 'student') {
     return metaRole;
   }
   return null;
@@ -31,7 +31,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
     .maybeSingle();
 
   const role = profile?.role;
-  if (role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student' || role === 'inactive') {
+  if (role === 'superadmin' || role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student' || role === 'inactive') {
     return role;
   }
   

@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'staff' | 'teacher' | 'student' | 'inactive';
+export type UserRole = 'superadmin' | 'admin' | 'staff' | 'teacher' | 'student' | 'inactive';
 export type StudentStatus = 'active' | 'inactive' | 'graduated' | 'suspended' | 'withdrawn';
 export type EnrollmentStatus = 'pending' | 'active' | 'completed' | 'dropped';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';

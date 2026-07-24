@@ -8,7 +8,7 @@ function resolveRole(
   profileRole: string | null | undefined
 ): UserRole | null {
   const role = profileRole ?? getRoleFromMetadata(metadata);
-  if (role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student') {
+  if (role === 'superadmin' || role === 'admin' || role === 'staff' || role === 'teacher' || role === 'student') {
     return role;
   }
   // Return null for inactive or unknown roles - do NOT default to staff

@@ -26,7 +26,7 @@ export default async function DashboardPage() {
     getProfile(),
   ]);
 
-  const isAdmin = profile?.role === 'admin';
+  const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin';
   const adminStats = isAdmin ? await getAdminDashboardStats() : null;
 
   return (
