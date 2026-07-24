@@ -79,23 +79,27 @@ export async function updateSession(request: NextRequest) {
     if (user) {
       let role = getRoleFromMetadata(user.user_metadata);
 
-      const needsRoleFromDb =
-        !role &&
-        (isDashboard || isAuthPage || isStudentSignup || isStudentPortal || isHome);
+      // Always check must_change_password for protected routes
+      const isProtectedRoute = isDashboard || isStudentPortal || isAuthPage || isStudentSignup || isHome;
+      const isChangePasswordPage = pathname === '/change-password';
 
-      if (needsRoleFromDb) {
+      if (isProtectedRoute && !isChangePasswordPage) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('role, must_change_password')
           .eq('id', user.id)
           .maybeSingle();
-        role = resolveRole(user.user_metadata, profile?.role);
 
-        // Check if user must change password
-        if (profile?.must_change_password && pathname !== '/change-password') {
+        // Check if user must change password - this takes priority over everything
+        if (profile?.must_change_password) {
           const url = request.nextUrl.clone();
           url.pathname = '/change-password';
           return NextResponse.redirect(url);
+        }
+
+        // Resolve role if not in metadata
+        if (!role) {
+          role = resolveRole(user.user_metadata, profile?.role);
         }
       }
 

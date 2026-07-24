@@ -5,10 +5,10 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
-import { updateUserRole, deleteUser, resetUserPassword, type ManagedUserRow } from '@/app/actions/user-roles';
+import { updateUserRole, deleteUser, resetUserPassword, forcePasswordChange, type ManagedUserRow } from '@/app/actions/user-roles';
 import { formatDate } from '@/lib/utils';
 import type { UserRole } from '@/lib/types';
-import { Trash2, KeyRound } from 'lucide-react';
+import { Trash2, KeyRound, RefreshCw } from 'lucide-react';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
@@ -49,6 +49,9 @@ export function RoleManagementTable({
   const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const [temporaryPassword, setTemporaryPassword] = useState('');
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [forcePasswordChangeDialogOpen, setForcePasswordChangeDialogOpen] = useState(false);
+  const [userToForcePasswordChange, setUserToForcePasswordChange] = useState<ManagedUserRow | null>(null);
+  const [forcePasswordChangeLoading, setForcePasswordChangeLoading] = useState(false);
 
   async function saveRole(userId: string) {
     const role = roleDrafts[userId];
@@ -127,6 +130,29 @@ export function RoleManagementTable({
     setTimeout(() => setMessage(null), 3000);
   }
 
+  function openForcePasswordChangeDialog(user: ManagedUserRow) {
+    setUserToForcePasswordChange(user);
+    setForcePasswordChangeDialogOpen(true);
+  }
+
+  async function confirmForcePasswordChange() {
+    if (!userToForcePasswordChange) return;
+    setForcePasswordChangeLoading(true);
+
+    const result = await forcePasswordChange(userToForcePasswordChange.id);
+    if (result.error) {
+      setError(result.error);
+      setForcePasswordChangeLoading(false);
+      return;
+    }
+
+    setForcePasswordChangeDialogOpen(false);
+    setUserToForcePasswordChange(null);
+    setForcePasswordChangeLoading(false);
+    setMessage('User will be required to change their password on next login.');
+    setTimeout(() => setMessage(null), 3000);
+  }
+
   return (
     <div className="space-y-4">
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -191,6 +217,14 @@ export function RoleManagementTable({
                         title="Reset password"
                       >
                         <KeyRound className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => openForcePasswordChangeDialog(user)}
+                        title="Force password change on next login"
+                      >
+                        <RefreshCw className="h-4 w-4" />
                       </Button>
                       <Button
                         size="sm"
@@ -277,6 +311,38 @@ export function RoleManagementTable({
               disabled={resetPasswordLoading}
             >
               {resetPasswordLoading ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Force Password Change Modal */}
+      <Modal
+        open={forcePasswordChangeDialogOpen}
+        onClose={() => setForcePasswordChangeDialogOpen(false)}
+        title="Force Password Change"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Force <strong>{userToForcePasswordChange?.full_name || 'this user'}</strong> to change their password on their next login.
+          </p>
+          <p className="text-sm text-slate-500">
+            This will set the <code className="bg-slate-100 px-1 py-0.5 rounded">must_change_password</code> flag to true. The user will be redirected to the password change page when they log in next.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setForcePasswordChangeDialogOpen(false)}
+              disabled={forcePasswordChangeLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmForcePasswordChange}
+              disabled={forcePasswordChangeLoading}
+            >
+              {forcePasswordChangeLoading ? 'Setting...' : 'Force Password Change'}
             </Button>
           </div>
         </div>

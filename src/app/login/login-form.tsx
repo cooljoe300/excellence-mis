@@ -39,12 +39,32 @@ export function LoginForm() {
       return;
     }
 
+    if (!data.user) {
+      setError('Failed to sign in. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    // Check if user must change password - this takes priority over all other redirects
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('must_change_password, role')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    if (profile?.must_change_password) {
+      router.replace('/change-password');
+      return;
+    }
+
+    // If nextPath is provided and user doesn't need to change password, use it
     if (nextPath) {
       router.replace(nextPath);
       return;
     }
 
-    const role = data.user?.user_metadata?.role;
+    // Role-based redirect
+    const role = data.user?.user_metadata?.role || profile?.role;
     if (role === 'student') {
       router.replace('/student');
       return;
@@ -54,12 +74,7 @@ export function LoginForm() {
       return;
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', data.user!.id)
-      .maybeSingle();
-
+    // Fallback
     router.replace(profile?.role === 'student' ? '/student' : '/dashboard');
   }
 

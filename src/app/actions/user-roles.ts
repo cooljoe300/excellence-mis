@@ -349,6 +349,26 @@ export async function resetUserPassword(userId: string, temporaryPassword: strin
   return { success: true };
 }
 
+export async function forcePasswordChange(userId: string) {
+  const gate = await requireAdmin();
+  if (gate.error) return { error: gate.error };
+  if (!userId) return { error: 'User id is required.' };
+
+  const supabase = await createClient();
+
+  // Set must_change_password to true
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ must_change_password: true, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+
+  if (profileError) return { error: profileError.message };
+
+  revalidatePath('/dashboard/users');
+
+  return { success: true };
+}
+
 export async function deleteUser(userId: string) {
   const gate = await requireAdmin();
   if (gate.error) return { error: gate.error };
