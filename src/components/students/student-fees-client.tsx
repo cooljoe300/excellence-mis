@@ -296,10 +296,11 @@ function PayFeeModal({
       return;
     }
 
-    if (result.redirectUrl) {
-      window.location.href = result.redirectUrl;
-      return;
-    }
+    // Pesapal temporarily disabled - redirect logic not needed
+    // if (result.redirectUrl) {
+    //   window.location.href = result.redirectUrl;
+    //   return;
+    // }
 
     setError('PesaPal did not return a payment page.');
     setLoading(false);
