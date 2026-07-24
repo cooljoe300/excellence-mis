@@ -174,11 +174,6 @@ export default function StudentSignupPage() {
           <Link href="/login" className="font-medium text-primary hover:underline">
             Sign in
           </Link>
-          {' · '}
-          Staff?{' '}
-          <Link href="/signup" className="font-medium text-primary hover:underline">
-            Staff portal
-          </Link>
         </p>
       </div>
     </div>

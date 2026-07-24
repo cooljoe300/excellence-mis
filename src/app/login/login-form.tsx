@@ -101,9 +101,9 @@ export function LoginForm() {
         </form>
 
         <p className="mt-6 text-center text-sm text-muted">
-          Staff?{' '}
-          <Link href="/signup" className="font-medium text-primary hover:underline">
-            Create staff account
+          Already have an account?{' '}
+          <Link href="/login" className="font-medium text-primary hover:underline">
+            Sign in
           </Link>
           {' · '}
           Student?{' '}
