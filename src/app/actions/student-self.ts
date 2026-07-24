@@ -175,8 +175,10 @@ export async function createMyStudentRecord(formData: FormData) {
     return { error: 'First name and last name are required.' };
   }
 
-  // Check if student already exists with this email (prevents duplicates from admin registration)
   const userEmail = user.email ?? (formData.get('email') as string);
+  const phone = (formData.get('phone') as string) || null;
+
+  // Check if student already exists with this email (prevents duplicates from admin registration)
   if (userEmail) {
     const { data: existingStudent } = await supabase
       .from('students')
@@ -197,6 +199,26 @@ export async function createMyStudentRecord(formData: FormData) {
         }
       }
       return { error: 'A student record with this email already exists. Please contact administration if this is incorrect.' };
+    }
+  }
+
+  // Check if student already exists with this phone number
+  if (phone) {
+    const { data: existingStudentByPhone, error: phoneCheckError } = await supabase
+      .from('students')
+      .select('id, admission_number, email, phone, first_name, last_name')
+      .eq('phone', phone)
+      .limit(1)
+      .maybeSingle();
+
+    if (phoneCheckError) {
+      return { error: 'Error checking for existing student: ' + phoneCheckError.message };
+    }
+
+    if (existingStudentByPhone) {
+      return { 
+        error: `A student with this phone number already exists. Your admission number is ${existingStudentByPhone.admission_number}. Please contact administration if you need to update your information.` 
+      };
     }
   }
 
@@ -231,6 +253,12 @@ export async function createMyStudentRecord(formData: FormData) {
     .single();
 
   if (error) {
+    // Provide user-friendly error for admission number conflicts
+    if (error.message.includes('duplicate key') && error.message.includes('admission_number')) {
+      return { 
+        error: 'Could not generate a unique admission number. Please try again. The system will automatically find the next available number.' 
+      };
+    }
     if (error.code === '23505') {
       return { error: 'You have already registered.' };
     }

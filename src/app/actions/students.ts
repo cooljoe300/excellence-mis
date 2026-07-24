@@ -58,6 +58,28 @@ export async function createStudent(formData: FormData) {
   const email = formData.get('email') as string;
   const firstName = formData.get('first_name') as string;
   const lastName = formData.get('last_name') as string;
+  const phone = (formData.get('phone') as string) || null;
+
+  // Check if student already exists with this email or phone
+  const { data: existingStudent, error: studentCheckError } = await supabase
+    .from('students')
+    .select('id, admission_number, email, phone, first_name, last_name')
+    .or(`email.eq.${email},phone.eq.${phone}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (studentCheckError) {
+    return { error: 'Error checking for existing student: ' + studentCheckError.message };
+  }
+
+  if (existingStudent) {
+    const matchReason = existingStudent.email === email 
+      ? 'email' 
+      : existingStudent.phone === phone ? 'phone number' : 'email or phone';
+    return { 
+      error: `A student with this ${matchReason} already exists. Student: ${existingStudent.first_name} ${existingStudent.last_name} (${existingStudent.admission_number}). Please check the existing student record instead of creating a duplicate.` 
+    };
+  }
 
   // Check if auth user already exists with this email
   const { data: existingUser, error: userCheckError } = await adminSupabase.auth.admin.listUsers();
@@ -123,7 +145,7 @@ export async function createStudent(formData: FormData) {
       first_name: firstName,
       last_name: lastName,
       email: email,
-      phone: (formData.get('phone') as string) || null,
+      phone: phone,
       date_of_birth: (formData.get('date_of_birth') as string) || null,
       gender: (formData.get('gender') as string) || null,
       nationality: (formData.get('nationality') as string) || null,
@@ -147,7 +169,15 @@ export async function createStudent(formData: FormData) {
     .select('id, admission_number, student_number')
     .single();
 
-  if (error) return { error: error.message };
+  if (error) {
+    // Provide user-friendly error for admission number conflicts
+    if (error.message.includes('duplicate key') && error.message.includes('admission_number')) {
+      return { 
+        error: 'Could not generate a unique admission number. Please try again. The system will automatically find the next available number.' 
+      };
+    }
+    return { error: error.message };
+  }
   revalidatePath('/dashboard/students');
   return {
     success: true,
