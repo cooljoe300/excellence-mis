@@ -3,9 +3,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { PaymentStatus } from '@/lib/types';
-import { whatsappService } from '@/lib/whatsapp-service';
-import { logWhatsAppNotification } from '@/app/actions/whatsapp-notifications';
+import { logWhatsAppNotification, getWhatsAppService } from '@/app/actions/whatsapp-notifications';
 import { getSystemSettings } from '@/app/actions/system-settings';
+import { whatsappService } from '@/lib/whatsapp-service';
 
 export async function getFeePayments() {
   const supabase = await createClient();
@@ -201,7 +201,15 @@ export async function approveFeePaymentSubmission(submissionId: string) {
             year: 'numeric' 
           });
 
-          const notificationResult = await whatsappService.sendPaymentApprovedNotification({
+          // Use settings-based service if credentials are configured, otherwise fallback to env vars
+          const hasDbCredentials = settings.some((s: any) => 
+            s.key.startsWith('whatsapp_twilio_') || 
+            s.key.startsWith('whatsapp_messagebird_') || 
+            s.key.startsWith('whatsapp_meta_')
+          );
+          
+          const service = hasDbCredentials ? await getWhatsAppService() : whatsappService;
+          const notificationResult = await service.sendPaymentApprovedNotification({
             recipientPhone: student.phone,
             templateName: 'payment_approved',
             templateData: {
@@ -303,7 +311,15 @@ export async function rejectFeePaymentSubmission(submissionId: string, rejection
       if (student && student.phone) {
         const admissionNumber = student.student_number || 'N/A';
 
-        const notificationResult = await whatsappService.sendPaymentRejectedNotification({
+        // Use settings-based service if credentials are configured, otherwise fallback to env vars
+        const hasDbCredentials = settings.some((s: any) => 
+          s.key.startsWith('whatsapp_twilio_') || 
+          s.key.startsWith('whatsapp_messagebird_') || 
+          s.key.startsWith('whatsapp_meta_')
+        );
+        
+        const service = hasDbCredentials ? await getWhatsAppService() : whatsappService;
+        const notificationResult = await service.sendPaymentRejectedNotification({
           recipientPhone: student.phone,
           templateName: 'payment_rejected',
           templateData: {

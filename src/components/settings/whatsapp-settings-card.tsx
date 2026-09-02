@@ -8,6 +8,7 @@ import { Select } from '@/components/ui/select';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
 import { whatsappService } from '@/lib/whatsapp-service';
+import { saveWhatsAppSettings } from '@/app/actions/whatsapp-notifications';
 import { Bell, CheckCircle2, XCircle, MessageCircle } from 'lucide-react';
 
 interface WhatsAppSettingsCardProps {
@@ -33,6 +34,15 @@ export function WhatsAppSettingsCard({ initialSettings }: WhatsAppSettingsCardPr
     enablePending: initialSettings?.enablePending ?? true,
     enableApproved: initialSettings?.enableApproved ?? true,
     enableRejected: initialSettings?.enableRejected ?? true,
+    // Twilio credentials
+    twilioAccountSid: initialSettings?.twilioAccountSid || '',
+    twilioAuthToken: initialSettings?.twilioAuthToken || '',
+    twilioWhatsappNumber: initialSettings?.twilioWhatsappNumber || '',
+    // MessageBird credentials
+    messagebirdApiKey: initialSettings?.messagebirdApiKey || '',
+    // Meta credentials
+    metaAccessToken: initialSettings?.metaAccessToken || '',
+    metaPhoneNumberId: initialSettings?.metaPhoneNumberId || '',
   });
 
   const isConfigured = whatsappService.isConfigured();
@@ -40,10 +50,13 @@ export function WhatsAppSettingsCard({ initialSettings }: WhatsAppSettingsCardPr
   async function handleSave() {
     setLoading(true);
     try {
-      // In a real implementation, this would save to system_settings
-      // For now, we'll just show a success message
-      success('WhatsApp settings saved successfully');
-      setTestResult(null);
+      const result = await saveWhatsAppSettings(settings);
+      if (result.success) {
+        success('WhatsApp settings saved successfully');
+        setTestResult(null);
+      } else {
+        toastError(result.error || 'Failed to save settings');
+      }
     } catch (err) {
       toastError('Failed to save settings');
     } finally {
@@ -145,6 +158,64 @@ export function WhatsAppSettingsCard({ initialSettings }: WhatsAppSettingsCardPr
         />
         <p className="text-xs text-slate-500">WhatsApp number to receive payment approval notifications</p>
 
+        {settings.provider === 'twilio' && (
+          <div className="space-y-3 pt-3 border-t">
+            <p className="text-sm font-medium text-slate-700">Twilio Credentials</p>
+            <Input
+              label="Account SID"
+              value={settings.twilioAccountSid}
+              onChange={(e) => setSettings({ ...settings, twilioAccountSid: e.target.value })}
+              placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              type="password"
+            />
+            <Input
+              label="Auth Token"
+              value={settings.twilioAuthToken}
+              onChange={(e) => setSettings({ ...settings, twilioAuthToken: e.target.value })}
+              placeholder="Your Twilio Auth Token"
+              type="password"
+            />
+            <Input
+              label="WhatsApp Number"
+              value={settings.twilioWhatsappNumber}
+              onChange={(e) => setSettings({ ...settings, twilioWhatsappNumber: e.target.value })}
+              placeholder="whatsapp:+14155238886"
+            />
+          </div>
+        )}
+
+        {settings.provider === 'messagebird' && (
+          <div className="space-y-3 pt-3 border-t">
+            <p className="text-sm font-medium text-slate-700">MessageBird Credentials</p>
+            <Input
+              label="API Key"
+              value={settings.messagebirdApiKey}
+              onChange={(e) => setSettings({ ...settings, messagebirdApiKey: e.target.value })}
+              placeholder="Your MessageBird API Key"
+              type="password"
+            />
+          </div>
+        )}
+
+        {settings.provider === 'meta' && (
+          <div className="space-y-3 pt-3 border-t">
+            <p className="text-sm font-medium text-slate-700">Meta WhatsApp Credentials</p>
+            <Input
+              label="Access Token"
+              value={settings.metaAccessToken}
+              onChange={(e) => setSettings({ ...settings, metaAccessToken: e.target.value })}
+              placeholder="Your Meta WhatsApp Access Token"
+              type="password"
+            />
+            <Input
+              label="Phone Number ID"
+              value={settings.metaPhoneNumberId}
+              onChange={(e) => setSettings({ ...settings, metaPhoneNumberId: e.target.value })}
+              placeholder="Your Phone Number ID"
+            />
+          </div>
+        )}
+
         <div className="space-y-3">
           <p className="text-sm font-medium text-slate-700">Notification Types</p>
           <div className="space-y-2">
@@ -200,27 +271,11 @@ export function WhatsAppSettingsCard({ initialSettings }: WhatsAppSettingsCardPr
         )}
 
         <div className="rounded-lg bg-slate-50 p-4 text-xs text-slate-600">
-          <p className="font-medium mb-2">Environment Variables Required:</p>
+          <p className="font-medium mb-2">Configuration Notes:</p>
           <div className="space-y-1">
-            <p><code>WHATSAPP_MODE</code> - development or production</p>
-            <p><code>WHATSAPP_PROVIDER</code> - twilio, messagebird, or meta</p>
-            {settings.provider === 'twilio' && (
-              <>
-                <p><code>TWILIO_ACCOUNT_SID</code></p>
-                <p><code>TWILIO_AUTH_TOKEN</code></p>
-                <p><code>TWILIO_WHATSAPP_NUMBER</code></p>
-              </>
-            )}
-            {settings.provider === 'messagebird' && (
-              <p><code>MESSAGEBIRD_API_KEY</code></p>
-            )}
-            {settings.provider === 'meta' && (
-              <>
-                <p><code>META_WHATSAPP_ACCESS_TOKEN</code></p>
-                <p><code>META_WHATSAPP_PHONE_NUMBER_ID</code></p>
-              </>
-            )}
-            <p><code>WHATSAPP_TEST_PHONE</code> - Test number for development</p>
+            <p>• Credentials are stored securely in the database</p>
+            <p>• Use <code>WHATSAPP_MODE=development</code> environment variable to test without sending real messages</p>
+            <p>• Set <code>WHATSAPP_TEST_PHONE</code> to override recipient in development mode</p>
           </div>
         </div>
       </CardContent>

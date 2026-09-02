@@ -8,9 +8,9 @@ import { getFeePayment } from '@/app/actions/fees';
 import type { FeePayment } from '@/lib/types';
 import { getFeeBalance } from '@/lib/utils';
 import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
-import { whatsappService } from '@/lib/whatsapp-service';
-import { logWhatsAppNotification } from '@/app/actions/whatsapp-notifications';
+import { logWhatsAppNotification, getWhatsAppService } from '@/app/actions/whatsapp-notifications';
 import { getSystemSettings } from '@/app/actions/system-settings';
+import { whatsappService } from '@/lib/whatsapp-service';
 
 export async function getMyFeesPageData() {
   const student = await getMyStudentRecord();
@@ -131,7 +131,15 @@ export async function submitMyFeePayment(
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://excellence-mis.vercel.app';
         const reviewLink = `${baseUrl}/dashboard/fees?submission=${result.submission_id}`;
 
-        const notificationResult = await whatsappService.sendPaymentPendingNotification({
+        // Use settings-based service if credentials are configured, otherwise fallback to env vars
+        const hasDbCredentials = settings.some((s: any) => 
+          s.key.startsWith('whatsapp_twilio_') || 
+          s.key.startsWith('whatsapp_messagebird_') || 
+          s.key.startsWith('whatsapp_meta_')
+        );
+        
+        const service = hasDbCredentials ? await getWhatsAppService() : whatsappService;
+        const notificationResult = await service.sendPaymentPendingNotification({
           recipientPhone: financePhone,
           templateName: 'payment_pending_approval',
           templateData: {

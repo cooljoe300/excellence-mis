@@ -27,6 +27,12 @@ export default async function SettingsPage() {
     enablePending: systemSettings.find((s: any) => s.key === 'whatsapp_enable_payment_pending')?.value === 'true',
     enableApproved: systemSettings.find((s: any) => s.key === 'whatsapp_enable_payment_approved')?.value === 'true',
     enableRejected: systemSettings.find((s: any) => s.key === 'whatsapp_enable_payment_rejected')?.value === 'true',
+    twilioAccountSid: systemSettings.find((s: any) => s.key === 'whatsapp_twilio_account_sid')?.value || '',
+    twilioAuthToken: systemSettings.find((s: any) => s.key === 'whatsapp_twilio_auth_token')?.value || '',
+    twilioWhatsappNumber: systemSettings.find((s: any) => s.key === 'whatsapp_twilio_number')?.value || '',
+    messagebirdApiKey: systemSettings.find((s: any) => s.key === 'whatsapp_messagebird_api_key')?.value || '',
+    metaAccessToken: systemSettings.find((s: any) => s.key === 'whatsapp_meta_access_token')?.value || '',
+    metaPhoneNumberId: systemSettings.find((s: any) => s.key === 'whatsapp_meta_phone_number_id')?.value || '',
   } : null;
 
   return (

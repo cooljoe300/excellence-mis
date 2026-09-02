@@ -1,7 +1,23 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { whatsappService, NotificationResult, normalizePhoneNumber } from '@/lib/whatsapp-service';
+import { whatsappService, createWhatsAppService, NotificationResult, normalizePhoneNumber } from '@/lib/whatsapp-service';
+import { getSystemSettings } from '@/app/actions/system-settings';
+
+// Get WhatsApp service with credentials from settings
+async function getWhatsAppService() {
+  const settings = await getSystemSettings();
+  const credentials = {
+    twilioAccountSid: settings.find((s: any) => s.key === 'whatsapp_twilio_account_sid')?.value,
+    twilioAuthToken: settings.find((s: any) => s.key === 'whatsapp_twilio_auth_token')?.value,
+    twilioWhatsappNumber: settings.find((s: any) => s.key === 'whatsapp_twilio_number')?.value,
+    messagebirdApiKey: settings.find((s: any) => s.key === 'whatsapp_messagebird_api_key')?.value,
+    metaAccessToken: settings.find((s: any) => s.key === 'whatsapp_meta_access_token')?.value,
+    metaPhoneNumberId: settings.find((s: any) => s.key === 'whatsapp_meta_phone_number_id')?.value,
+  };
+  
+  return createWhatsAppService(credentials);
+}
 
 export interface NotificationLog {
   id: string;
@@ -124,6 +140,7 @@ export async function retryNotification(notificationId: string): Promise<Notific
 
   // Retry based on notification type
   let result: NotificationResult;
+  const service = await getWhatsAppService();
   
   switch (notification.notification_type) {
     case 'PAYMENT_PENDING_APPROVAL':
@@ -153,6 +170,67 @@ export async function retryNotification(notificationId: string): Promise<Notific
     .eq('id', notificationId);
 
   return result;
+}
+
+// Save WhatsApp settings to system_settings
+export async function saveWhatsAppSettings(settings: {
+  enabled: boolean;
+  provider: string;
+  financePhone: string;
+  enablePending: boolean;
+  enableApproved: boolean;
+  enableRejected: boolean;
+  twilioAccountSid?: string;
+  twilioAuthToken?: string;
+  twilioWhatsappNumber?: string;
+  messagebirdApiKey?: string;
+  metaAccessToken?: string;
+  metaPhoneNumberId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  
+  const settingsToSave = [
+    { key: 'whatsapp_enabled', value: settings.enabled ? 'true' : 'false' },
+    { key: 'whatsapp_provider', value: settings.provider },
+    { key: 'whatsapp_finance_phone', value: settings.financePhone },
+    { key: 'whatsapp_enable_payment_pending', value: settings.enablePending ? 'true' : 'false' },
+    { key: 'whatsapp_enable_payment_approved', value: settings.enableApproved ? 'true' : 'false' },
+    { key: 'whatsapp_enable_payment_rejected', value: settings.enableRejected ? 'true' : 'false' },
+  ];
+
+  // Add provider-specific credentials
+  if (settings.twilioAccountSid) {
+    settingsToSave.push({ key: 'whatsapp_twilio_account_sid', value: settings.twilioAccountSid });
+  }
+  if (settings.twilioAuthToken) {
+    settingsToSave.push({ key: 'whatsapp_twilio_auth_token', value: settings.twilioAuthToken });
+  }
+  if (settings.twilioWhatsappNumber) {
+    settingsToSave.push({ key: 'whatsapp_twilio_number', value: settings.twilioWhatsappNumber });
+  }
+  if (settings.messagebirdApiKey) {
+    settingsToSave.push({ key: 'whatsapp_messagebird_api_key', value: settings.messagebirdApiKey });
+  }
+  if (settings.metaAccessToken) {
+    settingsToSave.push({ key: 'whatsapp_meta_access_token', value: settings.metaAccessToken });
+  }
+  if (settings.metaPhoneNumberId) {
+    settingsToSave.push({ key: 'whatsapp_meta_phone_number_id', value: settings.metaPhoneNumberId });
+  }
+
+  // Upsert each setting
+  for (const setting of settingsToSave) {
+    const { error } = await supabase
+      .from('system_settings')
+      .upsert({ key: setting.key, value: setting.value }, { onConflict: 'key' });
+    
+    if (error) {
+      console.error('Failed to save WhatsApp setting:', setting.key, error);
+      return { success: false, error: `Failed to save ${setting.key}` };
+    }
+  }
+
+  return { success: true };
 }
 
 // Get recent notification logs for admin view

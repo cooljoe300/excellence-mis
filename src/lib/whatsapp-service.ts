@@ -74,11 +74,27 @@ class WhatsAppService {
   private provider: string;
   private isDevelopment: boolean;
   private testPhoneNumber?: string;
+  private credentials: {
+    twilioAccountSid?: string;
+    twilioAuthToken?: string;
+    twilioWhatsappNumber?: string;
+    messagebirdApiKey?: string;
+    metaAccessToken?: string;
+    metaPhoneNumberId?: string;
+  };
 
-  constructor() {
+  constructor(credentials?: {
+    twilioAccountSid?: string;
+    twilioAuthToken?: string;
+    twilioWhatsappNumber?: string;
+    messagebirdApiKey?: string;
+    metaAccessToken?: string;
+    metaPhoneNumberId?: string;
+  }) {
     this.provider = process.env.WHATSAPP_PROVIDER || 'twilio';
     this.isDevelopment = process.env.WHATSAPP_MODE === 'development';
     this.testPhoneNumber = process.env.WHATSAPP_TEST_PHONE;
+    this.credentials = credentials || {};
   }
 
   // Send payment pending approval notification to Finance
@@ -240,9 +256,9 @@ Excellence Online College`;
 
   // Send via Twilio
   private async sendViaTwilio(phone: string, message: string): Promise<NotificationResult> {
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const whatsappNumber = process.env.TWILIO_WHATSAPP_NUMBER;
+    const accountSid = this.credentials.twilioAccountSid || process.env.TWILIO_ACCOUNT_SID;
+    const authToken = this.credentials.twilioAuthToken || process.env.TWILIO_AUTH_TOKEN;
+    const whatsappNumber = this.credentials.twilioWhatsappNumber || process.env.TWILIO_WHATSAPP_NUMBER;
 
     if (!accountSid || !authToken || !whatsappNumber) {
       return {
@@ -292,7 +308,7 @@ Excellence Online College`;
 
   // Send via MessageBird
   private async sendViaMessageBird(phone: string, message: string): Promise<NotificationResult> {
-    const apiKey = process.env.MESSAGEBIRD_API_KEY;
+    const apiKey = this.credentials.messagebirdApiKey || process.env.MESSAGEBIRD_API_KEY;
     
     if (!apiKey) {
       return {
@@ -339,8 +355,8 @@ Excellence Online College`;
 
   // Send via Meta (WhatsApp Business API)
   private async sendViaMeta(phone: string, message: string): Promise<NotificationResult> {
-    const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN;
-    const phoneNumberId = process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+    const accessToken = this.credentials.metaAccessToken || process.env.META_WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = this.credentials.metaPhoneNumberId || process.env.META_WHATSAPP_PHONE_NUMBER_ID;
     
     if (!accessToken || !phoneNumberId) {
       return {
@@ -393,19 +409,31 @@ Excellence Online College`;
     
     switch (this.provider) {
       case 'twilio':
-        return !!(process.env.TWILIO_ACCOUNT_SID && 
-                 process.env.TWILIO_AUTH_TOKEN && 
-                 process.env.TWILIO_WHATSAPP_NUMBER);
+        return !!((this.credentials.twilioAccountSid || process.env.TWILIO_ACCOUNT_SID) && 
+                 (this.credentials.twilioAuthToken || process.env.TWILIO_AUTH_TOKEN) && 
+                 (this.credentials.twilioWhatsappNumber || process.env.TWILIO_WHATSAPP_NUMBER));
       case 'messagebird':
-        return !!process.env.MESSAGEBIRD_API_KEY;
+        return !!(this.credentials.messagebirdApiKey || process.env.MESSAGEBIRD_API_KEY);
       case 'meta':
-        return !!(process.env.META_WHATSAPP_ACCESS_TOKEN && 
-                 process.env.META_WHATSAPP_PHONE_NUMBER_ID);
+        return !!((this.credentials.metaAccessToken || process.env.META_WHATSAPP_ACCESS_TOKEN) && 
+                 (this.credentials.metaPhoneNumberId || process.env.META_WHATSAPP_PHONE_NUMBER_ID));
       default:
         return false;
     }
   }
 }
 
-// Export singleton instance
+// Export singleton instance (uses environment variables)
 export const whatsappService = new WhatsAppService();
+
+// Factory function to create service with credentials from settings
+export function createWhatsAppService(credentials: {
+  twilioAccountSid?: string;
+  twilioAuthToken?: string;
+  twilioWhatsappNumber?: string;
+  messagebirdApiKey?: string;
+  metaAccessToken?: string;
+  metaPhoneNumberId?: string;
+}): WhatsAppService {
+  return new WhatsAppService(credentials);
+}
