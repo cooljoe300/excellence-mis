@@ -11,6 +11,15 @@ export interface AdminDashboardStats {
   students: number;
 }
 
+export interface EnhancedDashboardStats extends DashboardStats {
+  newAdmissionsThisMonth: number;
+  studentsByProgram: { programName: string; count: number }[];
+  studentsByStatus: { status: string; count: number }[];
+  feesCollected: number;
+  outstandingFees: number;
+  studentsWithOutstanding: number;
+}
+
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createClient();
 
@@ -44,6 +53,75 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     pendingFees,
     overdueFees,
     totalRevenue,
+  };
+}
+
+export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStats> {
+  const supabase = await createClient();
+  const now = new Date();
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    baseStats,
+    newAdmissionsRes,
+    programDistributionRes,
+    statusDistributionRes,
+    feesWithStudentsRes,
+  ] = await Promise.all([
+    getDashboardStats(),
+    supabase
+      .from('students')
+      .select('id', { count: 'exact', head: true })
+      .gte('enrollment_date', firstDayOfMonth.toISOString()),
+    supabase
+      .from('students')
+      .select('program:programs(name)')
+      .not('program_id', 'is', null),
+    supabase
+      .from('students')
+      .select('status'),
+    supabase
+      .from('fee_payments')
+      .select('amount, amount_paid, status, student_id')
+  ]);
+
+  // Process program distribution
+  const programMap = new Map<string, number>();
+  programDistributionRes.data?.forEach((student) => {
+    const programName = (student.program as { name: string } | null)?.name || 'Unassigned';
+    programMap.set(programName, (programMap.get(programName) || 0) + 1);
+  });
+
+  const studentsByProgram = Array.from(programMap.entries())
+    .map(([programName, count]) => ({ programName, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Process status distribution
+  const statusMap = new Map<string, number>();
+  statusDistributionRes.data?.forEach((student) => {
+    statusMap.set(student.status, (statusMap.get(student.status) || 0) + 1);
+  });
+
+  const studentsByStatus = Array.from(statusMap.entries())
+    .map(([status, count]) => ({ status, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Process financial data
+  const fees = feesWithStudentsRes.data ?? [];
+  const feesCollected = fees.reduce((sum, f) => sum + (f.amount_paid ?? 0), 0);
+  const outstandingFees = fees.reduce((sum, f) => sum + ((f.amount ?? 0) - (f.amount_paid ?? 0)), 0);
+  const studentsWithOutstanding = new Set(
+    fees.filter(f => (f.amount ?? 0) > (f.amount_paid ?? 0)).map(f => f.student_id)
+  ).size;
+
+  return {
+    ...baseStats,
+    newAdmissionsThisMonth: newAdmissionsRes.count ?? 0,
+    studentsByProgram,
+    studentsByStatus,
+    feesCollected,
+    outstandingFees,
+    studentsWithOutstanding,
   };
 }
 
