@@ -90,7 +90,7 @@ export function QuickServices() {
             return (
               <Link key={service.title} {...linkProps}>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   className="h-full flex-col items-start gap-3 p-4 hover:bg-slate-50"
                 >
                   <div className={`rounded-lg p-2 ${service.color}`}>
