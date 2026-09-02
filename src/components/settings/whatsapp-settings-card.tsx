@@ -142,8 +142,8 @@ export function WhatsAppSettingsCard({ initialSettings }: WhatsAppSettingsCardPr
           value={settings.financePhone}
           onChange={(e) => setSettings({ ...settings, financePhone: e.target.value })}
           placeholder="254712345678"
-          helper="WhatsApp number to receive payment approval notifications"
         />
+        <p className="text-xs text-slate-500">WhatsApp number to receive payment approval notifications</p>
 
         <div className="space-y-3">
           <p className="text-sm font-medium text-slate-700">Notification Types</p>
