@@ -4,7 +4,7 @@ import { getCurrentAcademicTermId, getProgramCourses } from '@/app/actions/enrol
 
 export async function POST(request: NextRequest) {
   try {
-    const { programId } = await request.json();
+    const { programId, termId } = await request.json();
     
     if (!programId) {
       return NextResponse.json({ error: 'Program ID is required' }, { status: 400 });
@@ -28,17 +28,18 @@ export async function POST(request: NextRequest) {
 
     const studentId = student?.id;
 
-    const termId = await getCurrentAcademicTermId();
+    // Use provided termId or fall back to current academic term
+    const effectiveTermId = termId || await getCurrentAcademicTermId();
     const units = await getProgramCourses(programId);
 
-    // Get existing enrollments for the current term
+    // Get existing enrollments for the term
     let enrolledCourseIds: string[] = [];
-    if (studentId && termId) {
+    if (studentId && effectiveTermId) {
       const { data: existingEnrollments } = await supabase
         .from('enrollments')
         .select('course_id')
         .eq('student_id', studentId)
-        .eq('term_id', termId)
+        .eq('term_id', effectiveTermId)
         .in('status', ['active', 'pending']);
       
       enrolledCourseIds = (existingEnrollments ?? []).map((e) => e.course_id as string);
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
         credits: u.credits ?? 0,
         isEnrolled: enrolledCourseIds.includes(u.id),
       })),
-      termId,
+      termId: effectiveTermId,
     });
   } catch (error) {
     console.error('Error fetching program units:', error);

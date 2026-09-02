@@ -34,11 +34,13 @@ const STEPS = [
 
 export function StudentSelfForm({
   programs,
+  academicTerms,
   existingStudent,
   defaultFirstName,
   defaultLastName,
 }: {
   programs: Program[];
+  academicTerms?: any[];
   existingStudent?: Student;
   defaultFirstName?: string;
   defaultLastName?: string;
@@ -49,6 +51,7 @@ export function StudentSelfForm({
   const [success, setSuccess] = useState<{ message: string; admissionNumber?: string } | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState(existingStudent?.program_id ?? '');
+  const [selectedTermId, setSelectedTermId] = useState<string>('');
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
   const formRef = useRef<HTMLFormElement>(null);
@@ -73,7 +76,7 @@ export function StudentSelfForm({
   }, [existingStudent?.program_id, selectedProgramId]);
 
   // Load available units when program is selected
-  async function loadUnitsForProgram(programId: string) {
+  async function loadUnitsForProgram(programId: string, termId?: string) {
     if (!programId) {
       setAvailableUnits([]);
       setSelectedUnitIds([]);
@@ -86,7 +89,7 @@ export function StudentSelfForm({
       const response = await fetch('/api/enrollments/program-units', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ programId }),
+        body: JSON.stringify({ programId, termId }),
       });
       
       if (response.ok) {
@@ -106,16 +109,21 @@ export function StudentSelfForm({
     }
   }
 
-  // Load units when program changes
+  // Load units when program or term changes
   useEffect(() => {
-    if (selectedProgramId && currentStepId === 'academics') {
-      loadUnitsForProgram(selectedProgramId);
+    if (selectedProgramId && selectedTermId && currentStepId === 'academics') {
+      loadUnitsForProgram(selectedProgramId, selectedTermId);
     }
-  }, [selectedProgramId, currentStepId]);
+  }, [selectedProgramId, selectedTermId, currentStepId]);
 
   const programOptions = [
     { value: '', label: 'Select program' },
     ...programs.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` })),
+  ];
+
+  const termOptions = [
+    { value: '', label: 'Select semester' },
+    ...(academicTerms || []).map((t) => ({ value: t.id, label: `${t.name} (${t.code})` })),
   ];
 
   function validateCurrentStep() {
@@ -132,12 +140,18 @@ export function StudentSelfForm({
     if (currentStepId === 'academics') {
       const formProgramId = formData.get('program_id') as string;
       const existingProgramId = existingStudent?.program_id;
+      const formTermId = formData.get('term_id') as string;
       
       // Use existing program_id if available, otherwise check form selection or state
       const hasProgram = formProgramId || existingProgramId || selectedProgramId;
       
       if (!hasProgram) {
         setError('Please select a program.');
+        return false;
+      }
+
+      if (!formTermId && !selectedTermId) {
+        setError('Please select a semester.');
         return false;
       }
       
@@ -282,7 +296,7 @@ export function StudentSelfForm({
       const enrollResponse = await fetch('/api/enrollments/enroll-units', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ unitIds: selectedUnitIds }),
+        body: JSON.stringify({ unitIds: selectedUnitIds, termId: selectedTermId || termId }),
       });
       
       if (!enrollResponse.ok) {
@@ -569,6 +583,15 @@ export function StudentSelfForm({
               {existingStudent?.program_id && (
                 <input type="hidden" name="program_id" value={existingStudent.program_id} />
               )}
+              <Select
+                name="term_id"
+                label="Semester"
+                value={selectedTermId}
+                onChange={(e) => setSelectedTermId(e.target.value)}
+                options={termOptions}
+                required
+                completed={!!selectedTermId}
+              />
               <p className="sm:col-span-2 text-[11px] text-slate-500 -mt-2">
                 Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
               </p>

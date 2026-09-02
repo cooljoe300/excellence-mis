@@ -88,7 +88,7 @@ export async function getStudentRegisterPageData() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [profileRes, programsRes, studentByProfileRes] = await Promise.all([
+  const [profileRes, programsRes, studentByProfileRes, academicTermsRes] = await Promise.all([
     supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle(),
     supabase.from('programs').select('id, code, name, duration_months, tuition_fee, is_active, description, created_at, updated_at').eq('is_active', true).order('name'),
     supabase
@@ -96,11 +96,13 @@ export async function getStudentRegisterPageData() {
       .select('*, program:programs(id, code, name)')
       .eq('profile_id', user.id)
       .maybeSingle(),
+    supabase.from('academic_terms').select('*').order('start_date', { ascending: false }),
   ]);
 
   if (profileRes.error) throw new Error(profileRes.error.message);
   if (programsRes.error) throw new Error(programsRes.error.message);
   if (studentByProfileRes.error) throw new Error(studentByProfileRes.error.message);
+  if (academicTermsRes.error) throw new Error(academicTermsRes.error.message);
 
   let existingStudent = studentByProfileRes.data;
 
@@ -135,6 +137,7 @@ export async function getStudentRegisterPageData() {
 
   return {
     programs: programsRes.data ?? [],
+    academicTerms: academicTermsRes.data ?? [],
     existingStudent,
     defaultFirstName: existingStudent?.first_name ?? nameParts[0] ?? '',
     defaultLastName: existingStudent?.last_name ?? nameParts.slice(1).join(' ') ?? '',

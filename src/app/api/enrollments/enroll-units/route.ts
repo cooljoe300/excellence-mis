@@ -5,7 +5,7 @@ import { getUnbilledEnrollmentsForCourses, createFeeInvoiceForEnrollments } from
 
 export async function POST(request: NextRequest) {
   try {
-    const { unitIds } = await request.json();
+    const { unitIds, termId } = await request.json();
     
     if (!unitIds || !Array.isArray(unitIds) || unitIds.length === 0) {
       return NextResponse.json({ error: 'Unit IDs are required' }, { status: 400 });
@@ -30,9 +30,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Student record not found' }, { status: 404 });
     }
 
-    const termId = await getCurrentAcademicTermId();
-    if (!termId) {
-      return NextResponse.json({ error: 'No current academic term is set' }, { status: 400 });
+    // Use provided termId or fall back to current academic term
+    const effectiveTermId = termId || await getCurrentAcademicTermId();
+    if (!effectiveTermId) {
+      return NextResponse.json({ error: 'No academic term selected' }, { status: 400 });
     }
 
     const normalized = Array.from(new Set(unitIds.filter(Boolean)));
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
       .from('enrollments')
       .select('id, course_id')
       .eq('student_id', student.id)
-      .eq('term_id', termId)
+      .eq('term_id', effectiveTermId)
       .in('status', ['active', 'pending']);
 
     if (existingError) {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
     const { error: insertError } = await supabase.from('enrollments').insert(
       toAdd.map((courseId) => ({
         student_id: student.id,
-        term_id: termId,
+        term_id: effectiveTermId,
         course_id: courseId,
         status: 'active',
       }))
@@ -87,14 +88,14 @@ export async function POST(request: NextRequest) {
     const unbilledEnrollments = await getUnbilledEnrollmentsForCourses(
       supabase,
       student.id,
-      termId,
+      effectiveTermId,
       normalized
     );
 
     if (unbilledEnrollments.length > 0) {
       const invoiceResult = await createFeeInvoiceForEnrollments(supabase, {
         studentId: student.id,
-        termId,
+        termId: effectiveTermId,
         enrollments: unbilledEnrollments,
       });
 

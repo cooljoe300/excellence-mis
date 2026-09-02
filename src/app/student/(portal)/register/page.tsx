@@ -9,7 +9,7 @@ export default async function StudentRegisterPage() {
   const data = await getStudentRegisterPageData();
   if (!data) redirect('/student/signup');
 
-  const { programs, existingStudent, defaultFirstName, defaultLastName } = data;
+  const { programs, academicTerms, existingStudent, defaultFirstName, defaultLastName } = data;
 
   return (
     <div>
@@ -19,6 +19,7 @@ export default async function StudentRegisterPage() {
       />
       <StudentSelfForm
         programs={programs as Program[]}
+        academicTerms={academicTerms}
         existingStudent={(existingStudent as Student | null) ?? undefined}
         defaultFirstName={defaultFirstName}
         defaultLastName={defaultLastName}
