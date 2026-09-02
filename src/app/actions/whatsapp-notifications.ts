@@ -5,7 +5,7 @@ import { whatsappService, createWhatsAppService, NotificationResult, normalizePh
 import { getSystemSettings } from '@/app/actions/system-settings';
 
 // Get WhatsApp service with credentials from settings
-async function getWhatsAppService() {
+export async function getWhatsAppService() {
   const settings = await getSystemSettings();
   const credentials = {
     twilioAccountSid: settings.find((s: any) => s.key === 'whatsapp_twilio_account_sid')?.value,
