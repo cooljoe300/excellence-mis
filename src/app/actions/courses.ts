@@ -3,12 +3,18 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
-export async function getCourses() {
+export async function getCourses(programId?: string | undefined) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from('courses')
     .select('*, program:programs(*), instructor:profiles(*)')
     .order('name');
+  
+  if (programId) {
+    query = query.eq('program_id', programId);
+  }
+  
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return data;
 }

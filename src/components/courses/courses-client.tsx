@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { PageHeader, DataTable, EmptyState } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { useToast } from '@/components/ui/toast';
 import { createCourse, deleteCourse, updateCourse } from '@/app/actions/courses';
 import type { Course, Program } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Search, X } from 'lucide-react';
 
 function CourseFormModal({
   programs,
@@ -104,11 +104,51 @@ export function CoursesClient({
   programs: Program[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { success, error: toastError } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [programFilter, setProgramFilter] = useState('');
+
+  // Handle URL query parameters for program filter
+  useEffect(() => {
+    const programParam = searchParams.get('program');
+    setProgramFilter(programParam || '');
+  }, [searchParams]);
+
+  // Filter courses based on search (program is filtered at backend level)
+  const filteredCourses = useMemo(() => {
+    return courses.filter((course) => {
+      const matchesSearch = 
+        searchQuery === '' ||
+        course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        course.code.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchesSearch;
+    });
+  }, [courses, searchQuery]);
+
+  // Update URL when program filter changes
+  function handleProgramChange(programId: string) {
+    setProgramFilter(programId);
+    const params = new URLSearchParams(searchParams.toString());
+    if (programId) {
+      params.set('program', programId);
+    } else {
+      params.delete('program');
+    }
+    router.push(`/dashboard/courses?${params.toString()}`);
+  }
+
+  // Clear all filters
+  function clearFilters() {
+    setSearchQuery('');
+    setProgramFilter('');
+    router.push('/dashboard/courses');
+  }
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -133,6 +173,49 @@ export function CoursesClient({
         action={<Button onClick={() => setShowForm(true)}>+ Add Course</Button>}
       />
 
+      {/* Filter Controls */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search courses..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <select
+            value={programFilter}
+            onChange={(e) => handleProgramChange(e.target.value)}
+            className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Programs</option>
+            {programs.map((program) => (
+              <option key={program.id} value={program.id}>
+                {program.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {(searchQuery || programFilter) && (
+          <Button variant="secondary" size="sm" onClick={clearFilters}>
+            <X className="h-4 w-4 mr-2" />
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
+      {/* Results Count */}
+      <div className="mb-4 text-sm text-slate-600">
+        {searchQuery ? (
+          `${filteredCourses.length} courses found`
+        ) : (
+          `Showing ${courses.length} courses`
+        )}
+      </div>
+
       {courses.length === 0 ? (
         <EmptyState
           icon={BookOpen}
@@ -140,6 +223,14 @@ export function CoursesClient({
           description="Add your first course to start building your academic catalog."
           action={<Button onClick={() => setShowForm(true)}>+ Add Course</Button>}
         />
+      ) : filteredCourses.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center">
+          <BookOpen className="mx-auto h-12 w-12 text-slate-300" />
+          <h3 className="mt-4 text-lg font-medium text-slate-900">No courses found</h3>
+          <p className="mt-2 text-sm text-slate-500">
+            No courses match the selected program and search criteria. Try changing your filters.
+          </p>
+        </div>
       ) : (
         <DataTable>
           <Table>
@@ -155,12 +246,12 @@ export function CoursesClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {courses.map((course) => (
+              {filteredCourses.map((course) => (
                 <TableRow key={course.id}>
                   <TableCell className="font-mono text-xs">{course.code}</TableCell>
                   <TableCell className="font-medium">{course.name}</TableCell>
                   <TableCell className="text-muted">
-                    {(course.program as { name: string } | null)?.name ?? '—'}
+                    {(course.program as { name: string } | null)?.name ?? 'Unassigned'}
                   </TableCell>
                   <TableCell className="text-muted">{course.credits}</TableCell>
                   <TableCell className="text-muted">{formatCurrency(course.unit_fee ?? 0)}</TableCell>
