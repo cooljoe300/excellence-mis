@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, Bell } from 'lucide-react';
 import { Sidebar } from './sidebar';
 import type { UserRole } from '@/lib/types';
 

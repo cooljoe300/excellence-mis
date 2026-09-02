@@ -1,5 +1,10 @@
 import { getEnhancedDashboardStats, getProfile, getRecentStudents } from '@/app/actions/dashboard';
+import { getAdminPendingActions } from '@/app/actions/pending-actions';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { PendingActionsCard } from '@/components/pending-actions/pending-actions-card';
+import { PendingActionsModal } from '@/components/pending-actions/pending-actions-modal';
+import { PendingActionsBadge } from '@/components/pending-actions/pending-actions-badge';
+import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { 
   Users, 
   UserPlus, 
@@ -152,10 +157,11 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
 }
 
 export default async function DashboardPage() {
-  const [stats, recentStudents, profile] = await Promise.all([
+  const [stats, recentStudents, profile, pendingActions] = await Promise.all([
     getEnhancedDashboardStats(),
     getRecentStudents(8),
     getProfile(),
+    getAdminPendingActions(),
   ]);
 
   const greeting = getGreeting();
@@ -219,54 +225,55 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            {greeting}, {userName}
-          </h1>
-          <p className="text-slate-600">
-            Here's what's happening at Excellence Online College today.
-          </p>
+    <DashboardClient pendingActions={pendingActions}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {greeting}, {userName}
+            </h1>
+            <p className="text-slate-600">
+              Here's what's happening at Excellence Online College today.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-slate-500">{currentDate}</div>
+            <PendingActionsBadge />
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-slate-500">{currentDate}</div>
-          <button className="relative rounded-lg p-2 hover:bg-slate-100">
-            <Bell className="h-5 w-5 text-slate-600" />
-          </button>
-        </div>
-      </div>
 
-      {/* Primary KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard 
-          title="Total Students" 
-          value={stats.totalStudents} 
-          subtitle={`${stats.activeStudents} active`}
-          icon={Users}
-          trend={`+${Math.round((stats.activeStudents / Math.max(stats.totalStudents, 1)) * 100)}% active`}
-        />
-        <KPICard 
-          title="New Admissions" 
-          value={stats.newAdmissionsThisMonth} 
-          subtitle="This month"
-          icon={UserPlus}
-        />
-        <KPICard 
-          title="Fees Collected" 
-          value={formatCurrency(stats.feesCollected)} 
-          icon={Wallet}
-          trend="KES"
-        />
-        <KPICard 
-          title="Outstanding Fees" 
-          value={formatCurrency(stats.outstandingFees)} 
-          subtitle={`${stats.studentsWithOutstanding} students`}
-          icon={AlertCircle}
-          trendPositive={false}
-        />
-      </div>
+        {/* Pending Actions Card - shown automatically by DashboardClient */}
+        
+        {/* Primary KPI Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KPICard 
+            title="Total Students" 
+            value={stats.totalStudents} 
+            subtitle={`${stats.activeStudents} active`}
+            icon={Users}
+            trend={`+${Math.round((stats.activeStudents / Math.max(stats.totalStudents, 1)) * 100)}% active`}
+          />
+          <KPICard 
+            title="New Admissions" 
+            value={stats.newAdmissionsThisMonth} 
+            subtitle="This month"
+            icon={UserPlus}
+          />
+          <KPICard 
+            title="Fees Collected" 
+            value={formatCurrency(stats.feesCollected)} 
+            icon={Wallet}
+            trend="KES"
+          />
+          <KPICard 
+            title="Outstanding Fees" 
+            value={formatCurrency(stats.outstandingFees)} 
+            subtitle={`${stats.studentsWithOutstanding} students`}
+            icon={AlertCircle}
+            trendPositive={false}
+          />
+        </div>
 
       {/* Student Distribution */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -408,5 +415,6 @@ export default async function DashboardPage() {
         </div>
       </div>
     </div>
+    </DashboardClient>
   );
 }
