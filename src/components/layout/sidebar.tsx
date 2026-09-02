@@ -50,7 +50,7 @@ const allNavItems = [
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['superadmin', 'admin'] as UserRole[] },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/student', label: 'Dashboard', icon: LayoutDashboard, roles: ['student'] as UserRole[], section: null },
+  { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student'] as UserRole[], section: null },
   { href: '/student/register', label: 'My Details', icon: User, roles: ['student'] as UserRole[], section: 'Personal' },
   { href: '/student/enroll', label: 'Register Units', icon: BookOpen, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/student/academic-records', label: 'Academic Records', icon: ClipboardList, roles: ['student'] as UserRole[], section: 'Academic' },
