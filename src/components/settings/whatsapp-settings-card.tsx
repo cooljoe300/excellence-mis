@@ -19,6 +19,12 @@ interface WhatsAppSettingsCardProps {
     enablePending: boolean;
     enableApproved: boolean;
     enableRejected: boolean;
+    twilioAccountSid?: string;
+    twilioAuthToken?: string;
+    twilioWhatsappNumber?: string;
+    messagebirdApiKey?: string;
+    metaAccessToken?: string;
+    metaPhoneNumberId?: string;
   };
 }
 
