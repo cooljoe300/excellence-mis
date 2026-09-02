@@ -155,13 +155,16 @@ export function StudentSelfForm({
         return false;
       }
       
-      // Check units: allow Next if either new units are selected OR existing enrollments exist
-      const hasNewUnits = selectedUnitIds.length > 0;
-      const hasExistingUnits = existingEnrollments.length > 0;
-      
-      if (!hasNewUnits && !hasExistingUnits) {
-        setError('Please select at least one unit to enroll.');
-        return false;
+      // Only require unit selection when moving to Fees step (since fees depend on enrollments)
+      const nextStepId = STEPS[currentStep + 1]?.id;
+      if (nextStepId === 'fees') {
+        const hasNewUnits = selectedUnitIds.length > 0;
+        const hasExistingUnits = existingEnrollments.length > 0;
+        
+        if (!hasNewUnits && !hasExistingUnits) {
+          setError('Please select at least one unit to enroll before proceeding to fees.');
+          return false;
+        }
       }
     }
 
