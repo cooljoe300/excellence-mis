@@ -66,7 +66,7 @@ export default async function StudentFeeStatementPage({
                         {fee.description ?? 'Fee invoice'}
                       </CardTitle>
                       <p className="mt-1 text-sm text-slate-500">
-                        {(fee.term as { name: string } | null)?.name ?? 'No term'} ·{' '}
+                        {fee.term && typeof fee.term === 'object' && 'name' in fee.term ? (fee.term as { name: string }).name : 'No term'} ·{' '}
                         {formatDate(fee.created_at)}
                       </p>
                     </div>

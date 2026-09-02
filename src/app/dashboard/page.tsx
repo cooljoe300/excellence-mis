@@ -353,7 +353,7 @@ export default async function DashboardPage() {
                   </p>
                   <p className="text-sm text-slate-600">
                     New student registered
-                    {(student.program as { name: string } | null)?.name && (
+                    {student.program && typeof student.program === 'object' && 'name' in student.program && (
                       <span className="ml-2">
                         in {(student.program as { name: string }).name}
                       </span>

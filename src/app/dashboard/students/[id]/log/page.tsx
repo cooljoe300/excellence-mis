@@ -59,7 +59,7 @@ export default async function StudentLogPage({
     entries.push({
       date: enrollment.enrolled_at,
       action: 'Unit enrolled',
-      detail: `${(enrollment.course as { code: string }).code} — ${(enrollment.term as { name: string }).name}`,
+      detail: `${enrollment.course && typeof enrollment.course === 'object' && 'code' in enrollment.course ? (enrollment.course as { code: string }).code : 'Unknown'} — ${enrollment.term && typeof enrollment.term === 'object' && 'name' in enrollment.term ? (enrollment.term as { name: string }).name : 'Unknown'}`,
     });
   }
 

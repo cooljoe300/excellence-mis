@@ -159,7 +159,7 @@ Excellence Online College`;
                   </td>
                   <td className="px-6 py-4 text-slate-600">{student.email}</td>
                   <td className="px-6 py-4 text-slate-600">
-                    {(student.program as { name: string } | null)?.name ?? '—'}
+                    {student.program && typeof student.program === 'object' && 'name' in student.program ? (student.program as { name: string }).name : '—'}
                   </td>
                   <td className="px-6 py-4">
                     <Badge

@@ -88,7 +88,9 @@ export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStat
   // Process program distribution
   const programMap = new Map<string, number>();
   programDistributionRes.data?.forEach((student) => {
-    const programName = (student.program as { name: string } | null)?.name || 'Unassigned';
+    const programName = student.program && typeof student.program === 'object' && 'name' in student.program 
+      ? (student.program as { name: string }).name 
+      : 'Unassigned';
     programMap.set(programName, (programMap.get(programName) || 0) + 1);
   });
 
