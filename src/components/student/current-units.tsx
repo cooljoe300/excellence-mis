@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge';
 import { BookOpen, Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { Enrollment, AcademicTerm } from '@/lib/types';
-import { getStatusColor } from '@/lib/utils';
 
 interface CurrentUnitsProps {
   enrollments: Enrollment[];

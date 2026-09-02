@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataRow } from '@/components/ui/data-row';
 import { Badge } from '@/components/ui/badge';
-import { GraduationCap, Calendar, User } from 'lucide-react';
+import { GraduationCap, Calendar } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import type { Student, AcademicTerm } from '@/lib/types';
 
@@ -36,12 +36,10 @@ export function AcademicSummary({ student, currentTerm }: AcademicSummaryProps) 
           label="Semester" 
           value={currentTerm?.name || 'Not assigned'} 
         />
-        <DataRow 
-          label="Enrollment Status" 
-          value={
-            <Badge status={student.status}>{student.status}</Badge>
-          } 
-        />
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-500">Enrollment Status</span>
+          <Badge status={student.status}>{student.status}</Badge>
+        </div>
         <DataRow 
           label="Enrollment Date" 
           value={formatDate(student.enrollment_date)} 
