@@ -184,7 +184,7 @@ export async function getEnrollments() {
 export async function getEnrollmentsWithFees() {
   const supabase = await createClient();
   
-  // Get enrollments with student and program data
+  // Get enrollments with student, program, course, and term data
   const { data: enrollments, error } = await supabase
     .from('enrollments')
     .select('*, student:students(*, program:programs(*)), course:courses(*), term:academic_terms(*)')
@@ -196,37 +196,64 @@ export async function getEnrollmentsWithFees() {
   const studentIds = [...new Set(enrollments?.map((e: any) => e.student_id) || [])];
   const termIds = [...new Set(enrollments?.map((e: any) => e.term_id) || [])];
   
-  // Get all fee payments for these students in these terms
+  // Get all fee payments for these students in these terms (all statuses to get total required fees)
   const { data: feePayments } = await supabase
     .from('fee_payments')
     .select('student_id, term_id, amount, amount_paid, status')
     .in('student_id', studentIds)
-    .in('term_id', termIds)
-    .in('status', ['paid', 'partial']);
+    .in('term_id', termIds);
   
   // Map fee payments by student_id:term_id
+  // We track: totalRequired (from fee_payment.amount), paid (from fee_payment.amount_paid where status is paid/partial)
   const feePaymentsByStudentTerm = new Map();
   feePayments?.forEach((fp: any) => {
     const key = `${fp.student_id}:${fp.term_id}`;
     if (!feePaymentsByStudentTerm.has(key)) {
-      feePaymentsByStudentTerm.set(key, { total: 0, paid: 0 });
+      feePaymentsByStudentTerm.set(key, { totalRequired: 0, paid: 0 });
     }
     const studentTermFees = feePaymentsByStudentTerm.get(key);
-    studentTermFees.total += Number(fp.amount || 0);
-    studentTermFees.paid += Number(fp.amount_paid || 0);
+    // Sum up all fee_payment.amount to get total required fees (this is the official fee structure)
+    studentTermFees.totalRequired += Number(fp.amount || 0);
+    // Only count paid/partial status payments as actual paid amount
+    if (fp.status === 'paid' || fp.status === 'partial') {
+      studentTermFees.paid += Number(fp.amount_paid || 0);
+    }
+  });
+  
+  // Group enrollments by student_id:term_id to calculate total required fees from course unit_fees
+  // This is used as fallback when no fee_payment records exist
+  const enrollmentsByStudentTerm = new Map();
+  enrollments?.forEach((enrollment: any) => {
+    const key = `${enrollment.student_id}:${enrollment.term_id}`;
+    if (!enrollmentsByStudentTerm.has(key)) {
+      enrollmentsByStudentTerm.set(key, []);
+    }
+    enrollmentsByStudentTerm.get(key).push(enrollment);
+  });
+  
+  // Calculate total required fees per student-term from enrolled courses (fallback)
+  const totalFeesByStudentTerm = new Map();
+  enrollmentsByStudentTerm.forEach((enrollmentList: any[], key: string) => {
+    const totalRequiredFees = enrollmentList.reduce((sum: number, enrollment: any) => {
+      const unitFee = Number(enrollment.course?.unit_fee || 0);
+      return sum + unitFee;
+    }, 0);
+    totalFeesByStudentTerm.set(key, totalRequiredFees);
   });
   
   // Enrich enrollments with fee data per term
   const enrichedEnrollments = enrollments?.map((enrollment: any) => {
     const key = `${enrollment.student_id}:${enrollment.term_id}`;
-    const studentTermFees = feePaymentsByStudentTerm.get(key) || { total: 0, paid: 0 };
-    const balance = Math.max(0, studentTermFees.total - studentTermFees.paid);
+    const payments = feePaymentsByStudentTerm.get(key);
+    const totalRequiredFees = payments?.totalRequired || totalFeesByStudentTerm.get(key) || 0;
+    const feesPaid = payments?.paid || 0;
+    const feesBalance = Math.max(0, totalRequiredFees - feesPaid);
     
     return {
       ...enrollment,
-      feesPaid: studentTermFees.paid,
-      feesBalance: balance,
-      totalFees: studentTermFees.total,
+      feesPaid,
+      feesBalance,
+      totalFees: totalRequiredFees,
     };
   }) || [];
   

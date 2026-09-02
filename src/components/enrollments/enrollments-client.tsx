@@ -39,8 +39,11 @@ function groupEnrollmentsByStudent(enrollments: Enrollment[]): GroupedStudentEnr
     const key = `${enrollment.student_id}:${enrollment.term_id}`;
 
     if (!map.has(key)) {
-      // Use totalFees from the enrollment data if available, otherwise calculate from course fees
+      // Use totalFees, feesPaid, and feesBalance from the enriched enrollment data
       const totalFees = (enrollment as any).totalFees || 0;
+      const feesPaid = (enrollment as any).feesPaid || 0;
+      const feesBalance = (enrollment as any).feesBalance || 0;
+      
       map.set(key, {
         key,
         studentId: enrollment.student_id,
@@ -49,18 +52,14 @@ function groupEnrollmentsByStudent(enrollments: Enrollment[]): GroupedStudentEnr
         term,
         units: [],
         totalFee: totalFees,
-        feesPaid: (enrollment as any).feesPaid || 0,
-        feesBalance: (enrollment as any).feesBalance || 0,
+        feesPaid,
+        feesBalance,
         enrolledAt: enrollment.enrolled_at,
       });
     }
 
     const group = map.get(key)!;
     group.units.push({ enrollment, course });
-    // If totalFees wasn't provided, accumulate course fees
-    if (!(enrollment as any).totalFees) {
-      group.totalFee += Number(course?.unit_fee ?? 0);
-    }
     if (enrollment.enrolled_at > group.enrolledAt) {
       group.enrolledAt = enrollment.enrolled_at;
     }
@@ -321,8 +320,14 @@ export function EnrollmentsClient({
                       <td className="px-3 py-2.5 font-semibold text-emerald-700">
                         {formatCurrency(group.feesPaid)}
                       </td>
-                      <td className="px-3 py-2.5 font-semibold text-slate-900">
-                        {formatCurrency(group.feesBalance)}
+                      <td className="px-3 py-2.5 font-semibold">
+                        {group.totalFee === 0 ? (
+                          <span className="text-slate-400">Fee Structure Not Set</span>
+                        ) : (
+                          <span className={group.feesBalance > 0 ? 'text-amber-700' : 'text-slate-900'}>
+                            {formatCurrency(group.feesBalance)}
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-slate-600">{group.term?.name ?? '—'}</td>
                       <td className="px-3 py-2.5">
