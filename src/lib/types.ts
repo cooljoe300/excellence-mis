@@ -122,6 +122,9 @@ export interface Enrollment {
   student?: Student;
   course?: Course;
   term?: AcademicTerm;
+  feesPaid?: number;
+  feesBalance?: number;
+  totalFees?: number;
 }
 
 export interface Attendance {

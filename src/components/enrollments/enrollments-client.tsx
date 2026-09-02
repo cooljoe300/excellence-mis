@@ -24,6 +24,8 @@ type GroupedStudentEnrollment = {
   term: AcademicTerm;
   units: { enrollment: Enrollment; course: Course }[];
   totalFee: number;
+  feesPaid: number;
+  feesBalance: number;
   enrolledAt: string;
 };
 
@@ -37,6 +39,8 @@ function groupEnrollmentsByStudent(enrollments: Enrollment[]): GroupedStudentEnr
     const key = `${enrollment.student_id}:${enrollment.term_id}`;
 
     if (!map.has(key)) {
+      // Use totalFees from the enrollment data if available, otherwise calculate from course fees
+      const totalFees = (enrollment as any).totalFees || 0;
       map.set(key, {
         key,
         studentId: enrollment.student_id,
@@ -44,14 +48,19 @@ function groupEnrollmentsByStudent(enrollments: Enrollment[]): GroupedStudentEnr
         student,
         term,
         units: [],
-        totalFee: 0,
+        totalFee: totalFees,
+        feesPaid: (enrollment as any).feesPaid || 0,
+        feesBalance: (enrollment as any).feesBalance || 0,
         enrolledAt: enrollment.enrolled_at,
       });
     }
 
     const group = map.get(key)!;
     group.units.push({ enrollment, course });
-    group.totalFee += Number(course?.unit_fee ?? 0);
+    // If totalFees wasn't provided, accumulate course fees
+    if (!(enrollment as any).totalFees) {
+      group.totalFee += Number(course?.unit_fee ?? 0);
+    }
     if (enrollment.enrolled_at > group.enrolledAt) {
       group.enrolledAt = enrollment.enrolled_at;
     }
@@ -186,7 +195,10 @@ export function EnrollmentsClient({
 
   const activeCount = grouped.filter(g => g.units.some(u => u.enrollment.status === 'active')).length;
   const pendingCount = grouped.filter(g => g.units.some(u => u.enrollment.status === 'pending')).length;
-  const completedCount = grouped.filter(g => g.units.every(u => u.enrollment.status === 'completed')).length;
+  const completedCount = grouped.filter(g => g.units.every(u => u.enrollment.status === 'completed')).length);
+  
+  const totalFeesPaid = grouped.reduce((sum, g) => sum + g.feesPaid, 0);
+  const totalFeesBalance = grouped.reduce((sum, g) => sum + g.feesBalance, 0);
 
   return (
     <div>
@@ -231,6 +243,17 @@ export function EnrollmentsClient({
             </div>
           </div>
 
+          <div className="mb-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-xs text-emerald-700">Total Fees Paid</p>
+              <p className="text-lg font-semibold text-emerald-900">{formatCurrency(totalFeesPaid)}</p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs text-amber-700">Total Fees Outstanding</p>
+              <p className="text-lg font-semibold text-amber-900">{formatCurrency(totalFeesBalance)}</p>
+            </div>
+          </div>
+
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -267,6 +290,8 @@ export function EnrollmentsClient({
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Admission #</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Student</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Program</th>
+                    <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Fees Paid</th>
+                    <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Fees Balance</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Term</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Units</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Status</th>
@@ -291,7 +316,13 @@ export function EnrollmentsClient({
                         <p className="text-[10px] text-slate-500 truncate max-w-[150px]">{group.student?.email}</p>
                       </td>
                       <td className="px-3 py-2.5 text-slate-600">
-                        {(group.student?.program as { name: string } | null)?.name ?? '—'}
+                        {(group.student?.program as { name: string } | null)?.name ?? 'Not Assigned'}
+                      </td>
+                      <td className="px-3 py-2.5 font-semibold text-emerald-700">
+                        {formatCurrency(group.feesPaid)}
+                      </td>
+                      <td className="px-3 py-2.5 font-semibold text-slate-900">
+                        {formatCurrency(group.feesBalance)}
                       </td>
                       <td className="px-3 py-2.5 text-slate-600">{group.term?.name ?? '—'}</td>
                       <td className="px-3 py-2.5">

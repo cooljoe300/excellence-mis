@@ -1,4 +1,4 @@
-import { getEnrollments } from '@/app/actions/enrollments';
+import { getEnrollments, getEnrollmentsWithFees } from '@/app/actions/enrollments';
 import { getPendingDeregistrationRequests } from '@/app/actions/student-deregistration';
 import { getAcademicTerms } from '@/app/actions/academic-terms';
 import { getStudents } from '@/app/actions/students';
@@ -7,7 +7,7 @@ import { EnrollmentsClient } from '@/components/enrollments/enrollments-client';
 
 export default async function EnrollmentsPage() {
   const [enrollments, students, courses, terms, pendingDeregistrations] = await Promise.all([
-    getEnrollments(),
+    getEnrollmentsWithFees(),
     getStudents(),
     getCourses(),
     getAcademicTerms(),

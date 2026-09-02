@@ -175,10 +175,62 @@ export async function getEnrollments() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('enrollments')
-    .select('*, student:students(*), course:courses(*), term:academic_terms(*)')
+    .select('*, student:students(*, program:programs(*)), course:courses(*), term:academic_terms(*)')
     .order('enrolled_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data;
+}
+
+export async function getEnrollmentsWithFees() {
+  const supabase = await createClient();
+  
+  // Get enrollments with student and program data
+  const { data: enrollments, error } = await supabase
+    .from('enrollments')
+    .select('*, student:students(*, program:programs(*)), course:courses(*), term:academic_terms(*)')
+    .order('enrolled_at', { ascending: false });
+  
+  if (error) throw new Error(error.message);
+  
+  // Get all unique student IDs and term IDs from enrollments
+  const studentIds = [...new Set(enrollments?.map((e: any) => e.student_id) || [])];
+  const termIds = [...new Set(enrollments?.map((e: any) => e.term_id) || [])];
+  
+  // Get all fee payments for these students in these terms
+  const { data: feePayments } = await supabase
+    .from('fee_payments')
+    .select('student_id, term_id, amount, amount_paid, status')
+    .in('student_id', studentIds)
+    .in('term_id', termIds)
+    .in('status', ['paid', 'partial']);
+  
+  // Map fee payments by student_id:term_id
+  const feePaymentsByStudentTerm = new Map();
+  feePayments?.forEach((fp: any) => {
+    const key = `${fp.student_id}:${fp.term_id}`;
+    if (!feePaymentsByStudentTerm.has(key)) {
+      feePaymentsByStudentTerm.set(key, { total: 0, paid: 0 });
+    }
+    const studentTermFees = feePaymentsByStudentTerm.get(key);
+    studentTermFees.total += Number(fp.amount || 0);
+    studentTermFees.paid += Number(fp.amount_paid || 0);
+  });
+  
+  // Enrich enrollments with fee data per term
+  const enrichedEnrollments = enrollments?.map((enrollment: any) => {
+    const key = `${enrollment.student_id}:${enrollment.term_id}`;
+    const studentTermFees = feePaymentsByStudentTerm.get(key) || { total: 0, paid: 0 };
+    const balance = Math.max(0, studentTermFees.total - studentTermFees.paid);
+    
+    return {
+      ...enrollment,
+      feesPaid: studentTermFees.paid,
+      feesBalance: balance,
+      totalFees: studentTermFees.total,
+    };
+  }) || [];
+  
+  return enrichedEnrollments;
 }
 
 export async function createEnrollment(formData: FormData) {
