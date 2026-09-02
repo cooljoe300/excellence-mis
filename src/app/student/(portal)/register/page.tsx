@@ -13,10 +13,15 @@ export default async function StudentRegisterPage() {
 
   return (
     <div>
-      <PageHeader
-        title={existingStudent ? 'Update your details' : 'Register your details'}
-        description="Fill in your details to complete student registration. Your admission number will be generated automatically."
-      />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <PageHeader
+            title={existingStudent ? 'Update your details' : 'Register your details'}
+            description="Fill in your details to complete student registration. Your admission number will be generated automatically."
+          />
+        </div>
+        <WhatsAppSupportButton variant="inline" label="Need help?" />
+      </div>
       <StudentSelfForm
         programs={programs as Program[]}
         academicTerms={academicTerms}
@@ -24,7 +29,6 @@ export default async function StudentRegisterPage() {
         defaultFirstName={defaultFirstName}
         defaultLastName={defaultLastName}
       />
-      <WhatsAppSupportButton label="Need help?" />
     </div>
   );
 }
