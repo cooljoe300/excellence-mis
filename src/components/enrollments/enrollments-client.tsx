@@ -195,8 +195,8 @@ export function EnrollmentsClient({
 
   const activeCount = grouped.filter(g => g.units.some(u => u.enrollment.status === 'active')).length;
   const pendingCount = grouped.filter(g => g.units.some(u => u.enrollment.status === 'pending')).length;
-  const completedCount = grouped.filter(g => g.units.every(u => u.enrollment.status === 'completed')).length);
-  
+  const completedCount = grouped.filter(g => g.units.every(u => u.enrollment.status === 'completed')).length;
+
   const totalFeesPaid = grouped.reduce((sum, g) => sum + g.feesPaid, 0);
   const totalFeesBalance = grouped.reduce((sum, g) => sum + g.feesBalance, 0);
 
