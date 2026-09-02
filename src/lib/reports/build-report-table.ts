@@ -7,12 +7,31 @@ export type ReportKey =
   | 'students-by-status'
   | 'students-by-program'
   | 'student-register'
+  | 'active-students'
+  | 'inactive-students'
+  | 'graduated-students'
+  | 'withdrawn-students'
+  | 'student-contact-list'
+  | 'incomplete-profiles'
   | 'fee-summary'
   | 'fee-ledger'
+  | 'outstanding-fees'
+  | 'zero-payment-students'
+  | 'partially-paid-students'
+  | 'fully-paid-students'
+  | 'fee-collection-by-date'
+  | 'fee-collection-by-program'
+  | 'fee-collection-by-method'
   | 'programs'
   | 'courses'
   | 'enrollments'
-  | 'attendance';
+  | 'attendance'
+  | 'intake-summary'
+  | 'program-enrollment-summary'
+  | 'data-quality-students-without-programs'
+  | 'data-quality-students-without-intake'
+  | 'data-quality-students-without-phone'
+  | 'data-quality-students-without-email';
 
 export interface ReportFilters {
   search: string;
@@ -392,18 +411,408 @@ export function buildReportTable(
         summary: `${records.length} records · Generated ${generated}`,
       };
     }
+
+    case 'active-students': {
+      const students = filterStudents(data.students, filters).filter((s) => s.status === 'active');
+      return {
+        title: 'Active Students',
+        headers: ['Admission No.', 'Name', 'Email', 'Phone', 'Program', 'Enrolled'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.email,
+          s.phone ?? '—',
+          (s.program as { name?: string } | null)?.name ?? '—',
+          s.enrollment_date,
+        ]),
+        summary: `${students.length} active students · Generated ${generated}`,
+      };
+    }
+
+    case 'inactive-students': {
+      const students = filterStudents(data.students, filters).filter((s) => s.status === 'inactive');
+      return {
+        title: 'Inactive Students',
+        headers: ['Admission No.', 'Name', 'Email', 'Phone', 'Program', 'Enrolled'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.email,
+          s.phone ?? '—',
+          (s.program as { name?: string } | null)?.name ?? '—',
+          s.enrollment_date,
+        ]),
+        summary: `${students.length} inactive students · Generated ${generated}`,
+      };
+    }
+
+    case 'graduated-students': {
+      const students = filterStudents(data.students, filters).filter((s) => s.status === 'graduated');
+      return {
+        title: 'Graduated Students',
+        headers: ['Admission No.', 'Name', 'Email', 'Phone', 'Program', 'Enrolled'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.email,
+          s.phone ?? '—',
+          (s.program as { name?: string } | null)?.name ?? '—',
+          s.enrollment_date,
+        ]),
+        summary: `${students.length} graduated students · Generated ${generated}`,
+      };
+    }
+
+    case 'withdrawn-students': {
+      const students = filterStudents(data.students, filters).filter((s) => s.status === 'withdrawn');
+      return {
+        title: 'Withdrawn Students',
+        headers: ['Admission No.', 'Name', 'Email', 'Phone', 'Program', 'Enrolled'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.email,
+          s.phone ?? '—',
+          (s.program as { name?: string } | null)?.name ?? '—',
+          s.enrollment_date,
+        ]),
+        summary: `${students.length} withdrawn students · Generated ${generated}`,
+      };
+    }
+
+    case 'student-contact-list': {
+      const students = filterStudents(data.students, filters);
+      return {
+        title: 'Student Contact List',
+        headers: ['Admission No.', 'Name', 'Phone', 'Email', 'Program'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.phone ?? '—',
+          s.email,
+          (s.program as { name?: string } | null)?.name ?? '—',
+        ]),
+        summary: `${students.length} students · Generated ${generated}`,
+      };
+    }
+
+    case 'incomplete-profiles': {
+      const students = filterStudents(data.students, filters).filter((s) => {
+        return !s.phone || !s.email || !s.program_id || !s.intake_id;
+      });
+      const issues = students.map((s) => {
+        const missing: string[] = [];
+        if (!s.phone) missing.push('Phone');
+        if (!s.email) missing.push('Email');
+        if (!s.program_id) missing.push('Program');
+        if (!s.intake_id) missing.push('Intake');
+        return missing.join(', ');
+      });
+      return {
+        title: 'Incomplete Student Profiles',
+        headers: ['Admission No.', 'Name', 'Missing Information', 'Email', 'Phone'],
+        rows: students.map((s, i) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          issues[i],
+          s.email ?? '—',
+          s.phone ?? '—',
+        ]),
+        summary: `${students.length} students with incomplete profiles · Generated ${generated}`,
+      };
+    }
+
+    case 'outstanding-fees': {
+      const fees = filterFees(data.fees, filters).filter((f) => getFeeBalance(f) > 0);
+      const sortedFees = [...fees].sort((a, b) => getFeeBalance(b) - getFeeBalance(a));
+      return {
+        title: 'Outstanding Fees Report',
+        headers: ['Student', 'Admission', 'Term', 'Total Required', 'Paid', 'Balance', 'Status'],
+        rows: sortedFees.map((fee) => {
+          const student = fee.student as Student | undefined;
+          return [
+            student ? `${student.first_name} ${student.last_name}` : '—',
+            student ? getAdmissionNumber(student) : '—',
+            (fee.term as { name?: string } | null)?.name ?? '—',
+            formatCurrency(fee.amount),
+            formatCurrency(fee.amount_paid),
+            formatCurrency(getFeeBalance(fee)),
+            fee.status,
+          ];
+        }),
+        summary: `${sortedFees.length} students with outstanding fees · Generated ${generated}`,
+      };
+    }
+
+    case 'zero-payment-students': {
+      const fees = filterFees(data.fees, filters).filter((f) => f.amount_paid === 0);
+      return {
+        title: 'Students With Zero Payment',
+        headers: ['Student', 'Admission', 'Term', 'Total Required', 'Paid', 'Balance', 'Status'],
+        rows: fees.map((fee) => {
+          const student = fee.student as Student | undefined;
+          return [
+            student ? `${student.first_name} ${student.last_name}` : '—',
+            student ? getAdmissionNumber(student) : '—',
+            (fee.term as { name?: string } | null)?.name ?? '—',
+            formatCurrency(fee.amount),
+            formatCurrency(fee.amount_paid),
+            formatCurrency(getFeeBalance(fee)),
+            fee.status,
+          ];
+        }),
+        summary: `${fees.length} students with zero payment · Generated ${generated}`,
+      };
+    }
+
+    case 'partially-paid-students': {
+      const fees = filterFees(data.fees, filters).filter((f) => f.amount_paid > 0 && getFeeBalance(f) > 0);
+      return {
+        title: 'Partially Paid Students',
+        headers: ['Student', 'Admission', 'Term', 'Total Required', 'Paid', 'Balance', 'Status'],
+        rows: fees.map((fee) => {
+          const student = fee.student as Student | undefined;
+          return [
+            student ? `${student.first_name} ${student.last_name}` : '—',
+            student ? getAdmissionNumber(student) : '—',
+            (fee.term as { name?: string } | null)?.name ?? '—',
+            formatCurrency(fee.amount),
+            formatCurrency(fee.amount_paid),
+            formatCurrency(getFeeBalance(fee)),
+            fee.status,
+          ];
+        }),
+        summary: `${fees.length} partially paid students · Generated ${generated}`,
+      };
+    }
+
+    case 'fully-paid-students': {
+      const fees = filterFees(data.fees, filters).filter((f) => getFeeBalance(f) === 0);
+      return {
+        title: 'Fully Paid Students',
+        headers: ['Student', 'Admission', 'Term', 'Total Required', 'Paid', 'Balance', 'Status'],
+        rows: fees.map((fee) => {
+          const student = fee.student as Student | undefined;
+          return [
+            student ? `${student.first_name} ${student.last_name}` : '—',
+            student ? getAdmissionNumber(student) : '—',
+            (fee.term as { name?: string } | null)?.name ?? '—',
+            formatCurrency(fee.amount),
+            formatCurrency(fee.amount_paid),
+            formatCurrency(getFeeBalance(fee)),
+            fee.status,
+          ];
+        }),
+        summary: `${fees.length} fully paid students · Generated ${generated}`,
+      };
+    }
+
+    case 'fee-collection-by-date': {
+      const fees = filterFees(data.fees, filters).filter((f) => f.status === 'paid' || f.status === 'partial');
+      const byDate = fees.reduce((acc, fee) => {
+        const date = fee.created_at?.slice(0, 10) || 'Unknown';
+        if (!acc[date]) acc[date] = { count: 0, total: 0 };
+        acc[date].count += 1;
+        acc[date].total += Number(fee.amount_paid);
+        return acc;
+      }, {} as Record<string, { count: number; total: number }>);
+      return {
+        title: 'Fee Collection by Date',
+        headers: ['Date', 'Transactions', 'Total Collected'],
+        rows: Object.entries(byDate)
+          .sort(([a], [b]) => b.localeCompare(a))
+          .map(([date, data]) => [date, String(data.count), formatCurrency(data.total)]),
+        summary: `${fees.length} transactions · Generated ${generated}`,
+      };
+    }
+
+    case 'fee-collection-by-program': {
+      const fees = filterFees(data.fees, filters).filter((f) => f.status === 'paid' || f.status === 'partial');
+      const byProgram = fees.reduce((acc, fee) => {
+        const student = fee.student as Student | undefined;
+        const programName = (student?.program as { name?: string } | null)?.name ?? 'Unassigned';
+        if (!acc[programName]) acc[programName] = { expected: 0, paid: 0, count: 0 };
+        acc[programName].expected += Number(fee.amount);
+        acc[programName].paid += Number(fee.amount_paid);
+        acc[programName].count += 1;
+        return acc;
+      }, {} as Record<string, { expected: number; paid: number; count: number }>);
+      return {
+        title: 'Fee Collection by Program',
+        headers: ['Program', 'Expected', 'Collected', 'Outstanding', 'Collection %', 'Students'],
+        rows: Object.entries(byProgram).map(([program, data]) => {
+          const outstanding = data.expected - data.paid;
+          const collectionRate = data.expected > 0 ? ((data.paid / data.expected) * 100).toFixed(1) : 'N/A';
+          return [
+            program,
+            formatCurrency(data.expected),
+            formatCurrency(data.paid),
+            formatCurrency(outstanding),
+            `${collectionRate}%`,
+            String(data.count),
+          ];
+        }),
+        summary: `${Object.keys(byProgram).length} programs · Generated ${generated}`,
+      };
+    }
+
+    case 'fee-collection-by-method': {
+      const fees = filterFees(data.fees, filters).filter((f) => f.status === 'paid' || f.status === 'partial');
+      const byMethod = fees.reduce((acc, fee) => {
+        const method = fee.payment_method || 'Unknown';
+        if (!acc[method]) acc[method] = { count: 0, total: 0 };
+        acc[method].count += 1;
+        acc[method].total += Number(fee.amount_paid);
+        return acc;
+      }, {} as Record<string, { count: number; total: number }>);
+      return {
+        title: 'Fee Collection by Payment Method',
+        headers: ['Payment Method', 'Transactions', 'Total Collected'],
+        rows: Object.entries(byMethod)
+          .sort(([, a], [, b]) => b.total - a.total)
+          .map(([method, data]) => [method, String(data.count), formatCurrency(data.total)]),
+        summary: `${fees.length} transactions · Generated ${generated}`,
+      };
+    }
+
+    case 'intake-summary': {
+      const students = filterStudents(data.students, filters);
+      const byIntake = students.reduce((acc, student) => {
+        const intake = (student.intake as { name?: string } | null)?.name ?? 'Unassigned';
+        if (!acc[intake]) acc[intake] = { count: 0 };
+        acc[intake].count += 1;
+        return acc;
+      }, {} as Record<string, { count: number }>);
+      return {
+        title: 'Intake Summary',
+        headers: ['Intake', 'Students'],
+        rows: Object.entries(byIntake).map(([intake, data]) => [intake, String(data.count)]),
+        summary: `${students.length} students across ${Object.keys(byIntake).length} intakes · Generated ${generated}`,
+      };
+    }
+
+    case 'program-enrollment-summary': {
+      const students = filterStudents(data.students, filters);
+      const byProgram = students.reduce((acc, student) => {
+        const programName = (student.program as { name?: string } | null)?.name ?? 'Unassigned';
+        if (!acc[programName]) acc[programName] = { active: 0, total: 0 };
+        acc[programName].total += 1;
+        if (student.status === 'active') acc[programName].active += 1;
+        return acc;
+      }, {} as Record<string, { active: number; total: number }>);
+      return {
+        title: 'Program Enrollment Summary',
+        headers: ['Program', 'Active Students', 'Total Enrollments'],
+        rows: Object.entries(byProgram).map(([program, data]) => [program, String(data.active), String(data.total)]),
+        summary: `${students.length} students across ${Object.keys(byProgram).length} programs · Generated ${generated}`,
+      };
+    }
+
+    case 'data-quality-students-without-programs': {
+      const students = filterStudents(data.students, filters).filter((s) => !s.program_id);
+      return {
+        title: 'Students Without Programs',
+        headers: ['Admission No.', 'Name', 'Email', 'Enrolled'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.email,
+          s.enrollment_date,
+        ]),
+        summary: `${students.length} students without programs · Generated ${generated}`,
+      };
+    }
+
+    case 'data-quality-students-without-intake': {
+      const students = filterStudents(data.students, filters).filter((s) => !s.intake_id);
+      return {
+        title: 'Students Without Intake',
+        headers: ['Admission No.', 'Name', 'Email', 'Enrolled'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.email,
+          s.enrollment_date,
+        ]),
+        summary: `${students.length} students without intake · Generated ${generated}`,
+      };
+    }
+
+    case 'data-quality-students-without-phone': {
+      const students = filterStudents(data.students, filters).filter((s) => !s.phone);
+      return {
+        title: 'Students Without Phone Numbers',
+        headers: ['Admission No.', 'Name', 'Email', 'Program'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.email,
+          (s.program as { name?: string } | null)?.name ?? '—',
+        ]),
+        summary: `${students.length} students without phone numbers · Generated ${generated}`,
+      };
+    }
+
+    case 'data-quality-students-without-email': {
+      const students = filterStudents(data.students, filters).filter((s) => !s.email);
+      return {
+        title: 'Students Without Email Addresses',
+        headers: ['Admission No.', 'Name', 'Phone', 'Program'],
+        rows: students.map((s) => [
+          getAdmissionNumber(s),
+          `${s.first_name} ${s.last_name}`,
+          s.phone ?? '—',
+          (s.program as { name?: string } | null)?.name ?? '—',
+        ]),
+        summary: `${students.length} students without email addresses · Generated ${generated}`,
+      };
+    }
   }
 }
 
-export const REPORT_OPTIONS: { key: ReportKey; label: string }[] = [
-  { key: 'executive-summary', label: 'Executive summary' },
-  { key: 'students-by-status', label: 'Students by status' },
-  { key: 'students-by-program', label: 'Students by program' },
-  { key: 'student-register', label: 'Student register' },
-  { key: 'fee-summary', label: 'Fee summary' },
-  { key: 'fee-ledger', label: 'Fee ledger' },
-  { key: 'programs', label: 'Programs' },
-  { key: 'courses', label: 'Courses' },
-  { key: 'enrollments', label: 'Enrollments' },
-  { key: 'attendance', label: 'Attendance' },
+export interface ReportOption {
+  key: ReportKey;
+  label: string;
+  category: string;
+}
+
+export const REPORT_OPTIONS: ReportOption[] = [
+  // Management Reports
+  { key: 'executive-summary', label: 'Executive Summary', category: 'Management' },
+  
+  // Student Reports
+  { key: 'student-register', label: 'Student Master Register', category: 'Students' },
+  { key: 'students-by-status', label: 'Students by Status', category: 'Students' },
+  { key: 'students-by-program', label: 'Students by Program', category: 'Students' },
+  { key: 'active-students', label: 'Active Students', category: 'Students' },
+  { key: 'inactive-students', label: 'Inactive Students', category: 'Students' },
+  { key: 'graduated-students', label: 'Graduated Students', category: 'Students' },
+  { key: 'withdrawn-students', label: 'Withdrawn Students', category: 'Students' },
+  { key: 'student-contact-list', label: 'Student Contact List', category: 'Students' },
+  { key: 'incomplete-profiles', label: 'Incomplete Student Profiles', category: 'Students' },
+  
+  // Finance Reports
+  { key: 'fee-summary', label: 'Fees Summary', category: 'Finance' },
+  { key: 'fee-ledger', label: 'Fee Payments Ledger', category: 'Finance' },
+  { key: 'outstanding-fees', label: 'Outstanding Fees Report', category: 'Finance' },
+  { key: 'zero-payment-students', label: 'Students With Zero Payment', category: 'Finance' },
+  { key: 'partially-paid-students', label: 'Partially Paid Students', category: 'Finance' },
+  { key: 'fully-paid-students', label: 'Fully Paid Students', category: 'Finance' },
+  { key: 'fee-collection-by-date', label: 'Fee Collection by Date', category: 'Finance' },
+  { key: 'fee-collection-by-program', label: 'Fee Collection by Program', category: 'Finance' },
+  { key: 'fee-collection-by-method', label: 'Fee Collection by Payment Method', category: 'Finance' },
+  
+  // Academic Reports
+  { key: 'programs', label: 'Program Register', category: 'Academic' },
+  { key: 'courses', label: 'Course Register', category: 'Academic' },
+  { key: 'enrollments', label: 'Enrollment Register', category: 'Academic' },
+  { key: 'intake-summary', label: 'Intake Summary', category: 'Academic' },
+  { key: 'program-enrollment-summary', label: 'Program Enrollment Summary', category: 'Academic' },
+  { key: 'attendance', label: 'Attendance Register', category: 'Academic' },
+  
+  // Data Quality Reports
+  { key: 'data-quality-students-without-programs', label: 'Students Without Programs', category: 'Data Quality' },
+  { key: 'data-quality-students-without-intake', label: 'Students Without Intake', category: 'Data Quality' },
+  { key: 'data-quality-students-without-phone', label: 'Students Without Phone Numbers', category: 'Data Quality' },
+  { key: 'data-quality-students-without-email', label: 'Students Without Email Addresses', category: 'Data Quality' },
 ];

@@ -7,6 +7,7 @@ import { getCourses } from '@/app/actions/courses';
 import { getFeePayments } from '@/app/actions/fees';
 import { getEnrollments } from '@/app/actions/enrollments';
 import { getAttendance } from '@/app/actions/attendance';
+import { getIntakes } from '@/app/actions/intakes';
 import type {
   Attendance,
   Course,
@@ -14,6 +15,7 @@ import type {
   FeePayment,
   Program,
   Student,
+  Intake,
 } from '@/lib/types';
 import type { DashboardStats } from '@/lib/types';
 
@@ -29,10 +31,11 @@ export interface ReportsBundle {
   fees: FeePayment[];
   enrollments: Enrollment[];
   attendance: Attendance[];
+  intakes: Intake[];
 }
 
 export async function getReportsBundle(): Promise<ReportsBundle> {
-  const [stats, students, programs, courses, fees, enrollments, attendance] = await Promise.all([
+  const [stats, students, programs, courses, fees, enrollments, attendance, intakes] = await Promise.all([
     getDashboardStats(),
     getStudents(),
     getPrograms(),
@@ -40,6 +43,7 @@ export async function getReportsBundle(): Promise<ReportsBundle> {
     getFeePayments(),
     getEnrollments(),
     getAttendance(),
+    getIntakes(),
   ]);
 
   const byStatus = students.reduce(
@@ -79,5 +83,6 @@ export async function getReportsBundle(): Promise<ReportsBundle> {
     fees: fees as FeePayment[],
     enrollments: enrollments as Enrollment[],
     attendance: attendance as Attendance[],
+    intakes: intakes as Intake[],
   };
 }

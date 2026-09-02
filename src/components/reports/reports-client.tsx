@@ -7,17 +7,37 @@ import { Button } from '@/components/ui/button';
 import { PrintDocumentButton } from '@/components/documents/print-document-button';
 import { ReportPrintDocument } from '@/components/reports/report-print-document';
 import { downloadCsv, reportFilename } from '@/lib/reports/csv';
+import { getFeeBalance } from '@/lib/utils';
 import {
   buildAttendanceCsv,
+  buildActiveStudentsCsv,
   buildCoursesCsv,
+  buildDataQualityStudentsWithoutEmailCsv,
+  buildDataQualityStudentsWithoutIntakeCsv,
+  buildDataQualityStudentsWithoutPhoneCsv,
+  buildDataQualityStudentsWithoutProgramsCsv,
   buildEnrollmentsCsv,
   buildExecutiveSummaryCsv,
+  buildFeeCollectionByDateCsv,
+  buildFeeCollectionByMethodCsv,
+  buildFeeCollectionByProgramCsv,
   buildFeeLedgerCsv,
   buildFeeSummaryCsv,
+  buildFullyPaidStudentsCsv,
+  buildGraduatedStudentsCsv,
+  buildIncompleteProfilesCsv,
+  buildInactiveStudentsCsv,
+  buildIntakeSummaryCsv,
+  buildOutstandingFeesCsv,
+  buildPartiallyPaidStudentsCsv,
+  buildProgramEnrollmentSummaryCsv,
   buildProgramsCsv,
+  buildStudentContactListCsv,
   buildStudentRegisterCsv,
   buildStudentsByProgramCsv,
   buildStudentsByStatusCsv,
+  buildWithdrawnStudentsCsv,
+  buildZeroPaymentStudentsCsv,
 } from '@/lib/reports/serializers';
 import {
   DEFAULT_REPORT_FILTERS,
@@ -31,9 +51,11 @@ import {
   getTermOptions,
   type ReportFilters,
   type ReportKey,
+  type ReportOption,
 } from '@/lib/reports/build-report-table';
 import type { ReportsBundle } from '@/app/actions/reports';
-import { Download } from 'lucide-react';
+import type { Student } from '@/lib/types';
+import { Download, Search, FileText, DollarSign, GraduationCap, AlertCircle, Users } from 'lucide-react';
 
 function buildFilteredCsv(key: ReportKey, data: ReportsBundle, filters: ReportFilters) {
   const students = filterStudents(data.students, filters);
@@ -81,10 +103,75 @@ function buildFilteredCsv(key: ReportKey, data: ReportsBundle, filters: ReportFi
       return buildStudentsByProgramCsv(byProgram, data.generatedAt);
     case 'student-register':
       return buildStudentRegisterCsv(students, data.generatedAt);
+    case 'active-students':
+      return buildActiveStudentsCsv(students.filter((s) => s.status === 'active'), data.generatedAt);
+    case 'inactive-students':
+      return buildInactiveStudentsCsv(students.filter((s) => s.status === 'inactive'), data.generatedAt);
+    case 'graduated-students':
+      return buildGraduatedStudentsCsv(students.filter((s) => s.status === 'graduated'), data.generatedAt);
+    case 'withdrawn-students':
+      return buildWithdrawnStudentsCsv(students.filter((s) => s.status === 'withdrawn'), data.generatedAt);
+    case 'student-contact-list':
+      return buildStudentContactListCsv(students, data.generatedAt);
+    case 'incomplete-profiles': {
+      const incompleteStudents = students.filter((s) => !s.phone || !s.email || !s.program_id || !s.intake_id);
+      const issues = incompleteStudents.map((s) => {
+        const missing: string[] = [];
+        if (!s.phone) missing.push('Phone');
+        if (!s.email) missing.push('Email');
+        if (!s.program_id) missing.push('Program');
+        if (!s.intake_id) missing.push('Intake');
+        return missing.join(', ');
+      });
+      return buildIncompleteProfilesCsv(incompleteStudents, issues, data.generatedAt);
+    }
     case 'fee-summary':
       return buildFeeSummaryCsv(data.stats, feeSummary, data.generatedAt);
     case 'fee-ledger':
       return buildFeeLedgerCsv(fees, data.generatedAt);
+    case 'outstanding-fees':
+      return buildOutstandingFeesCsv(fees.filter((f) => getFeeBalance(f) > 0), data.generatedAt);
+    case 'zero-payment-students':
+      return buildZeroPaymentStudentsCsv(fees.filter((f) => f.amount_paid === 0), data.generatedAt);
+    case 'partially-paid-students':
+      return buildPartiallyPaidStudentsCsv(fees.filter((f) => f.amount_paid > 0 && getFeeBalance(f) > 0), data.generatedAt);
+    case 'fully-paid-students':
+      return buildFullyPaidStudentsCsv(fees.filter((f) => getFeeBalance(f) === 0), data.generatedAt);
+    case 'fee-collection-by-date': {
+      const paidFees = fees.filter((f) => f.status === 'paid' || f.status === 'partial');
+      const byDate = paidFees.reduce((acc, fee) => {
+        const date = fee.created_at?.slice(0, 10) || 'Unknown';
+        if (!acc[date]) acc[date] = { count: 0, total: 0 };
+        acc[date].count += 1;
+        acc[date].total += Number(fee.amount_paid);
+        return acc;
+      }, {} as Record<string, { count: number; total: number }>);
+      return buildFeeCollectionByDateCsv(byDate, data.generatedAt);
+    }
+    case 'fee-collection-by-program': {
+      const paidFees = fees.filter((f) => f.status === 'paid' || f.status === 'partial');
+      const byProgram = paidFees.reduce((acc, fee) => {
+        const student = fee.student as Student | undefined;
+        const programName = (student?.program as { name?: string } | null)?.name ?? 'Unassigned';
+        if (!acc[programName]) acc[programName] = { expected: 0, paid: 0, count: 0 };
+        acc[programName].expected += Number(fee.amount);
+        acc[programName].paid += Number(fee.amount_paid);
+        acc[programName].count += 1;
+        return acc;
+      }, {} as Record<string, { expected: number; paid: number; count: number }>);
+      return buildFeeCollectionByProgramCsv(byProgram, data.generatedAt);
+    }
+    case 'fee-collection-by-method': {
+      const paidFees = fees.filter((f) => f.status === 'paid' || f.status === 'partial');
+      const byMethod = paidFees.reduce((acc, fee) => {
+        const method = fee.payment_method || 'Unknown';
+        if (!acc[method]) acc[method] = { count: 0, total: 0 };
+        acc[method].count += 1;
+        acc[method].total += Number(fee.amount_paid);
+        return acc;
+      }, {} as Record<string, { count: number; total: number }>);
+      return buildFeeCollectionByMethodCsv(byMethod, data.generatedAt);
+    }
     case 'programs':
       return buildProgramsCsv(filteredPrograms, data.generatedAt);
     case 'courses':
@@ -93,6 +180,33 @@ function buildFilteredCsv(key: ReportKey, data: ReportsBundle, filters: ReportFi
       return buildEnrollmentsCsv(enrollments, data.generatedAt);
     case 'attendance':
       return buildAttendanceCsv(attendance, data.generatedAt);
+    case 'intake-summary': {
+      const byIntake = students.reduce((acc, student) => {
+        const intake = (student.intake as { name?: string } | null)?.name ?? 'Unassigned';
+        if (!acc[intake]) acc[intake] = { count: 0 };
+        acc[intake].count += 1;
+        return acc;
+      }, {} as Record<string, { count: number }>);
+      return buildIntakeSummaryCsv(byIntake, data.generatedAt);
+    }
+    case 'program-enrollment-summary': {
+      const byProgram = students.reduce((acc, student) => {
+        const programName = (student.program as { name?: string } | null)?.name ?? 'Unassigned';
+        if (!acc[programName]) acc[programName] = { active: 0, total: 0 };
+        acc[programName].total += 1;
+        if (student.status === 'active') acc[programName].active += 1;
+        return acc;
+      }, {} as Record<string, { active: number; total: number }>);
+      return buildProgramEnrollmentSummaryCsv(byProgram, data.generatedAt);
+    }
+    case 'data-quality-students-without-programs':
+      return buildDataQualityStudentsWithoutProgramsCsv(students.filter((s) => !s.program_id), data.generatedAt);
+    case 'data-quality-students-without-intake':
+      return buildDataQualityStudentsWithoutIntakeCsv(students.filter((s) => !s.intake_id), data.generatedAt);
+    case 'data-quality-students-without-phone':
+      return buildDataQualityStudentsWithoutPhoneCsv(students.filter((s) => !s.phone), data.generatedAt);
+    case 'data-quality-students-without-email':
+      return buildDataQualityStudentsWithoutEmailCsv(students.filter((s) => !s.email), data.generatedAt);
   }
 }
 
@@ -100,13 +214,54 @@ const STUDENT_REPORTS: ReportKey[] = [
   'students-by-status',
   'students-by-program',
   'student-register',
+  'active-students',
+  'inactive-students',
+  'graduated-students',
+  'withdrawn-students',
+  'student-contact-list',
+  'incomplete-profiles',
 ];
 
-const FEE_REPORTS: ReportKey[] = ['fee-summary', 'fee-ledger'];
+const FEE_REPORTS: ReportKey[] = [
+  'fee-summary',
+  'fee-ledger',
+  'outstanding-fees',
+  'zero-payment-students',
+  'partially-paid-students',
+  'fully-paid-students',
+  'fee-collection-by-date',
+  'fee-collection-by-program',
+  'fee-collection-by-method',
+];
+
+const ACADEMIC_REPORTS: ReportKey[] = [
+  'programs',
+  'courses',
+  'enrollments',
+  'intake-summary',
+  'program-enrollment-summary',
+  'attendance',
+];
+
+const DATA_QUALITY_REPORTS: ReportKey[] = [
+  'data-quality-students-without-programs',
+  'data-quality-students-without-intake',
+  'data-quality-students-without-phone',
+  'data-quality-students-without-email',
+];
+
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  Management: <FileText className="h-5 w-5" />,
+  Students: <Users className="h-5 w-5" />,
+  Finance: <DollarSign className="h-5 w-5" />,
+  Academic: <GraduationCap className="h-5 w-5" />,
+  'Data Quality': <AlertCircle className="h-5 w-5" />,
+};
 
 export function ReportsClient({ data }: { data: ReportsBundle }) {
   const [reportKey, setReportKey] = useState<ReportKey>('student-register');
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const termOptions = useMemo(() => getTermOptions(data), [data]);
   const table = useMemo(() => buildReportTable(reportKey, data, filters), [reportKey, data, filters]);
@@ -128,6 +283,35 @@ export function ReportsClient({ data }: { data: ReportsBundle }) {
     ...termOptions.map((t) => ({ value: t, label: t })),
   ];
 
+  // Group reports by category
+  const reportsByCategory = useMemo(() => {
+    const grouped: Record<string, ReportOption[]> = {};
+    REPORT_OPTIONS.forEach((report) => {
+      if (!grouped[report.category]) {
+        grouped[report.category] = [];
+      }
+      grouped[report.category].push(report);
+    });
+    return grouped;
+  }, []);
+
+  // Filter reports by search query
+  const filteredReportsByCategory = useMemo(() => {
+    if (!searchQuery.trim()) return reportsByCategory;
+    const query = searchQuery.toLowerCase();
+    const filtered: Record<string, ReportOption[]> = {};
+    Object.entries(reportsByCategory).forEach(([category, reports]) => {
+      const matching = reports.filter((r) => 
+        r.label.toLowerCase().includes(query) || 
+        r.category.toLowerCase().includes(query)
+      );
+      if (matching.length > 0) {
+        filtered[category] = matching;
+      }
+    });
+    return filtered;
+  }, [reportsByCategory, searchQuery]);
+
   function updateFilter<K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
@@ -144,21 +328,57 @@ export function ReportsClient({ data }: { data: ReportsBundle }) {
     reportKey !== 'executive-summary' &&
     reportKey !== 'students-by-status' &&
     reportKey !== 'students-by-program' &&
-    reportKey !== 'fee-summary';
+    reportKey !== 'fee-summary' &&
+    !reportKey.startsWith('data-quality-');
 
   return (
     <div className="space-y-6">
-      {/* Toolbar */}
+      {/* Search and Categories */}
+      <div className="no-print rounded-xl border border-slate-200 bg-white p-6">
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              placeholder="Search reports..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Report Categories */}
+        <div className="space-y-6">
+          {Object.entries(filteredReportsByCategory).map(([category, reports]) => (
+            <div key={category}>
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                {CATEGORY_ICONS[category]}
+                {category}
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {reports.map((report) => (
+                  <button
+                    key={report.key}
+                    onClick={() => setReportKey(report.key)}
+                    className={`rounded-lg border p-4 text-left transition-colors hover:bg-slate-50 ${
+                      reportKey === report.key
+                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
+                        : 'border-slate-200 bg-white'
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-slate-900">{report.label}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Filters Toolbar */}
       <div className="no-print rounded-xl border border-slate-200 bg-white p-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <Select
-              label="Report"
-              value={reportKey}
-              onChange={(e) => setReportKey(e.target.value as ReportKey)}
-              options={REPORT_OPTIONS.map((r) => ({ value: r.key, label: r.label }))}
-            />
-
             {showProgramFilter && (
               <Select
                 label="Program"
