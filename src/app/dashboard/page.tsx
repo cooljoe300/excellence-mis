@@ -299,7 +299,7 @@ export default async function DashboardPage() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {quickActions.map((action) => (
             <Link key={action.href} href={action.href}>
-              <Button variant="outline" className="w-full justify-start gap-2">
+              <Button variant="secondary" className="w-full justify-start gap-2">
                 <action.icon className="h-4 w-4" />
                 {action.label}
               </Button>
