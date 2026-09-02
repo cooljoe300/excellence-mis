@@ -106,3 +106,15 @@ export async function setPaymentSettings(settings: PaymentSettings) {
   return { success: true };
 }
 
+export async function getSystemSettings() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('system_settings').select('*');
+  
+  if (error) {
+    console.error('Failed to fetch system settings:', error);
+    return [];
+  }
+  
+  return data || [];
+}
+

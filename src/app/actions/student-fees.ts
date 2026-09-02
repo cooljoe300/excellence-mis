@@ -8,6 +8,9 @@ import { getFeePayment } from '@/app/actions/fees';
 import type { FeePayment } from '@/lib/types';
 import { getFeeBalance } from '@/lib/utils';
 import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
+import { whatsappService } from '@/lib/whatsapp-service';
+import { logWhatsAppNotification } from '@/app/actions/whatsapp-notifications';
+import { getSystemSettings } from '@/app/actions/system-settings';
 
 export async function getMyFeesPageData() {
   const student = await getMyStudentRecord();
@@ -103,6 +106,66 @@ export async function submitMyFeePayment(
   if (result?.error) return { error: result.error };
   if (!result?.success) return { error: 'Payment could not be recorded.' };
 
+  // Send WhatsApp notification to Finance about pending payment
+  let whatsappNotified = false;
+  let whatsappError = null;
+  
+  try {
+    const settings = await getSystemSettings();
+    const whatsappEnabled = settings.find((s: any) => s.key === 'whatsapp_enabled')?.value === 'true';
+    const financePhone = settings.find((s: any) => s.key === 'whatsapp_finance_phone')?.value;
+    const enablePending = settings.find((s: any) => s.key === 'whatsapp_enable_payment_pending')?.value === 'true';
+
+    if (whatsappEnabled && financePhone && enablePending && result.submission_id) {
+      // Get fee payment details for the notification
+      const feePayment = await getFeePayment(feePaymentId);
+      
+      if (feePayment && student) {
+        const admissionNumber = student.student_number || 'N/A';
+        const currentDate = new Date().toLocaleDateString('en-GB', { 
+          day: '2-digit', 
+          month: 'short', 
+          year: 'numeric' 
+        });
+        
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://excellence-mis.vercel.app';
+        const reviewLink = `${baseUrl}/dashboard/fees?submission=${result.submission_id}`;
+
+        const notificationResult = await whatsappService.sendPaymentPendingNotification({
+          recipientPhone: financePhone,
+          templateName: 'payment_pending_approval',
+          templateData: {
+            student_name: `${student.first_name} ${student.last_name}`,
+            admission_number: admissionNumber,
+            amount: feePayment.amount?.toString() || '0',
+            payment_method: paymentMethod,
+            reference_number: referenceNumber,
+            date: currentDate,
+            review_link: reviewLink,
+          },
+        });
+
+        // Log the notification
+        await logWhatsAppNotification({
+          paymentId: feePaymentId,
+          studentId: student.id,
+          recipientPhone: financePhone,
+          notificationType: 'PAYMENT_PENDING_APPROVAL',
+          templateName: 'payment_pending_approval',
+          result: notificationResult,
+        });
+
+        whatsappNotified = notificationResult.success;
+        if (!notificationResult.success) {
+          whatsappError = notificationResult.error;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('WhatsApp notification error:', error);
+    whatsappError = error instanceof Error ? error.message : 'Unknown error';
+  }
+
   revalidatePath('/student/fees');
   revalidatePath('/student');
   revalidatePath('/dashboard/fees');
@@ -113,6 +176,8 @@ export async function submitMyFeePayment(
     pendingAmount: result.pending_amount,
     balance: result.balance,
     status: result.status,
+    whatsappNotified,
+    whatsappError,
   };
 }
 

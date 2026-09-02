@@ -3,6 +3,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { PaymentStatus } from '@/lib/types';
+import { whatsappService } from '@/lib/whatsapp-service';
+import { logWhatsAppNotification } from '@/app/actions/whatsapp-notifications';
+import { getSystemSettings } from '@/app/actions/system-settings';
 
 export async function getFeePayments() {
   const supabase = await createClient();
@@ -169,6 +172,71 @@ export async function approveFeePaymentSubmission(submissionId: string) {
   if (result?.error) return { error: result.error };
   if (!result?.success) return { error: 'Payment could not be approved.' };
 
+  // Send WhatsApp notification to student about approved payment
+  let whatsappNotified = false;
+  let whatsappError = null;
+  
+  try {
+    const settings = await getSystemSettings();
+    const whatsappEnabled = settings.find((s: any) => s.key === 'whatsapp_enabled')?.value === 'true';
+    const enableApproved = settings.find((s: any) => s.key === 'whatsapp_enable_payment_approved')?.value === 'true';
+
+    if (whatsappEnabled && enableApproved) {
+      // Get the submission details for notification
+      const { data: submission } = await supabase
+        .from('fee_payment_submissions')
+        .select('*, student:students(*, phone), fee_payment:fee_payments(*)')
+        .eq('id', submissionId)
+        .single();
+
+      if (submission && submission.student && submission.fee_payment) {
+        const student = submission.student as any;
+        const feePayment = submission.fee_payment as any;
+        
+        if (student.phone) {
+          const admissionNumber = student.student_number || 'N/A';
+          const currentDate = new Date().toLocaleDateString('en-GB', { 
+            day: '2-digit', 
+            month: 'short', 
+            year: 'numeric' 
+          });
+
+          const notificationResult = await whatsappService.sendPaymentApprovedNotification({
+            recipientPhone: student.phone,
+            templateName: 'payment_approved',
+            templateData: {
+              student_name: `${student.first_name} ${student.last_name}`,
+              admission_number: admissionNumber,
+              amount: submission.amount?.toString() || '0',
+              payment_method: submission.payment_method,
+              reference_number: submission.reference_number,
+              receipt_number: result.receipt_number || 'N/A',
+              date: currentDate,
+            },
+          });
+
+          // Log the notification
+          await logWhatsAppNotification({
+            paymentId: feePayment.id,
+            studentId: student.id,
+            recipientPhone: student.phone,
+            notificationType: 'PAYMENT_APPROVED',
+            templateName: 'payment_approved',
+            result: notificationResult,
+          });
+
+          whatsappNotified = notificationResult.success;
+          if (!notificationResult.success) {
+            whatsappError = notificationResult.error;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('WhatsApp notification error:', error);
+    whatsappError = error instanceof Error ? error.message : 'Unknown error';
+  }
+
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
@@ -182,6 +250,103 @@ export async function approveFeePaymentSubmission(submissionId: string) {
     balance: result.balance,
     status: result.status,
     receiptNumber: result.receipt_number,
+    whatsappNotified,
+    whatsappError,
+  };
+}
+
+export async function rejectFeePaymentSubmission(submissionId: string, rejectionReason: string) {
+  const supabase = await createClient();
+  
+  // First, get the submission details
+  const { data: submission, error: fetchError } = await supabase
+    .from('fee_payment_submissions')
+    .select('*, student:students(*, phone), fee_payment:fee_payments(*)')
+    .eq('id', submissionId)
+    .single();
+
+  if (fetchError || !submission) {
+    return { error: 'Payment submission not found.' };
+  }
+
+  if (submission.status !== 'pending') {
+    return { error: 'This submission has already been processed.' };
+  }
+
+  // Update the submission status to rejected
+  const { error } = await supabase
+    .from('fee_payment_submissions')
+    .update({
+      status: 'rejected',
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+    })
+    .eq('id', submissionId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Send WhatsApp notification to student about rejected payment
+  let whatsappNotified = false;
+  let whatsappError = null;
+  
+  try {
+    const settings = await getSystemSettings();
+    const whatsappEnabled = settings.find((s: any) => s.key === 'whatsapp_enabled')?.value === 'true';
+    const enableRejected = settings.find((s: any) => s.key === 'whatsapp_enable_payment_rejected')?.value === 'true';
+
+    if (whatsappEnabled && enableRejected) {
+      const student = submission.student as any;
+      const feePayment = submission.fee_payment as any;
+      
+      if (student && student.phone) {
+        const admissionNumber = student.student_number || 'N/A';
+
+        const notificationResult = await whatsappService.sendPaymentRejectedNotification({
+          recipientPhone: student.phone,
+          templateName: 'payment_rejected',
+          templateData: {
+            student_name: `${student.first_name} ${student.last_name}`,
+            admission_number: admissionNumber,
+            amount: submission.amount?.toString() || '0',
+            reference_number: submission.reference_number,
+            rejection_reason: rejectionReason,
+          },
+        });
+
+        // Log the notification
+        await logWhatsAppNotification({
+          paymentId: feePayment.id,
+          studentId: student.id,
+          recipientPhone: student.phone,
+          notificationType: 'PAYMENT_REJECTED',
+          templateName: 'payment_rejected',
+          result: notificationResult,
+        });
+
+        whatsappNotified = notificationResult.success;
+        if (!notificationResult.success) {
+          whatsappError = notificationResult.error;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('WhatsApp notification error:', error);
+    whatsappError = error instanceof Error ? error.message : 'Unknown error';
+  }
+
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
+  revalidatePath('/student/(portal)/fees');
+  revalidatePath('/student/(portal)');
+  revalidatePath('/student/(portal)/page');
+
+  return {
+    success: true,
+    whatsappNotified,
+    whatsappError,
   };
 }
 

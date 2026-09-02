@@ -1,11 +1,12 @@
 import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getProfile } from '@/app/actions/dashboard';
-import { getAdmissionNumberFormat, getPaymentSettings } from '@/app/actions/system-settings';
+import { getAdmissionNumberFormat, getPaymentSettings, getSystemSettings } from '@/app/actions/system-settings';
 import { getPrograms } from '@/app/actions/programs';
 import { isPesapalConfigured, getPesapalMissingConfig } from '@/lib/pesapal';
 import { AdmissionFormatCard } from '@/components/settings/admission-format-card';
 import { PaymentSettingsCard } from '@/components/settings/payment-settings-card';
+import { WhatsAppSettingsCard } from '@/components/settings/whatsapp-settings-card';
 import { ExternalLink } from 'lucide-react';
 
 export default async function SettingsPage() {
@@ -14,8 +15,19 @@ export default async function SettingsPage() {
   const admissionFormat = isAdmin ? await getAdmissionNumberFormat() : null;
   const programs = isAdmin ? await getPrograms() : [];
   const paymentSettings = isAdmin ? await getPaymentSettings() : null;
+  const systemSettings = isAdmin ? await getSystemSettings() : [];
   const pesapalConfigured = isPesapalConfigured();
   const pesapalMissingConfig = getPesapalMissingConfig();
+
+  // Extract WhatsApp settings
+  const whatsappSettings = isAdmin ? {
+    enabled: systemSettings.find((s: any) => s.key === 'whatsapp_enabled')?.value === 'true',
+    provider: systemSettings.find((s: any) => s.key === 'whatsapp_provider')?.value || 'twilio',
+    financePhone: systemSettings.find((s: any) => s.key === 'whatsapp_finance_phone')?.value || '',
+    enablePending: systemSettings.find((s: any) => s.key === 'whatsapp_enable_payment_pending')?.value === 'true',
+    enableApproved: systemSettings.find((s: any) => s.key === 'whatsapp_enable_payment_approved')?.value === 'true',
+    enableRejected: systemSettings.find((s: any) => s.key === 'whatsapp_enable_payment_rejected')?.value === 'true',
+  } : null;
 
   return (
     <div>
@@ -55,6 +67,10 @@ export default async function SettingsPage() {
             pesapalConfigured={pesapalConfigured}
             pesapalMissingConfig={pesapalMissingConfig}
           />
+        )}
+
+        {isAdmin && (
+          <WhatsAppSettingsCard initialSettings={whatsappSettings || undefined} />
         )}
 
         <Card>

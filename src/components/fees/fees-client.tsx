@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
-import { createFeePayment, approveFeePaymentSubmission, markFeeAsPaid } from '@/app/actions/fees';
+import { createFeePayment, approveFeePaymentSubmission, markFeeAsPaid, rejectFeePaymentSubmission } from '@/app/actions/fees';
 import type { AcademicTerm, FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import {
   formatCurrency,
@@ -19,7 +19,7 @@ import {
   getFeeBalance,
   getStudentFeeDisplayStatus,
 } from '@/lib/utils';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, XCircle, MessageCircle, Bell } from 'lucide-react';
 
 type PendingApproval = {
   submission: FeePaymentSubmission;
@@ -185,6 +185,48 @@ function MarkAsPaidModal({
   );
 }
 
+function RejectModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  loading,
+  rejectionReason,
+  onReasonChange,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  loading: boolean;
+  rejectionReason: string;
+  onReasonChange: (reason: string) => void;
+}) {
+  return (
+    <Modal open={isOpen} onClose={onClose} title="Reject Payment" size="md">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Please provide a reason for rejecting this payment. This will be communicated to the student.
+        </p>
+        <textarea
+          value={rejectionReason}
+          onChange={(e) => onReasonChange(e.target.value)}
+          placeholder="e.g., Transaction reference could not be verified"
+          className="w-full rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows={3}
+          required
+        />
+        <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} disabled={loading || !rejectionReason.trim()} variant="danger">
+            {loading ? 'Rejecting...' : 'Reject Payment'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export function FeesClient({
   fees,
   students,
@@ -202,8 +244,12 @@ export function FeesClient({
   const [showForm, setShowForm] = useState(false);
   const [markAsPaidFee, setMarkAsPaidFee] = useState<FeePayment | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
   const [approveSuccess, setApproveSuccess] = useState<string | null>(null);
+  const [whatsappStatus, setWhatsappStatus] = useState<{ notified: boolean; error?: string } | null>(null);
 
   const totalOutstanding = fees.reduce((sum, f) => sum + getFeeBalance(f), 0);
   const totalPaid = fees.reduce((sum, f) => sum + Number(f.amount_paid ?? 0), 0);
@@ -221,6 +267,7 @@ export function FeesClient({
     setApprovingId(submissionId);
     setApproveError(null);
     setApproveSuccess(null);
+    setWhatsappStatus(null);
     const result = await approveFeePaymentSubmission(submissionId);
     if (result.error) {
       setApproveError(result.error);
@@ -229,6 +276,40 @@ export function FeesClient({
     }
     setApprovingId(null);
     setApproveSuccess('Payment approved successfully.');
+    setWhatsappStatus({
+      notified: result.whatsappNotified || false,
+      error: result.whatsappError,
+    });
+    router.refresh();
+  }
+
+  function handleRejectClick(submissionId: string) {
+    setRejectingId(submissionId);
+    setRejectionReason('');
+    setShowRejectModal(true);
+  }
+
+  async function handleRejectConfirm() {
+    if (!rejectingId || !rejectionReason.trim()) {
+      setApproveError('Please provide a rejection reason.');
+      return;
+    }
+    
+    setApproveError(null);
+    const result = await rejectFeePaymentSubmission(rejectingId, rejectionReason);
+    if (result.error) {
+      setApproveError(result.error);
+      return;
+    }
+    
+    setRejectingId(null);
+    setShowRejectModal(false);
+    setRejectionReason('');
+    setWhatsappStatus({
+      notified: result.whatsappNotified || false,
+      error: result.whatsappError,
+    });
+    setApproveSuccess('Payment rejected successfully.');
     router.refresh();
   }
 
@@ -245,7 +326,14 @@ export function FeesClient({
       )}
 
       {approveSuccess && (
-        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{approveSuccess}</div>
+        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {approveSuccess}
+          {whatsappStatus && !whatsappStatus.notified && whatsappStatus.error && (
+            <span className="block mt-1 text-amber-700">
+              WhatsApp notification failed: {whatsappStatus.error}
+            </span>
+          )}
+        </div>
       )}
 
       {!approvalSetup.ready && approvalSetup.message && (
@@ -280,6 +368,7 @@ export function FeesClient({
                   <th className="px-6 py-3 font-medium">Method</th>
                   <th className="px-6 py-3 font-medium">Reference</th>
                   <th className="px-6 py-3 font-medium">Submitted</th>
+                  <th className="px-6 py-3 font-medium">WhatsApp</th>
                   <th className="px-6 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -297,6 +386,9 @@ export function FeesClient({
                     <td className="px-6 py-4 font-mono text-slate-800">{submission.reference_number}</td>
                     <td className="px-6 py-4 text-slate-500">{formatDate(submission.created_at)}</td>
                     <td className="px-6 py-4">
+                      <MessageCircle className="h-4 w-4 text-slate-400" />
+                    </td>
+                    <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
@@ -306,6 +398,14 @@ export function FeesClient({
                         >
                           <CheckCircle2 className="h-4 w-4" />
                           {approvingId === submission.id ? 'Approving...' : 'Approve'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleRejectClick(submission.id)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Reject
                         </Button>
                         <Link href={`/dashboard/fees/receipt/${submission.id}`} target="_blank">
                           <Button size="sm" variant="secondary">
@@ -485,6 +585,17 @@ export function FeesClient({
       
       {markAsPaidFee && (
         <MarkAsPaidModal fee={markAsPaidFee} onClose={() => setMarkAsPaidFee(null)} />
+      )}
+      
+      {showRejectModal && (
+        <RejectModal
+          isOpen={showRejectModal}
+          onClose={() => setShowRejectModal(false)}
+          onConfirm={handleRejectConfirm}
+          loading={!!rejectingId}
+          rejectionReason={rejectionReason}
+          onReasonChange={setRejectionReason}
+        />
       )}
     </div>
   );
