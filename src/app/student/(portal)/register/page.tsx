@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getStudentRegisterPageData } from '@/app/actions/student-self';
 import { StudentSelfForm } from '@/components/students/student-self-form';
 import { PageHeader } from '@/components/ui/page-header';
+import { WhatsAppSupportButton } from '@/components/ui/whatsapp-support-button';
 import type { Program, Student } from '@/lib/types';
 
 export default async function StudentRegisterPage() {
@@ -22,6 +23,7 @@ export default async function StudentRegisterPage() {
         defaultFirstName={defaultFirstName}
         defaultLastName={defaultLastName}
       />
+      <WhatsAppSupportButton label="Need help?" />
     </div>
   );
 }
