@@ -278,7 +278,7 @@ export function FeesClient({
     setApproveSuccess('Payment approved successfully.');
     setWhatsappStatus({
       notified: result.whatsappNotified || false,
-      error: result.whatsappError,
+      error: result.whatsappError || undefined,
     });
     router.refresh();
   }
@@ -307,7 +307,7 @@ export function FeesClient({
     setRejectionReason('');
     setWhatsappStatus({
       notified: result.whatsappNotified || false,
-      error: result.whatsappError,
+      error: result.whatsappError || undefined,
     });
     setApproveSuccess('Payment rejected successfully.');
     router.refresh();
