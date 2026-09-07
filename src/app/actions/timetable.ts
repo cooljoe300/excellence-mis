@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type { Timetable, Room, TimeSlot, Profile, Program, Course, Intake, AcademicTerm } from '@/lib/types';
+import type { Timetable, Room, TimeSlot, Profile, Program, Course, Intake, AcademicTerm, TimetableProgrammeAssignment } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 import { resolveAcademicPeriod } from '@/lib/academic-period';
 import {
@@ -31,8 +31,9 @@ async function hydrateTimetables(rows: Timetable[] | null | undefined): Promise<
   const lecturerIds = uniqueIds(rows.map((row) => row.lecturer_id));
   const intakeIds = uniqueIds(rows.map((row) => row.intake_id));
   const roomIds = uniqueIds(rows.map((row) => row.room_id));
+  const timetableIds = uniqueIds(rows.map((row) => row.id));
 
-  const [programs, courses, lecturers, intakes, rooms] = await Promise.all([
+  const [programs, courses, lecturers, intakes, rooms, programmeAssignments] = await Promise.all([
     programIds.length
       ? supabase.from('programs').select('*').in('id', programIds)
       : Promise.resolve({ data: [] as Program[] }),
@@ -48,6 +49,9 @@ async function hydrateTimetables(rows: Timetable[] | null | undefined): Promise<
     roomIds.length
       ? supabase.from('rooms').select('*').in('id', roomIds)
       : Promise.resolve({ data: [] as Room[] }),
+    timetableIds.length
+      ? supabase.from('timetable_programme_assignments').select('*').in('timetable_id', timetableIds)
+      : Promise.resolve({ data: [] as TimetableProgrammeAssignment[] }),
   ]);
 
   let intakeRows = (intakes.data || []) as Intake[];
@@ -62,11 +66,25 @@ async function hydrateTimetables(rows: Timetable[] | null | undefined): Promise<
   const intakeMap = mapById(intakeRows);
   const roomMap = mapById(rooms.data as Room[] | null);
 
+  // Create map of timetable assignments
+  const assignmentsMap: Record<string, TimetableProgrammeAssignment[]> = {};
+  (programmeAssignments.data || []).forEach((assignment) => {
+    if (!assignmentsMap[assignment.timetable_id]) {
+      assignmentsMap[assignment.timetable_id] = [];
+    }
+    assignmentsMap[assignment.timetable_id].push({
+      ...assignment,
+      programme: assignment.programme_id ? programMap[assignment.programme_id] : undefined,
+      intake: assignment.intake_id ? intakeMap[assignment.intake_id] : undefined,
+    });
+  });
+
   return rows.map((row) => ({
     ...row,
     day: normalizeDay(row.day),
     start_time: formatClockTime(row.start_time),
     end_time: formatClockTime(row.end_time),
+    programme_assignments: assignmentsMap[row.id] || [],
     program: row.program_id ? programMap[row.program_id] : row.program,
     course: row.course_id ? courseMap[row.course_id] : row.course,
     lecturer: row.lecturer_id ? lecturerMap[row.lecturer_id] : row.lecturer,
@@ -82,9 +100,68 @@ async function fetchTimetableRows(filters?: {
   status?: string;
 }) {
   const supabase = await createClient();
-  let query = supabase.from('timetables').select('*');
+  
+  // If filtering by programme, we need to get both direct programme assignments
+  // and shared sessions that include this programme
+  if (filters?.programId) {
+    // Get direct programme assignments and shared sessions
+    const { data: assignments, error: assignmentError } = await supabase
+      .from('timetable_programme_assignments')
+      .select('timetable_id')
+      .eq('programme_id', filters.programId);
 
-  if (filters?.programId) query = query.eq('program_id', filters.programId);
+    if (assignmentError) {
+      console.error('Error fetching programme assignments:', assignmentError);
+    }
+
+    const assignedTimetableIds = (assignments || []).map((a: any) => a.timetable_id);
+
+    // Get regular timetables for this programme + shared sessions
+    const { data: regularTimetables, error: regularError } = await supabase
+      .from('timetables')
+      .select('*')
+      .eq('program_id', filters.programId);
+
+    const { data: sharedTimetables, error: sharedError } = assignedTimetableIds.length > 0
+      ? await supabase
+          .from('timetables')
+          .select('*')
+          .in('id', assignedTimetableIds)
+      : { data: [], error: null };
+
+    if (regularError) {
+      console.error('Error fetching regular timetables:', regularError);
+    }
+    if (sharedError) {
+      console.error('Error fetching shared timetables:', sharedError);
+    }
+
+    // Combine and deduplicate
+    const allTimetables = [...(regularTimetables || []), ...(sharedTimetables || [])];
+    const uniqueTimetables = Array.from(
+      new Map(allTimetables.map((tt) => [tt.id, tt])).values()
+    );
+
+    // Apply other filters
+    let filtered = uniqueTimetables;
+    if (filters?.intakeId) {
+      filtered = filtered.filter((tt: any) => 
+        tt.intake_id === filters.intakeId || 
+        tt.programme_assignments?.some((pa: any) => pa.intake_id === filters.intakeId)
+      );
+    }
+    if (filters?.academicYear) {
+      filtered = filtered.filter((tt: any) => tt.academic_year === filters.academicYear);
+    }
+    if (filters?.status) {
+      filtered = filtered.filter((tt: any) => tt.status === filters.status);
+    }
+
+    return hydrateTimetables(filtered as Timetable[]);
+  }
+
+  // No programme filter - use regular query
+  let query = supabase.from('timetables').select('*');
   if (filters?.intakeId) query = query.eq('intake_id', filters.intakeId);
   if (filters?.academicYear) query = query.eq('academic_year', filters.academicYear);
   if (filters?.status) query = query.eq('status', filters.status);
@@ -329,6 +406,9 @@ export async function checkTimetableConflict(formData: FormData) {
   const programId = (formData.get('program_id') as string) || '';
   const roomId = (formData.get('room_id') as string) || '';
   const existingId = (formData.get('id') as string) || '';
+  const sharedClassId = (formData.get('shared_class_id') as string) || '';
+  const classType = (formData.get('class_type') as string) || 'regular';
+  const programmeIds = formData.get('programme_ids') as string || '';
 
   const conflicts: string[] = [];
 
@@ -348,23 +428,66 @@ export async function checkTimetableConflict(formData: FormData) {
     return timesOverlap(row.start_time, row.end_time, startTime, endTime);
   });
 
-  const duplicate = overlapping.find(
-    (row) =>
-      row.program_id === programId &&
-      row.intake_id === intakeId &&
-      row.course_id === courseId &&
-      timeToMinutes(row.start_time) === timeToMinutes(startTime) &&
-      timeToMinutes(row.end_time) === timeToMinutes(endTime)
-  );
+  // Check for duplicate programme-intake assignments for shared sessions
+  if (classType === 'shared' && programmeIds) {
+    const selectedProgramIds = programmeIds.split(',').filter(Boolean);
+    
+    for (const selectedProgramId of selectedProgramIds) {
+      const duplicateAssignment = overlapping.find((row) => {
+        if (row.shared_class_id === sharedClassId) return false; // Same session, allowed
+        if (!row.programme_assignments) return false;
+        
+        return row.programme_assignments.some((assignment) =>
+          assignment.programme_id === selectedProgramId &&
+          assignment.intake_id === intakeId &&
+          timeToMinutes(row.start_time) === timeToMinutes(startTime) &&
+          timeToMinutes(row.end_time) === timeToMinutes(endTime)
+        );
+      });
 
-  if (duplicate) {
-    conflicts.push(
-      `A class with this programme, intake, unit, day and time (${formatTimeRange(startTime, endTime)}) already exists.`
+      if (duplicateAssignment) {
+        conflicts.push(
+          `A class with this programme, intake, unit, day and time (${formatTimeRange(startTime, endTime)}) already exists.`
+        );
+        break;
+      }
+    }
+  } else {
+    // Regular class duplicate check
+    const duplicate = overlapping.find(
+      (row) =>
+        row.program_id === programId &&
+        row.intake_id === intakeId &&
+        row.course_id === courseId &&
+        timeToMinutes(row.start_time) === timeToMinutes(startTime) &&
+        timeToMinutes(row.end_time) === timeToMinutes(endTime)
     );
+
+    if (duplicate) {
+      conflicts.push(
+        `A class with this programme, intake, unit, day and time (${formatTimeRange(startTime, endTime)}) already exists.`
+      );
+    }
   }
 
+  // Lecturer conflict check - allow same lecturer if part of shared class
   if (lecturerId) {
-    const lecturerConflict = overlapping.find((row) => row.lecturer_id === lecturerId);
+    const lecturerConflict = overlapping.find((row) => {
+      // Skip if same lecturer but part of the same shared class
+      if (row.lecturer_id === lecturerId) {
+        // If both entries have the same shared_class_id, they're part of the same session
+        if (sharedClassId && row.shared_class_id === sharedClassId) {
+          return false;
+        }
+        // If the existing entry is a shared class and we're editing it, allow
+        if (existingId && row.shared_class_id && row.id === existingId) {
+          return false;
+        }
+        return true;
+      }
+      return false;
+    });
+    
     if (lecturerConflict) {
       conflicts.push(
         `This lecturer is already assigned to another class from ${formatTimeRange(lecturerConflict.start_time, lecturerConflict.end_time)} on ${day}.`
@@ -392,7 +515,7 @@ export async function createTimetable(formData: FormData) {
     return { error: 'You must be logged in to create a timetable entry.' };
   }
 
-  const programId = formString(formData, 'program_id');
+  const programmeIds = formString(formData, 'programme_ids');
   const courseId = formString(formData, 'course_id');
   const intakeId = formString(formData, 'intake_id');
   const lecturerId = formString(formData, 'lecturer_id');
@@ -402,10 +525,10 @@ export async function createTimetable(formData: FormData) {
   const endTime = formString(formData, 'end_time');
   const status = (formString(formData, 'status') || 'draft').toLowerCase();
 
-  if (!programId) return { error: 'Please select a programme.' };
+  if (!programmeIds) return { error: 'Please select at least one programme.' };
   if (!intakeId) return { error: 'Please select an intake.' };
   if (!courseId) return { error: 'Please select a unit.' };
-  if (!lecturerId) return { error: 'Please select a lecturer for this class.' };
+  // Lecturer is now optional - can be "To Be Confirmed"
   if (!day) return { error: 'Please select a day.' };
   if (!startTime || !endTime) return { error: 'Please select a start and end time.' };
   if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
@@ -415,6 +538,13 @@ export async function createTimetable(formData: FormData) {
     return { error: 'Please select a valid status.' };
   }
 
+  const selectedProgramIds = programmeIds.split(',').filter(Boolean);
+  const isSharedClass = selectedProgramIds.length > 1;
+  const classType = isSharedClass ? 'shared' : 'regular';
+  
+  // Generate shared_class_id for shared classes
+  const sharedClassId = isSharedClass ? crypto.randomUUID() : null;
+
   const period = await resolveIntakeAcademicPeriod(intakeId);
   if ('error' in period) {
     return { error: period.error };
@@ -422,12 +552,15 @@ export async function createTimetable(formData: FormData) {
   const academicYear = period.academicYear;
   formData.set('academic_year', academicYear);
   formData.set('day', day);
-  formData.set('program_id', programId);
+  formData.set('programme_ids', programmeIds);
   formData.set('intake_id', intakeId);
   formData.set('course_id', courseId);
   formData.set('lecturer_id', lecturerId);
   formData.set('room_id', roomId);
+  formData.set('class_type', classType);
+  formData.set('shared_class_id', sharedClassId || '');
 
+  // Validate unit availability for all selected programmes
   const { data: course } = await supabase
     .from('courses')
     .select('program_id')
@@ -438,8 +571,30 @@ export async function createTimetable(formData: FormData) {
     return { error: 'The selected unit does not exist.' };
   }
 
-  if (course.program_id !== programId) {
-    return { error: 'The selected unit does not belong to the selected programme.' };
+  // For shared classes, check if unit is available in all selected programmes
+  if (isSharedClass) {
+    const { data: courseProgrammes } = await supabase
+      .from('courses')
+      .select('program_id')
+      .eq('id', courseId);
+
+    const availableProgramIds = (courseProgrammes || []).map((c: any) => c.program_id);
+    const unavailablePrograms = selectedProgramIds.filter(id => !availableProgramIds.includes(id));
+    
+    if (unavailablePrograms.length > 0) {
+      const { data: programs } = await supabase
+        .from('programs')
+        .select('name')
+        .in('id', unavailablePrograms);
+      
+      const programNames = (programs || []).map((p: any) => p.name).join(', ');
+      return { error: `The selected unit is not configured for: ${programNames}` };
+    }
+  } else {
+    // Regular class - check unit belongs to selected programme
+    if (course.program_id !== selectedProgramIds[0]) {
+      return { error: 'The selected unit does not belong to the selected programme.' };
+    }
   }
 
   const conflicts = await checkTimetableConflict(formData);
@@ -447,13 +602,14 @@ export async function createTimetable(formData: FormData) {
     return { error: conflicts.join(' ') };
   }
 
+  // Create the main timetable session
   const timetableData = {
     academic_year: academicYear,
     semester: period.semester,
-    program_id: programId,
-    intake_id: intakeId,
+    program_id: isSharedClass ? null : selectedProgramIds[0], // null for shared classes
+    intake_id: isSharedClass ? null : intakeId, // null for shared classes
     course_id: courseId,
-    lecturer_id: lecturerId,
+    lecturer_id: lecturerId || null,
     room_id: roomId || null,
     day,
     start_time: startTime,
@@ -463,6 +619,8 @@ export async function createTimetable(formData: FormData) {
     meeting_link: formData.get('meeting_link') || null,
     status,
     notes: formData.get('notes') || null,
+    class_type: classType,
+    shared_class_id: sharedClassId,
     created_by: user.id,
   };
 
@@ -475,6 +633,27 @@ export async function createTimetable(formData: FormData) {
   if (error) {
     console.error('Error inserting timetable:', error);
     return { error: error.message };
+  }
+
+  // Create programme assignments for shared classes
+  if (isSharedClass) {
+    const assignments = selectedProgramIds.map((programId) => ({
+      timetable_id: data.id,
+      programme_id: programId,
+      intake_id: intakeId,
+      academic_year: academicYear,
+    }));
+
+    const { error: assignmentError } = await supabase
+      .from('timetable_programme_assignments')
+      .insert(assignments);
+
+    if (assignmentError) {
+      console.error('Error creating programme assignments:', assignmentError);
+      // Rollback timetable creation
+      await supabase.from('timetables').delete().eq('id', data.id);
+      return { error: 'Failed to create programme assignments.' };
+    }
   }
 
   await supabase.from('timetable_audit_logs').insert({
@@ -502,7 +681,7 @@ export async function updateTimetable(id: string, formData: FormData) {
 
   formData.set('id', id);
 
-  const programId = formString(formData, 'program_id');
+  const programmeIds = formString(formData, 'programme_ids');
   const courseId = formString(formData, 'course_id');
   const intakeId = formString(formData, 'intake_id');
   const lecturerId = formString(formData, 'lecturer_id');
@@ -512,10 +691,10 @@ export async function updateTimetable(id: string, formData: FormData) {
   const endTime = formString(formData, 'end_time');
   const status = (formString(formData, 'status') || 'draft').toLowerCase();
 
-  if (!programId) return { error: 'Please select a programme.' };
+  if (!programmeIds) return { error: 'Please select at least one programme.' };
   if (!intakeId) return { error: 'Please select an intake.' };
   if (!courseId) return { error: 'Please select a unit.' };
-  if (!lecturerId) return { error: 'Please select a lecturer for this class.' };
+  // Lecturer is now optional - can be "To Be Confirmed"
   if (!day) return { error: 'Please select a day.' };
   if (!startTime || !endTime) return { error: 'Please select a start and end time.' };
   if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
@@ -525,6 +704,23 @@ export async function updateTimetable(id: string, formData: FormData) {
     return { error: 'Please select a valid status.' };
   }
 
+  const selectedProgramIds = programmeIds.split(',').filter(Boolean);
+  const isSharedClass = selectedProgramIds.length > 1;
+  const classType = isSharedClass ? 'shared' : 'regular';
+
+  // Get existing timetable to preserve shared_class_id if needed
+  const { data: existingTimetable } = await supabase
+    .from('timetables')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (!existingTimetable) {
+    return { error: 'Timetable entry not found' };
+  }
+
+  const sharedClassId = existingTimetable.shared_class_id || (isSharedClass ? crypto.randomUUID() : null);
+
   const period = await resolveIntakeAcademicPeriod(intakeId);
   if ('error' in period) {
     return { error: period.error };
@@ -532,24 +728,64 @@ export async function updateTimetable(id: string, formData: FormData) {
   const academicYear = period.academicYear;
   formData.set('academic_year', academicYear);
   formData.set('day', day);
-  formData.set('program_id', programId);
+  formData.set('programme_ids', programmeIds);
   formData.set('intake_id', intakeId);
   formData.set('course_id', courseId);
   formData.set('lecturer_id', lecturerId);
   formData.set('room_id', roomId);
+  formData.set('class_type', classType);
+  formData.set('shared_class_id', sharedClassId || '');
+
+  // Validate unit availability for all selected programmes
+  const { data: course } = await supabase
+    .from('courses')
+    .select('program_id')
+    .eq('id', courseId)
+    .single();
+
+  if (!course) {
+    return { error: 'The selected unit does not exist.' };
+  }
+
+  // For shared classes, check if unit is available in all selected programmes
+  if (isSharedClass) {
+    const { data: courseProgrammes } = await supabase
+      .from('courses')
+      .select('program_id')
+      .eq('id', courseId);
+
+    const availableProgramIds = (courseProgrammes || []).map((c: any) => c.program_id);
+    const unavailablePrograms = selectedProgramIds.filter(id => !availableProgramIds.includes(id));
+    
+    if (unavailablePrograms.length > 0) {
+      const { data: programs } = await supabase
+        .from('programs')
+        .select('name')
+        .in('id', unavailablePrograms);
+      
+      const programNames = (programs || []).map((p: any) => p.name).join(', ');
+      return { error: `The selected unit is not configured for: ${programNames}` };
+    }
+  } else {
+    // Regular class - check unit belongs to selected programme
+    if (course.program_id !== selectedProgramIds[0]) {
+      return { error: 'The selected unit does not belong to the selected programme.' };
+    }
+  }
 
   const conflicts = await checkTimetableConflict(formData);
   if (conflicts.length > 0) {
     return { error: conflicts.join(' ') };
   }
 
+  // Update the main timetable session
   const timetableData = {
     academic_year: academicYear,
     semester: period.semester,
-    program_id: programId,
-    intake_id: intakeId,
+    program_id: isSharedClass ? null : selectedProgramIds[0],
+    intake_id: isSharedClass ? null : intakeId,
     course_id: courseId,
-    lecturer_id: lecturerId,
+    lecturer_id: lecturerId || null,
     room_id: roomId || null,
     day,
     start_time: startTime,
@@ -559,6 +795,8 @@ export async function updateTimetable(id: string, formData: FormData) {
     meeting_link: formData.get('meeting_link') || null,
     status,
     notes: formData.get('notes') || null,
+    class_type: classType,
+    shared_class_id: sharedClassId,
     updated_by: user.id,
   };
 
@@ -571,6 +809,38 @@ export async function updateTimetable(id: string, formData: FormData) {
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Update programme assignments for shared classes
+  if (isSharedClass) {
+    // Delete existing assignments
+    await supabase
+      .from('timetable_programme_assignments')
+      .delete()
+      .eq('timetable_id', id);
+
+    // Create new assignments
+    const assignments = selectedProgramIds.map((programId) => ({
+      timetable_id: id,
+      programme_id: programId,
+      intake_id: intakeId,
+      academic_year: academicYear,
+    }));
+
+    const { error: assignmentError } = await supabase
+      .from('timetable_programme_assignments')
+      .insert(assignments);
+
+    if (assignmentError) {
+      console.error('Error updating programme assignments:', assignmentError);
+      return { error: 'Failed to update programme assignments.' };
+    }
+  } else {
+    // For regular classes, remove any existing assignments
+    await supabase
+      .from('timetable_programme_assignments')
+      .delete()
+      .eq('timetable_id', id);
   }
 
   const [hydrated] = await hydrateTimetables([data as Timetable]);
@@ -631,6 +901,8 @@ export async function publishTimetable(id: string) {
   formData.set('intake_id', currentTimetable.intake_id || '');
   formData.set('program_id', currentTimetable.program_id || '');
   formData.set('academic_year', currentTimetable.academic_year);
+  formData.set('class_type', currentTimetable.class_type || 'regular');
+  formData.set('shared_class_id', currentTimetable.shared_class_id || '');
 
   // Check for conflicts
   const conflicts = await checkTimetableConflict(formData);

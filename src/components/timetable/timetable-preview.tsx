@@ -152,9 +152,17 @@ export function TimetablePrintDocument({
                       <div key={entry.id} className="mb-1 last:mb-0">
                         <p className="font-bold leading-tight">{entry.course?.code}</p>
                         <p className="leading-tight">{entry.course?.name}</p>
-                        <p className="leading-tight">{entry.lecturer?.full_name || '—'}</p>
+                        <p className="leading-tight">{entry.lecturer?.full_name || 'To Be Confirmed'}</p>
                         <p className="leading-tight">{venueLabel(entry)}</p>
                         <p className="leading-tight">{formatTimeRange(entry.start_time, entry.end_time)}</p>
+                        {entry.class_type === 'shared' && (
+                          <p className="leading-tight text-xs italic">Shared Class</p>
+                        )}
+                        {entry.class_type === 'shared' && entry.programme_assignments && entry.programme_assignments.length > 1 && (
+                          <p className="leading-tight text-xs">
+                            Shared by: {entry.programme_assignments.map(pa => pa.programme?.name).filter(Boolean).join(', ')}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </td>

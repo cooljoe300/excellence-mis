@@ -241,6 +241,19 @@ export interface Room {
   updated_at: string;
 }
 
+export type ClassType = 'regular' | 'shared';
+
+export interface TimetableProgrammeAssignment {
+  id: string;
+  timetable_id: string;
+  programme_id: string;
+  intake_id: string;
+  academic_year: string;
+  created_at: string;
+  programme?: Program;
+  intake?: Intake;
+}
+
 export interface Timetable {
   id: string;
   academic_year: string;
@@ -262,12 +275,15 @@ export interface Timetable {
   meeting_link: string | null;
   status: TimetableStatus;
   notes: string | null;
+  class_type: ClassType;
+  shared_class_id: string | null;
   created_by: string | null;
   updated_by: string | null;
   published_by: string | null;
   published_at: string | null;
   created_at: string;
   updated_at: string;
+  programme_assignments?: TimetableProgrammeAssignment[];
   program?: Program;
   intake?: Intake;
   course?: Course;

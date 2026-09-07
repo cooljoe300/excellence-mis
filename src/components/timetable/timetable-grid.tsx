@@ -224,7 +224,7 @@ export function TimetableGrid({
                                           {entry.course?.name}
                                         </p>
                                         <p className="mt-1 text-[10px] text-slate-600">
-                                          Lecturer: {entry.lecturer?.full_name || '—'}
+                                          Lecturer: {entry.lecturer?.full_name || 'To Be Confirmed'}
                                         </p>
                                         <p className="text-[10px] text-slate-600">
                                           Room: {entry.room?.name || 'Online'}
@@ -238,6 +238,16 @@ export function TimetableGrid({
                                         >
                                           {entry.status}
                                         </Badge>
+                                        {entry.class_type === 'shared' && (
+                                          <Badge className="mt-1 text-[9px] uppercase tracking-wide bg-blue-100 text-blue-800">
+                                            Shared
+                                          </Badge>
+                                        )}
+                                        {entry.class_type === 'shared' && entry.programme_assignments && entry.programme_assignments.length > 1 && (
+                                          <p className="mt-1 text-[9px] text-slate-500">
+                                            +{entry.programme_assignments.length - 1} more
+                                          </p>
+                                        )}
                                       </>
                                     )}
                                     {!primary && (

@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { MultiSelect } from '@/components/ui/multi-select';
+import { IntakeSelector } from '@/components/ui/intake-selector';
 import type { Program, Course, Profile, Room, TimeSlot, Intake, Timetable } from '@/lib/types';
 import { TIMETABLE_DAYS, formatClockTime, timeToMinutes, toTimeInputValue } from '@/lib/timetable-utils';
 
@@ -43,7 +45,7 @@ export function TimetableCellModal({
 }: TimetableCellModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [selectedProgramIds, setSelectedProgramIds] = useState<string[]>([]);
   const [selectedIntakeId, setSelectedIntakeId] = useState('');
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [selectedLecturerId, setSelectedLecturerId] = useState('');
@@ -53,6 +55,8 @@ export function TimetableCellModal({
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [selectedClassType, setSelectedClassType] = useState<'regular' | 'shared'>('regular');
+  const [selectedSharedClassId, setSelectedSharedClassId] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -62,7 +66,14 @@ export function TimetableCellModal({
 
     setError(null);
     setLoading(false);
-    setSelectedProgramId(existingEntry?.program_id || '');
+    
+    // Handle programme selection - for shared classes, get from programme_assignments
+    if (existingEntry?.class_type === 'shared' && existingEntry.programme_assignments) {
+      setSelectedProgramIds(existingEntry.programme_assignments.map(pa => pa.programme_id));
+    } else {
+      setSelectedProgramIds(existingEntry?.program_id ? [existingEntry.program_id] : []);
+    }
+    
     setSelectedIntakeId(existingEntry?.intake_id || '');
     setSelectedCourseId(existingEntry?.course_id || '');
     setSelectedLecturerId(existingEntry?.lecturer_id || '');
@@ -72,10 +83,12 @@ export function TimetableCellModal({
     setStartTime(toTimeInputValue(existingEntry?.start_time || slotStart));
     setEndTime(toTimeInputValue(existingEntry?.end_time || slotEnd));
     setSelectedSlotId('');
+    setSelectedClassType((existingEntry?.class_type as 'regular' | 'shared') || 'regular');
+    setSelectedSharedClassId(existingEntry?.shared_class_id || '');
   }, [isOpen, existingEntry, day, timeSlot]);
 
-  const filteredCourses = selectedProgramId
-    ? courses.filter((course) => course.program_id === selectedProgramId)
+  const filteredCourses = selectedProgramIds.length > 0
+    ? courses.filter((course) => selectedProgramIds.includes(course.program_id))
     : [];
 
   function applyTimeSlot(slotId: string) {
@@ -93,8 +106,8 @@ export function TimetableCellModal({
     setLoading(true);
     setError(null);
 
-    if (!selectedProgramId || !selectedIntakeId || !selectedCourseId || !selectedLecturerId) {
-      setError('Programme, intake, unit and lecturer are required.');
+    if (selectedProgramIds.length === 0 || !selectedIntakeId || !selectedCourseId) {
+      setError('At least one programme, intake and unit are required.');
       setLoading(false);
       return;
     }
@@ -109,11 +122,13 @@ export function TimetableCellModal({
     formData.set('start_time', startTime);
     formData.set('end_time', endTime);
     formData.set('status', selectedStatus);
-    formData.set('program_id', selectedProgramId);
+    formData.set('programme_ids', selectedProgramIds.join(','));
     formData.set('intake_id', selectedIntakeId);
     formData.set('course_id', selectedCourseId);
     formData.set('lecturer_id', selectedLecturerId);
     formData.set('room_id', selectedRoomId);
+    formData.set('class_type', selectedClassType);
+    formData.set('shared_class_id', selectedSharedClassId);
     if (existingEntry?.id) formData.set('id', existingEntry.id);
 
     const result = await onSave(formData);
@@ -149,46 +164,39 @@ export function TimetableCellModal({
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Class information</h3>
-          <Select
-            id="program_id"
-            name="program_id"
-            label="Programme"
+          <MultiSelect
+            id="programme_ids"
+            name="programme_ids"
+            label="Programme(s)"
             required
-            value={selectedProgramId}
-            onChange={(event) => {
-              setSelectedProgramId(event.target.value);
+            value={selectedProgramIds}
+            onChange={(value) => {
+              setSelectedProgramIds(value);
               setSelectedCourseId('');
             }}
-            options={[
-              { value: '', label: 'Select programme' },
-              ...programs.map((program) => ({
-                value: program.id,
-                label: `${program.code} - ${program.name}`,
-              })),
-            ]}
+            options={programs.map((program) => ({
+              value: program.id,
+              label: `${program.code} - ${program.name}`,
+            }))}
+            placeholder="Search and select programmes..."
           />
-          <Select
-            id="intake_id"
-            name="intake_id"
-            label="Intake"
-            required
-            value={selectedIntakeId}
-            onChange={(event) => setSelectedIntakeId(event.target.value)}
-            options={[
-              { value: '', label: 'Select intake' },
-              ...intakes.map((intake) => ({ value: intake.id, label: intake.name })),
-            ]}
+          <IntakeSelector
+            programmes={programs}
+            selectedProgramIds={selectedProgramIds}
+            intakes={intakes}
+            selectedIntakeId={selectedIntakeId}
+            onIntakeChange={setSelectedIntakeId}
           />
           <Select
             id="course_id"
             name="course_id"
             label="Unit"
             required
-            disabled={!selectedProgramId}
+            disabled={selectedProgramIds.length === 0}
             value={selectedCourseId}
             onChange={(event) => setSelectedCourseId(event.target.value)}
             options={
-              selectedProgramId
+              selectedProgramIds.length > 0
                 ? [
                     { value: '', label: 'Select unit' },
                     ...filteredCourses.map((course) => ({
@@ -196,7 +204,7 @@ export function TimetableCellModal({
                       label: `${course.code} - ${course.name}`,
                     })),
                   ]
-                : [{ value: '', label: 'Select a programme first' }]
+                : [{ value: '', label: 'Select programmes first' }]
             }
           />
         </section>
@@ -207,14 +215,21 @@ export function TimetableCellModal({
             id="lecturer_id"
             name="lecturer_id"
             label="Lecturer"
-            required
             value={selectedLecturerId}
             onChange={(event) => setSelectedLecturerId(event.target.value)}
             options={[
-              { value: '', label: 'Select lecturer' },
+              { value: '', label: 'Lecturer Not Assigned / To Be Confirmed' },
               ...lecturers.map((lecturer) => ({ value: lecturer.id, label: lecturer.full_name })),
             ]}
           />
+          {selectedProgramIds.length > 1 && (
+            <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+              <p className="font-medium">Common / Shared Class</p>
+              <p className="mt-1 text-xs">
+                This class is shared across {selectedProgramIds.length} programmes. The same lecturer can teach multiple groups at the same time.
+              </p>
+            </div>
+          )}
           <Select
             id="room_id"
             name="room_id"
