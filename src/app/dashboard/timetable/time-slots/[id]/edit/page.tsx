@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/server';
 import type { TimeSlot } from '@/lib/types';
+import { revalidatePath } from 'next/cache';
+import Link from 'next/link';
 
 export default async function EditTimeSlotPage({
   params,
@@ -20,6 +22,7 @@ export default async function EditTimeSlotPage({
     .single();
 
   if (error || !timeSlot) {
+    console.error('Error loading time slot:', error);
     redirect('/dashboard/timetable/time-slots');
   }
 
@@ -33,11 +36,16 @@ export default async function EditTimeSlotPage({
     const isActive = formData.get('is_active') === 'true';
 
     // Get current is_visible value to preserve it
-    const { data: currentSlot } = await supabase
+    const { data: currentSlot, error: fetchError } = await supabase
       .from('time_slots')
       .select('is_visible')
       .eq('id', params.id)
       .single();
+
+    if (fetchError) {
+      console.error('Error fetching current time slot:', fetchError);
+      throw new Error('Unable to load time slot data for update');
+    }
 
     const { error } = await supabase
       .from('time_slots')
@@ -51,9 +59,12 @@ export default async function EditTimeSlotPage({
       .eq('id', params.id);
 
     if (error) {
-      throw new Error(error.message);
+      console.error('Error updating time slot:', error);
+      throw new Error('Unable to update time slot. Please try again.');
     }
 
+    revalidatePath('/dashboard/timetable/time-slots');
+    revalidatePath('/dashboard/timetable');
     redirect('/dashboard/timetable/time-slots');
   }
 
@@ -125,14 +136,12 @@ export default async function EditTimeSlotPage({
             </div>
 
             <div className="flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => redirect('/dashboard/timetable/time-slots')}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">Save Changes</Button>
+              <Link href="/dashboard/timetable/time-slots">
+                <Button type="button" variant="secondary">
+                  Cancel
+                </Button>
+              </Link>
+              <Button type="submit">Update Time Slot</Button>
             </div>
           </form>
         </CardContent>
