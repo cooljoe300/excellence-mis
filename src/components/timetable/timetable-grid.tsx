@@ -33,6 +33,7 @@ interface TimetableGridProps {
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // Color coding by department/program
 const PROGRAM_COLORS: Record<string, string> = {
@@ -70,10 +71,16 @@ export function TimetableGrid({
 
   // Generate time slots from the timeSlots prop
   const TIME_SLOTS = useMemo(() => {
-    return timeSlots
-      .filter(ts => ts.is_active && ts.is_visible !== false)
+    if (!timeSlots || timeSlots.length === 0) {
+      // Fallback to standard time slots if none configured
+      return ['08:00-10:00', '10:00-12:00', '12:00-14:00', '14:00-16:00', '16:00-18:00', '18:00-20:00'];
+    }
+    
+    const slots = timeSlots
       .map(ts => `${ts.start_time}-${ts.end_time}`)
       .sort();
+    
+    return slots;
   }, [timeSlots]);
 
   // Filter timetables based on selected filters
@@ -95,10 +102,14 @@ export function TimetableGrid({
       return true;
     });
     
-    console.log('Filter state:', { selectedProgram, selectedIntake, selectedStatus });
-    console.log('Total timetables:', timetables.length);
-    console.log('Filtered timetables:', filtered.length);
-    console.log('Sample entry:', timetables[0]);
+    console.log('Filter debugging:', {
+      totalTimetables: timetables.length,
+      filteredTimetables: filtered.length,
+      selectedProgram,
+      selectedIntake,
+      selectedStatus,
+      sampleTimetable: timetables[0]
+    });
     
     return filtered;
   }, [timetables, selectedProgram, selectedIntake, selectedStatus, searchQuery]);
@@ -116,10 +127,14 @@ export function TimetableGrid({
     });
 
     filteredTimetables.forEach((tt) => {
+      // Normalize day to ensure case-insensitive matching
+      const normalizedDay = tt.day?.charAt(0).toUpperCase() + tt.day?.slice(1).toLowerCase() || '';
+      const matchedDay = DAYS.find(d => d.toLowerCase() === normalizedDay.toLowerCase()) || tt.day;
+      
       // Normalize time to ensure matching with time slots
       const startTime = tt.start_time || '';
       const endTime = tt.end_time || '';
-      const key = `${tt.day}-${startTime}-${endTime}`;
+      const key = `${matchedDay}-${startTime}-${endTime}`;
       
       // Try to match with exact key first
       if (map[key]) {
@@ -132,7 +147,7 @@ export function TimetableGrid({
         });
         
         if (slotKey) {
-          const fallbackKey = `${tt.day}-${slotKey}`;
+          const fallbackKey = `${matchedDay}-${slotKey}`;
           if (map[fallbackKey]) {
             map[fallbackKey].push(tt);
           }
@@ -250,13 +265,13 @@ export function TimetableGrid({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="sticky left-0 bg-slate-50 z-10 px-3 py-2 text-left font-semibold text-slate-700 min-w-[80px] border-r border-slate-200 text-xs">
+                  <th className="sticky left-0 bg-slate-50 z-10 px-2 py-2 text-left font-semibold text-slate-700 min-w-[70px] border-r border-slate-200 text-xs">
                     Time
                   </th>
                   {TIME_SLOTS.map((slot) => (
                     <th
                       key={slot}
-                      className="px-2 py-2 text-center font-semibold text-slate-700 min-w-[140px] border-r border-slate-200 text-xs"
+                      className="px-2 py-2 text-center font-semibold text-slate-700 min-w-[160px] border-r border-slate-200 text-xs"
                     >
                       {slot}
                     </th>
@@ -264,10 +279,10 @@ export function TimetableGrid({
                 </tr>
               </thead>
               <tbody>
-                {DAYS.map((day) => (
+                {DAYS.map((day, index) => (
                   <tr key={day} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="sticky left-0 bg-white z-10 px-2 py-2 font-medium text-slate-900 border-r border-slate-200 text-xs">
-                      {day}
+                    <td className="sticky left-0 bg-white z-10 px-2 py-2 font-medium text-slate-900 border-r border-slate-200 text-xs" title={day}>
+                      {DAY_LABELS[index]}
                     </td>
                     {TIME_SLOTS.length > 0 ? (
                       TIME_SLOTS.map((slot) => {
@@ -277,7 +292,7 @@ export function TimetableGrid({
                         return (
                           <td
                             key={slot}
-                            className="px-1 py-1 min-w-[140px] border-r border-slate-200 h-28 align-top cursor-pointer hover:bg-slate-100"
+                            className="px-1 py-1 min-w-[160px] border-r border-slate-200 h-28 align-top cursor-pointer hover:bg-slate-100"
                             onClick={() => onCellClick(day, slot)}
                           >
                             {entries.length > 0 ? (

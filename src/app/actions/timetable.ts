@@ -140,7 +140,7 @@ export async function getTimetableFormData() {
       supabase.from('programs').select('*').order('name', { ascending: true }),
       supabase.from('courses').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').eq('can_teach', true).order('full_name', { ascending: true }),
-      supabase.from('time_slots').select('*').eq('is_visible', true).order('start_time', { ascending: true }),
+      supabase.from('time_slots').select('*').order('start_time', { ascending: true }),
       supabase.from('intakes').select('*').order('name', { ascending: true }),
     ]);
 
@@ -365,8 +365,11 @@ export async function createTimetable(formData: FormData) {
     .single();
 
   if (error) {
+    console.error('Error inserting timetable:', error);
     return { error: error.message };
   }
+
+  console.log('Timetable inserted successfully:', data);
 
   // Log the creation
   await supabase.from('timetable_audit_logs').insert({
