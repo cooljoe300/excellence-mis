@@ -44,7 +44,8 @@ function getEntryColourClasses(entry: Timetable): {
 
   // Use programme colour for regular classes
   const programmeId = entry.program_id || (entry.programme_assignments?.[0]?.programme_id);
-  return getProgrammeColourClasses(programmeId);
+  const programmeName = entry.program?.name || entry.programme_assignments?.[0]?.programme?.name;
+  return getProgrammeColourClasses(programmeId, programmeName);
 }
 
 export function TimetableGrid({
@@ -205,54 +206,67 @@ export function TimetableGrid({
                           onClick={() => onCellClick(day, slotValue)}
                         >
                           {entries.length > 0 ? (
-                            <div className="space-y-1.5">
-                              {entries.map((entry) => {
+                            <div className="space-y-2">
+                              {entries.map((entry, index) => {
                                 const primary = isPrimarySlotForEntry(entry, slot);
                                 const colourClasses = getEntryColourClasses(entry);
                                 const isShared = entry.class_type === 'shared';
+                                const programmeName = entry.program?.name || entry.programme_assignments?.[0]?.programme?.name;
+                                const previousEntry = entries[index - 1];
+                                const previousProgrammeId = previousEntry?.program_id || previousEntry?.programme_assignments?.[0]?.programme_id;
+                                const currentProgrammeId = entry.program_id || entry.programme_assignments?.[0]?.programme_id;
+                                const differentProgramme = previousProgrammeId && currentProgrammeId !== previousProgrammeId;
                                 
                                 return (
-                                  <article
-                                    key={entry.id}
-                                    className={`relative rounded border border-slate-200 border-l-4 p-1.5 text-left`}
-                                    style={{
-                                      borderLeftColor: colourClasses.border,
-                                      backgroundColor: colourClasses.background,
-                                      minHeight: primary ? cardHeightForDuration(entry.start_time, entry.end_time) : undefined,
-                                    }}
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      onCellClick(day, slotValue, entry);
-                                    }}
-                                  >
-                                    <button
-                                      type="button"
-                                      className="absolute right-1 top-1 rounded p-0.5 text-slate-500 hover:bg-white hover:text-slate-800"
-                                      aria-label={`Edit ${entry.course?.code || 'timetable entry'}`}
-                                      title="Edit timetable entry"
+                                  <div key={entry.id} className="relative">
+                                    {/* Programme separator line */}
+                                    {differentProgramme && (
+                                      <div 
+                                        className="my-1 border-t border-slate-200"
+                                        style={{ height: '1px' }}
+                                      />
+                                    )}
+                                    
+                                    <article
+                                      className="relative rounded border border-slate-200 border-l-4 p-1.5 text-left"
+                                      style={{
+                                        borderLeftColor: colourClasses.border,
+                                        backgroundColor: colourClasses.background,
+                                        minHeight: primary ? cardHeightForDuration(entry.start_time, entry.end_time) : undefined,
+                                      }}
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         onCellClick(day, slotValue, entry);
                                       }}
                                     >
-                                      <Pencil className="h-3 w-3" />
-                                    </button>
-                                    
-                                    {/* Programme indicator */}
-                                    <div className="flex items-center gap-1 mb-1">
-                                      {isShared ? (
-                                        <div className="flex items-center gap-1">
-                                          <Link className="h-3 w-3" style={{ color: colourClasses.text }} />
+                                      <button
+                                        type="button"
+                                        className="absolute right-1 top-1 rounded p-0.5 text-slate-500 hover:bg-white hover:text-slate-800"
+                                        aria-label={`Edit ${entry.course?.code || 'timetable entry'}`}
+                                        title="Edit timetable entry"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          onCellClick(day, slotValue, entry);
+                                        }}
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </button>
+                                      
+                                      {/* Programme indicator */}
+                                      <div className="flex items-center gap-1 mb-1">
+                                        {isShared ? (
+                                          <div className="flex items-center gap-1">
+                                            <Link className="h-3 w-3" style={{ color: colourClasses.text }} />
+                                            <span className="text-[9px] font-semibold" style={{ color: colourClasses.text }}>
+                                              SHARED CLASS
+                                            </span>
+                                          </div>
+                                        ) : (
                                           <span className="text-[9px] font-semibold" style={{ color: colourClasses.text }}>
-                                            SHARED CLASS
+                                            {entry.program?.code || entry.programme_assignments?.[0]?.programme?.code || 'PROGRAMME'}
                                           </span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-[9px] font-semibold" style={{ color: colourClasses.text }}>
-                                          {entry.program?.code || entry.programme_assignments?.[0]?.programme?.code || 'PROGRAMME'}
-                                        </span>
-                                      )}
-                                    </div>
+                                        )}
+                                      </div>
 
                                     <p className="pr-5 text-[11px] font-bold leading-tight text-slate-900">
                                       {entry.course?.code || 'Unit'}
@@ -282,7 +296,7 @@ export function TimetableGrid({
                                         {isShared && entry.programme_assignments && entry.programme_assignments.length > 0 && (
                                           <div className="mt-1 flex flex-wrap gap-1">
                                             {entry.programme_assignments.slice(0, 3).map((assignment) => {
-                                              const progColour = getProgrammeColourClasses(assignment.programme_id);
+                                              const progColour = getProgrammeColourClasses(assignment.programme_id, assignment.programme?.name);
                                               return (
                                                 <span
                                                   key={assignment.programme_id}

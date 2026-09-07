@@ -71,13 +71,28 @@ const THEME_COLOURS: ProgrammeColour[] = [
   },
 ];
 
+// Dedicated colour for CPA-I programme
+const CPA_I_COLOUR: ProgrammeColour = {
+  name: 'CPA-I Dedicated',
+  border: '#dc2626', // Professional red for CPA-I
+  background: '#fef2f2',
+  text: '#dc2626',
+  badge: '#dc2626',
+};
+
 /**
  * Get a consistent colour for a programme based on its ID
  * This ensures the same programme always gets the same colour
+ * CPA-I gets a dedicated red colour for distinction
  */
-export function getProgrammeColour(programmeId: string | null | undefined): ProgrammeColour {
+export function getProgrammeColour(programmeId: string | null | undefined, programmeName?: string | null): ProgrammeColour {
   if (!programmeId) {
     return THEME_COLOURS[0]; // Default to primary blue
+  }
+
+  // Check if this is CPA-I programme (case-insensitive check)
+  if (programmeName && programmeName.toLowerCase().includes('cpa')) {
+    return CPA_I_COLOUR;
   }
 
   // Use a simple hash function to deterministically select a colour
@@ -92,13 +107,13 @@ export function getProgrammeColour(programmeId: string | null | undefined): Prog
 /**
  * Get colour classes for Tailwind CSS
  */
-export function getProgrammeColourClasses(programmeId: string | null | undefined): {
+export function getProgrammeColourClasses(programmeId: string | null | undefined, programmeName?: string | null): {
   border: string;
   background: string;
   text: string;
   badge: string;
 } {
-  const colour = getProgrammeColour(programmeId);
+  const colour = getProgrammeColour(programmeId, programmeName);
   return {
     border: colour.border,
     background: colour.background,
@@ -110,12 +125,12 @@ export function getProgrammeColourClasses(programmeId: string | null | undefined
 /**
  * Get inline styles for programme colour
  */
-export function getProgrammeColourStyles(programmeId: string | null | undefined): {
+export function getProgrammeColourStyles(programmeId: string | null | undefined, programmeName?: string | null): {
   borderLeftColor: string;
   backgroundColor: string;
   color: string;
 } {
-  const colour = getProgrammeColour(programmeId);
+  const colour = getProgrammeColour(programmeId, programmeName);
   return {
     borderLeftColor: colour.border,
     backgroundColor: colour.background,

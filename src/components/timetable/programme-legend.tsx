@@ -43,7 +43,7 @@ export function ProgrammeLegend({ programmes, timetables, showCompact = false }:
       
       <div className="flex flex-wrap gap-2">
         {uniqueProgrammes.map((programme) => {
-          const colours = getProgrammeColourClasses(programme.id);
+          const colours = getProgrammeColourClasses(programme.id, programme.name);
           return (
             <div
               key={programme.id}

@@ -52,7 +52,8 @@ function getEntryColourClasses(entry: Timetable): {
 
   // Use programme colour for regular classes
   const programmeId = entry.program_id || (entry.programme_assignments?.[0]?.programme_id);
-  return getProgrammeColourClasses(programmeId);
+  const programmeName = entry.program?.name || entry.programme_assignments?.[0]?.programme?.name;
+  return getProgrammeColourClasses(programmeId, programmeName);
 }
 
 function printTitle(program?: Program, intake?: Intake) {
@@ -160,49 +161,105 @@ export function TimetablePrintDocument({
                 const entries = entriesForSlot(timetables, day, slot).filter((entry) =>
                   isPrimarySlotForEntry(entry, slot)
                 );
+                
+                // Group entries by programme for better separation
+                const entriesByProgramme = entries.reduce((acc, entry) => {
+                  const programmeId = entry.program_id || (entry.programme_assignments?.[0]?.programme_id) || 'unknown';
+                  if (!acc[programmeId]) {
+                    acc[programmeId] = [];
+                  }
+                  acc[programmeId].push(entry);
+                  return acc;
+                }, {} as Record<string, Timetable[]>);
+                
+                const programmeIds = Object.keys(entriesByProgramme);
+                
                 return (
                   <td
                     key={`${day}-${slot.id}`}
                     className="print-timetable-cell h-14 align-top border border-slate-400 px-1 py-1"
                   >
-                    {entries.map((entry) => {
-                      const colourClasses = getEntryColourClasses(entry);
-                      const isShared = entry.class_type === 'shared';
+                    {programmeIds.map((progId, progIndex) => {
+                      const programmeEntries = entriesByProgramme[progId];
+                      const isFirstProgramme = progIndex === 0;
                       
                       return (
-                        <div 
-                          key={entry.id} 
-                          className="mb-1 last:mb-0"
-                          style={{
-                            borderLeft: `2px solid ${colourClasses.border}`,
-                            paddingLeft: '4px',
-                          }}
-                        >
-                          <p className="font-bold leading-tight">{entry.course?.code}</p>
-                          <p className="leading-tight">{entry.course?.name}</p>
-                          <p className="leading-tight">{entry.lecturer?.full_name || 'To Be Confirmed'}</p>
-                          <p className="leading-tight">{venueLabel(entry)}</p>
-                          <p className="leading-tight">{formatTimeRange(entry.start_time, entry.end_time)}</p>
-                          
-                          {/* Programme indicator */}
-                          {!isShared && entry.program && (
-                            <p className="leading-tight text-xs" style={{ color: colourClasses.text }}>
-                              {entry.program.code}
-                            </p>
+                        <div key={progId} className="mb-2 last:mb-0">
+                          {/* Programme separator line (except for first programme) */}
+                          {!isFirstProgramme && (
+                            <div 
+                              className="my-2 border-t border-slate-300"
+                              style={{ height: '1px' }}
+                            />
                           )}
                           
-                          {isShared && (
-                            <p className="leading-tight text-xs italic" style={{ color: colourClasses.text }}>
-                              Shared Class
-                            </p>
-                          )}
-                          
-                          {isShared && entry.programme_assignments && entry.programme_assignments.length > 1 && (
-                            <p className="leading-tight text-xs">
-                              {entry.programme_assignments.slice(0, 2).map((pa) => pa.programme?.code).filter(Boolean).join(', ')}
-                              {entry.programme_assignments.length > 2 && ` +${entry.programme_assignments.length - 2}`}
-                            </p>
-                          )}
+                          {programmeEntries.map((entry) => {
+                            const colourClasses = getEntryColourClasses(entry);
+                            const isShared = entry.class_type === 'shared';
+                            const programmeName = entry.program?.name || entry.programme_assignments?.[0]?.programme?.name || 'PROGRAMME';
+                            
+                            return (
+                              <div 
+                                key={entry.id} 
+                                className="mb-1 last:mb-0"
+                                style={{
+                                  borderLeft: `2px solid ${colourClasses.border}`,
+                                  paddingLeft: '4px',
+                                }}
+                              >
+                                {/* Programme label */}
+                                <p 
+                                  className="text-[8px] font-semibold uppercase tracking-wide mb-0.5"
+                                  style={{ color: colourClasses.text }}
+                                >
+                                  {programmeName}
+                                </p>
+                                
+                                {/* Shared class indicator */}
+                                {isShared && (
+                                  <div className="flex items-center gap-1 mb-0.5">
+                                    <Link className="h-2 w-2" style={{ color: colourClasses.text }} />
+                                    <span className="text-[7px] italic" style={{ color: colourClasses.text }}>
+                                      COMMON/SHARED
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                <p className="font-bold leading-tight text-[9px]">{entry.course?.code}</p>
+                                <p className="leading-tight text-[8px]">{entry.course?.name}</p>
+                                <p className="leading-tight text-[8px]">{entry.lecturer?.full_name || 'To Be Confirmed'}</p>
+                                <p className="leading-tight text-[8px]">{venueLabel(entry)}</p>
+                                <p className="leading-tight text-[8px]">{formatTimeRange(entry.start_time, entry.end_time)}</p>
+                                
+                                {/* Shared class programme indicators */}
+                                {isShared && entry.programme_assignments && entry.programme_assignments.length > 1 && (
+                                  <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                    {entry.programme_assignments.slice(0, 3).map((pa) => {
+                                      const progColour = getProgrammeColourClasses(pa.programme_id, pa.programme?.name);
+                                      return (
+                                        <span
+                                          key={pa.programme_id}
+                                          className="text-[7px] px-1 py-0.5 rounded"
+                                          style={{
+                                            backgroundColor: progColour.background,
+                                            color: progColour.text,
+                                            border: `1px solid ${progColour.border}`,
+                                          }}
+                                        >
+                                          {pa.programme?.code || 'PROG'}
+                                        </span>
+                                      );
+                                    })}
+                                    {entry.programme_assignments.length > 3 && (
+                                      <span className="text-[7px] text-slate-500">
+                                        +{entry.programme_assignments.length - 2}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     })}

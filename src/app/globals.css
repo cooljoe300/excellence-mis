@@ -284,3 +284,26 @@ body {
     -webkit-print-color-adjust: exact;
   }
 }
+
+/* Programme separator lines for timetable preview */
+.programme-separator {
+  border-top: 1px solid #e2e8f0;
+  margin: 0.5rem 0;
+}
+
+.programme-separator-thick {
+  border-top: 2px solid #003380;
+  margin: 0.75rem 0;
+}
+
+@media print {
+  .programme-separator {
+    border-top: 1px solid #000;
+    margin: 0.5rem 0;
+  }
+  
+  .programme-separator-thick {
+    border-top: 2px solid #000;
+    margin: 0.75rem 0;
+  }
+}
