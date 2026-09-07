@@ -11,13 +11,11 @@ export async function getTimetableStats() {
     const [
       totalTimetables,
       activeTimetables,
-      totalRooms,
       totalTimeSlots,
       todayClasses,
     ] = await Promise.all([
       supabase.from('timetables').select('*', { count: 'exact', head: true }),
       supabase.from('timetables').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-      supabase.from('rooms').select('*', { count: 'exact', head: true }),
       supabase.from('time_slots').select('*', { count: 'exact', head: true }),
       supabase.from('timetables').select('*', { count: 'exact', head: true }).eq('day', new Date().toLocaleDateString('en-US', { weekday: 'long' })),
     ]);
@@ -25,7 +23,6 @@ export async function getTimetableStats() {
     return {
       totalTimetables: totalTimetables.count || 0,
       activeTimetables: activeTimetables.count || 0,
-      totalRooms: totalRooms.count || 0,
       totalTimeSlots: totalTimeSlots.count || 0,
       todayClasses: todayClasses.count || 0,
     };
@@ -34,7 +31,6 @@ export async function getTimetableStats() {
     return {
       totalTimetables: 0,
       activeTimetables: 0,
-      totalRooms: 0,
       totalTimeSlots: 0,
       todayClasses: 0,
     };
@@ -106,24 +102,20 @@ export async function getTimetableFormData() {
   const supabase = await createClient();
   
   try {
-    const [programs, courses, lecturers, rooms, timeSlots, intakes, terms] = await Promise.all([
+    const [programs, courses, lecturers, timeSlots, intakes] = await Promise.all([
       supabase.from('programs').select('*').order('name', { ascending: true }),
       supabase.from('courses').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').eq('role', 'teacher').order('full_name', { ascending: true }),
-      supabase.from('rooms').select('*').order('name', { ascending: true }),
       supabase.from('time_slots').select('*').eq('is_visible', true).order('start_time', { ascending: true }),
       supabase.from('intakes').select('*').order('name', { ascending: true }),
-      supabase.from('academic_terms').select('*').order('name', { ascending: true }),
     ]);
 
     return {
       programs: programs.data || [],
       courses: courses.data || [],
       lecturers: lecturers.data || [],
-      rooms: rooms.data || [],
       timeSlots: timeSlots.data || [],
       intakes: intakes.data || [],
-      terms: terms.data || [],
     };
   } catch (error) {
     console.error('Error fetching timetable form data:', error);
@@ -131,10 +123,8 @@ export async function getTimetableFormData() {
       programs: [],
       courses: [],
       lecturers: [],
-      rooms: [],
       timeSlots: [],
       intakes: [],
-      terms: [],
     };
   }
 }
@@ -145,26 +135,11 @@ export async function checkTimetableConflict(formData: FormData) {
   const day = formData.get('day') as string;
   const startTime = formData.get('start_time') as string;
   const endTime = formData.get('end_time') as string;
-  const roomId = formData.get('room_id') as string;
   const lecturerId = formData.get('lecturer_id') as string;
   const courseId = formData.get('course_id') as string;
+  const intakeId = formData.get('intake_id') as string;
 
   const conflicts: string[] = [];
-
-  // Check room conflict
-  if (roomId) {
-    const { data: roomConflict } = await supabase
-      .from('timetables')
-      .select('*')
-      .eq('day', day)
-      .eq('room_id', roomId)
-      .or(`start_time.lte.${endTime}&end_time.gte.${startTime}`)
-      .neq('status', 'archived');
-
-    if (roomConflict && roomConflict.length > 0) {
-      conflicts.push('Room is already occupied at this time');
-    }
-  }
 
   // Check lecturer conflict
   if (lecturerId) {
@@ -181,18 +156,19 @@ export async function checkTimetableConflict(formData: FormData) {
     }
   }
 
-  // Check course conflict
-  if (courseId) {
+  // Check course conflict for the same intake
+  if (courseId && intakeId) {
     const { data: courseConflict } = await supabase
       .from('timetables')
       .select('*')
       .eq('day', day)
       .eq('course_id', courseId)
+      .eq('intake_id', intakeId)
       .or(`start_time.lte.${endTime}&end_time.gte.${startTime}`)
       .neq('status', 'archived');
 
     if (courseConflict && courseConflict.length > 0) {
-      conflicts.push('This course already has a class at this time');
+      conflicts.push('This unit already has a class at this time for this intake');
     }
   }
 
@@ -207,6 +183,26 @@ export async function createTimetable(formData: FormData) {
     return { error: 'You must be logged in to create a timetable entry.' };
   }
 
+  const programId = formData.get('program_id') as string;
+  const courseId = formData.get('course_id') as string;
+
+  // Validate programme-unit relationship
+  if (programId && courseId) {
+    const { data: course } = await supabase
+      .from('courses')
+      .select('program_id')
+      .eq('id', courseId)
+      .single();
+
+    if (!course) {
+      return { error: 'The selected unit does not exist.' };
+    }
+
+    if (course.program_id !== programId) {
+      return { error: 'The selected unit does not belong to the selected programme.' };
+    }
+  }
+
   // Check for conflicts
   const conflicts = await checkTimetableConflict(formData);
   if (conflicts.length > 0) {
@@ -214,22 +210,14 @@ export async function createTimetable(formData: FormData) {
   }
 
   const timetableData = {
-    academic_year: formData.get('academic_year'),
-    semester: formData.get('semester'),
     program_id: formData.get('program_id') || null,
-    department: formData.get('department') || null,
-    campus: formData.get('campus') || 'Main Campus',
     intake_id: formData.get('intake_id') || null,
-    class_section: formData.get('class_section') || null,
     course_id: formData.get('course_id') || null,
     lecturer_id: formData.get('lecturer_id') || null,
-    room_id: formData.get('room_id') || null,
     day: formData.get('day'),
     start_time: formData.get('start_time'),
     end_time: formData.get('end_time'),
-    duration: formData.get('duration') ? parseInt(formData.get('duration') as string) : null,
-    max_students: formData.get('max_students') ? parseInt(formData.get('max_students') as string) : null,
-    teaching_mode: formData.get('teaching_mode') || 'physical',
+    teaching_mode: 'online',
     meeting_link: formData.get('meeting_link') || null,
     status: formData.get('status') || 'draft',
     notes: formData.get('notes') || null,

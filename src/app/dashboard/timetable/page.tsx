@@ -8,7 +8,6 @@ import Link from 'next/link';
 import {
   Calendar,
   Clock,
-  Building2,
   Timer,
   Users,
   Settings,
@@ -49,10 +48,9 @@ export default async function TimetableDashboardPage() {
         ) : undefined}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
         <StatCard title="Total Timetables" value={stats.totalTimetables} icon={Calendar} />
         <StatCard title="Active Timetables" value={stats.activeTimetables} icon={Timer} />
-        <StatCard title="Total Rooms" value={stats.totalRooms} icon={Building2} />
         <StatCard title="Time Slots" value={stats.totalTimeSlots} icon={Clock} />
         <StatCard title="Today's Classes" value={stats.todayClasses} icon={Users} />
       </div>

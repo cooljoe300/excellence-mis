@@ -24,7 +24,6 @@ import type { Timetable, Program, Room, TimeSlot } from '@/lib/types';
 interface TimetableGridProps {
   timetables: Timetable[];
   programs: Program[];
-  rooms: Room[];
   timeSlots: TimeSlot[];
   onCellClick: (day: string, timeSlot: string) => void;
   onTimetableUpdate: (timetable: Timetable) => void;
@@ -55,18 +54,14 @@ function getProgramColor(programName: string): string {
 export function TimetableGrid({
   timetables,
   programs,
-  rooms,
   timeSlots,
   onCellClick,
   onTimetableUpdate,
   onTimetableDelete,
 }: TimetableGridProps) {
   const [selectedProgram, setSelectedProgram] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState('');
-  const [selectedCampus, setSelectedCampus] = useState('');
+  const [selectedIntake, setSelectedIntake] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('');
 
   // Generate time slots from the timeSlots prop
   const TIME_SLOTS = useMemo(() => {
@@ -80,22 +75,18 @@ export function TimetableGrid({
   const filteredTimetables = useMemo(() => {
     return timetables.filter((tt) => {
       if (selectedProgram && tt.program_id !== selectedProgram) return false;
-      if (selectedDepartment && tt.department !== selectedDepartment) return false;
-      if (selectedCampus && tt.campus !== selectedCampus) return false;
-      if (selectedAcademicYear && tt.academic_year !== selectedAcademicYear) return false;
-      if (selectedSemester && tt.semester !== selectedSemester) return false;
+      if (selectedIntake && tt.intake_id !== selectedIntake) return false;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
           tt.course?.code?.toLowerCase().includes(query) ||
           tt.course?.name?.toLowerCase().includes(query) ||
-          tt.lecturer?.full_name?.toLowerCase().includes(query) ||
-          tt.room?.name?.toLowerCase().includes(query)
+          tt.lecturer?.full_name?.toLowerCase().includes(query)
         );
       }
       return true;
     });
-  }, [timetables, selectedProgram, selectedDepartment, selectedCampus, searchQuery, selectedAcademicYear, selectedSemester]);
+  }, [timetables, selectedProgram, selectedIntake, searchQuery]);
 
   // Create a map of timetable entries by day and time slot
   const timetableMap = useMemo(() => {
@@ -149,37 +140,16 @@ export function TimetableGrid({
           <div className="flex flex-wrap gap-4 items-center justify-between">
             <div className="flex flex-wrap gap-3 items-center">
               <Select
-                id="academic_year"
-                name="academic_year"
+                id="intake_id"
+                name="intake_id"
                 options={[
-                  { value: '', label: 'Academic Year' },
-                  { value: '2026/2027', label: '2026/2027' },
-                  { value: '2025/2026', label: '2025/2026' },
+                  { value: '', label: 'Intake' },
+                  { value: 'intake-1', label: 'January 2027' },
+                  { value: 'intake-2', label: 'May 2027' },
+                  { value: 'intake-3', label: 'September 2027' },
                 ]}
-                value={selectedAcademicYear}
-                onChange={(e) => setSelectedAcademicYear(e.target.value)}
-              />
-              <Select
-                id="semester"
-                name="semester"
-                options={[
-                  { value: '', label: 'Semester' },
-                  { value: 'Semester 1', label: 'Semester 1' },
-                  { value: 'Semester 2', label: 'Semester 2' },
-                ]}
-                value={selectedSemester}
-                onChange={(e) => setSelectedSemester(e.target.value)}
-              />
-              <Select
-                id="campus"
-                name="campus"
-                options={[
-                  { value: '', label: 'Campus' },
-                  { value: 'Main Campus', label: 'Main Campus' },
-                  { value: 'Town Campus', label: 'Town Campus' },
-                ]}
-                value={selectedCampus}
-                onChange={(e) => setSelectedCampus(e.target.value)}
+                value={selectedIntake}
+                onChange={(e) => setSelectedIntake(e.target.value)}
               />
               <Select
                 id="program_id"
@@ -192,7 +162,7 @@ export function TimetableGrid({
                 onChange={(e) => setSelectedProgram(e.target.value)}
               />
               <Input
-                placeholder="Search..."
+                placeholder="Search units or lecturers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-48"
@@ -273,7 +243,11 @@ export function TimetableGrid({
                                       <div className="font-semibold">{entry.course?.code}</div>
                                       <div className="truncate">{entry.course?.name}</div>
                                       <div className="truncate">{entry.lecturer?.full_name}</div>
-                                      <div className="truncate">{entry.room?.name}</div>
+                                      {entry.meeting_link && (
+                                        <div className="text-xs text-blue-600 mt-1">
+                                          📺 Online Class
+                                        </div>
+                                      )}
                                     </div>
                                   );
                                 })}

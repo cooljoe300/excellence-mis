@@ -9,23 +9,19 @@ import type { Timetable, Program, Course, Profile, Room, TimeSlot, Intake, Acade
 interface TimetableGridWrapperProps {
   timetables: Timetable[];
   programs: Program[];
-  rooms: Room[];
   timeSlots: TimeSlot[];
   courses: Course[];
   lecturers: Profile[];
   intakes: Intake[];
-  terms: AcademicTerm[];
 }
 
 export function TimetableGridWrapper({
   timetables,
   programs,
-  rooms,
   timeSlots,
   courses,
   lecturers,
   intakes,
-  terms,
 }: TimetableGridWrapperProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDay, setSelectedDay] = useState('');
@@ -64,7 +60,6 @@ export function TimetableGridWrapper({
       <TimetableGrid
         timetables={localTimetables}
         programs={programs}
-        rooms={rooms}
         timeSlots={timeSlots}
         onCellClick={handleCellClick}
         onTimetableUpdate={handleTimetableUpdate}
@@ -79,10 +74,10 @@ export function TimetableGridWrapper({
         programs={programs}
         courses={courses}
         lecturers={lecturers}
-        rooms={rooms}
+        rooms={[]}
         timeSlots={timeSlots}
         intakes={intakes}
-        terms={terms}
+        terms={[]}
         existingEntry={existingEntry}
       />
     </>
