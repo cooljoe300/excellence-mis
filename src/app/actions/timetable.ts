@@ -956,21 +956,21 @@ export async function unpublishTimetable(id: string) {
 export async function getStudentTimetable() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  
+
   if (!user) {
-    return { student: null, timetables: [] };
+    return { student: null, timetables: [], timeSlots: [], programme: null, intake: null };
   }
 
   try {
-    // Get student record
+    // Get student record with programme and intake
     const { data: student } = await supabase
       .from('students')
-      .select('*')
+      .select('*, program:programs(*), intake:intakes(*)')
       .eq('profile_id', user.id)
       .single();
 
     if (!student) {
-      return { student: null, timetables: [] };
+      return { student: null, timetables: [], timeSlots: [], programme: null, intake: null };
     }
 
     // Get enrolled courses
@@ -981,14 +981,21 @@ export async function getStudentTimetable() {
       .eq('status', 'active');
 
     if (!enrollments || enrollments.length === 0) {
-      return { student, timetables: [] };
+      return { student, timetables: [], timeSlots: [], programme: student.program, intake: student.intake };
     }
 
     const courseIds = enrollments.map((enrollment) => enrollment.course_id);
 
+    // Get time slots
+    const { data: timeSlots } = await supabase
+      .from('time_slots')
+      .select('*')
+      .order('start_time', { ascending: true });
+
+    // Get timetable entries for enrolled courses with programme assignments
     const { data: timetables, error } = await supabase
       .from('timetables')
-      .select('*')
+      .select('*, programme_assignments:timetable_programme_assignments(*)')
       .in('course_id', courseIds)
       .eq('status', 'active')
       .order('day', { ascending: true })
@@ -996,13 +1003,35 @@ export async function getStudentTimetable() {
 
     if (error) {
       console.error('Error fetching student timetable:', error);
-      return { student, timetables: [] as Timetable[] };
+      return { student, timetables: [], timeSlots: timeSlots || [], programme: student.program, intake: student.intake };
     }
 
-    return { student, timetables: await hydrateTimetables((timetables || []) as Timetable[]) };
+    // Filter for shared sessions where student's programme is included
+    const filteredTimetables = (timetables || []).filter((timetable) => {
+      if (timetable.class_type !== 'shared') {
+        return true; // Regular classes for enrolled courses are always included
+      }
+      
+      // For shared classes, check if student's programme is in the assignments
+      if (timetable.programme_assignments && timetable.programme_assignments.length > 0) {
+        return timetable.programme_assignments.some(
+          assignment => assignment.programme_id === student.program_id
+        );
+      }
+      
+      return false;
+    });
+
+    return {
+      student,
+      timetables: await hydrateTimetables(filteredTimetables),
+      timeSlots: timeSlots || [],
+      programme: student.program,
+      intake: student.intake,
+    };
   } catch (error) {
     console.error('Error fetching student timetable:', error);
-    return { student: null, timetables: [] };
+    return { student: null, timetables: [], timeSlots: [], programme: null, intake: null };
   }
 }
 
