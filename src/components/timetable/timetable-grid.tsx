@@ -95,9 +95,10 @@ export function TimetableGrid({
       return true;
     });
     
-    console.log('Filter applied:', { selectedProgram, selectedIntake, selectedStatus });
+    console.log('Filter state:', { selectedProgram, selectedIntake, selectedStatus });
     console.log('Total timetables:', timetables.length);
     console.log('Filtered timetables:', filtered.length);
+    console.log('Sample entry:', timetables[0]);
     
     return filtered;
   }, [timetables, selectedProgram, selectedIntake, selectedStatus, searchQuery]);

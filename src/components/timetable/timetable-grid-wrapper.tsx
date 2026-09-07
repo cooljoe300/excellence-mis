@@ -31,6 +31,7 @@ export function TimetableGridWrapper({
   const [existingEntry, setExistingEntry] = useState<any>(null);
   const [localTimetables, setLocalTimetables] = useState(timetables);
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [previewTimetables, setPreviewTimetables] = useState<Timetable[]>([]);
   const [selectedProgramForPreview, setSelectedProgramForPreview] = useState<string>('');
   const [selectedIntakeForPreview, setSelectedIntakeForPreview] = useState<string>('');
@@ -59,7 +60,8 @@ export function TimetableGridWrapper({
     }
     
     if (result.success) {
-      console.log('Save successful, refreshing timetables...');
+      setSuccessMessage(existingEntry?.id ? 'Timetable entry updated successfully.' : 'Timetable entry added successfully.');
+      setTimeout(() => setSuccessMessage(null), 3000);
       await refreshTimetables();
       setIsModalOpen(false);
     }
@@ -128,6 +130,11 @@ export function TimetableGridWrapper({
 
   return (
     <>
+      {successMessage && (
+        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 mb-4">
+          {successMessage}
+        </div>
+      )}
       {isLoading && (
         <div className="text-center py-4 text-slate-600">
           Loading timetable...
