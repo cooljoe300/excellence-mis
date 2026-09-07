@@ -280,17 +280,28 @@ export function StudentSelfForm({
 
       // When moving from ID Card to Review, upload the photo if one was selected
       if (currentStepId === 'idcard' && selectedPhotoFile && existingStudent?.id) {
-        const formData = new FormData();
-        formData.append('photo', selectedPhotoFile);
+        try {
+          const formData = new FormData();
+          formData.append('photo', selectedPhotoFile);
 
-        const result = await updateMyStudentRecord(existingStudent.id, formData);
-        if (result?.error) {
-          setError(result.error);
+          console.log('Uploading photo for student:', existingStudent.id);
+          const result = await updateMyStudentRecord(existingStudent.id, formData);
+          console.log('Photo upload result:', result);
+
+          if (result?.error) {
+            console.error('Photo upload error:', result.error);
+            setError(result.error);
+            setLoading(false);
+            return;
+          }
+          // Clear the selected file after successful upload
+          setSelectedPhotoFile(null);
+        } catch (photoError) {
+          console.error('Photo upload exception:', photoError);
+          setError('Failed to upload passport photo. Please try again.');
           setLoading(false);
           return;
         }
-        // Clear the selected file after successful upload
-        setSelectedPhotoFile(null);
       }
 
       // Load fees data when entering fees step

@@ -12,9 +12,16 @@ async function applyPhotoFromForm(
   formData: FormData
 ) {
   const photo = formData.get('photo');
+  console.log('applyPhotoFromForm - photo:', photo);
+  console.log('applyPhotoFromForm - photo type:', photo instanceof File ? 'File' : typeof photo);
+  console.log('applyPhotoFromForm - photo size:', photo instanceof File ? photo.size : 'N/A');
+
   if (!(photo instanceof File) || photo.size === 0) return { photoUrl: undefined as string | undefined };
 
+  console.log('applyPhotoFromForm - Uploading photo for student:', studentId);
   const upload = await uploadStudentPassportPhoto(supabase, studentId, photo);
+  console.log('applyPhotoFromForm - Upload result:', upload);
+
   if (upload.error) return { error: upload.error };
   return { photoUrl: upload.url };
 }
