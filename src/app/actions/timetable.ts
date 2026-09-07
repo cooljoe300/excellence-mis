@@ -209,6 +209,22 @@ export async function createTimetable(formData: FormData) {
     return { error: 'Please select an intake.' };
   }
 
+  // Validate programme selection
+  if (!programId) {
+    return { error: 'Please select a programme.' };
+  }
+
+  // Validate unit selection
+  if (!courseId) {
+    return { error: 'Please select a unit.' };
+  }
+
+  // Validate lecturer selection
+  const lecturerId = formData.get('lecturer_id') as string;
+  if (!lecturerId) {
+    return { error: 'Please select a lecturer.' };
+  }
+
   // Validate programme-unit relationship
   if (programId && courseId) {
     const { data: course } = await supabase

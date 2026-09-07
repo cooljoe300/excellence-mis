@@ -50,6 +50,12 @@ export function TimetableCellModal({
   const [selectedIntakeId, setSelectedIntakeId] = useState<string>(
     existingEntry?.intake_id || ''
   );
+  const [selectedCourseId, setSelectedCourseId] = useState<string>(
+    existingEntry?.course_id || ''
+  );
+  const [selectedLecturerId, setSelectedLecturerId] = useState<string>(
+    existingEntry?.lecturer_id || ''
+  );
 
   // When editing, sync the values with the existing entry
   useEffect(() => {
@@ -59,7 +65,20 @@ export function TimetableCellModal({
     if (existingEntry?.intake_id) {
       setSelectedIntakeId(existingEntry.intake_id);
     }
+    if (existingEntry?.course_id) {
+      setSelectedCourseId(existingEntry.course_id);
+    }
+    if (existingEntry?.lecturer_id) {
+      setSelectedLecturerId(existingEntry.lecturer_id);
+    }
   }, [existingEntry]);
+
+  // Clear course when program changes
+  useEffect(() => {
+    if (selectedProgramId && !existingEntry) {
+      setSelectedCourseId('');
+    }
+  }, [selectedProgramId, existingEntry]);
 
   const [startTime, endTime] = timeSlot.split('-');
 
@@ -179,7 +198,12 @@ export function TimetableCellModal({
                     ]
                   : [{ value: '', label: 'Select a programme first' }]
               }
-              value={existingEntry?.course_id || ''}
+              value={selectedCourseId}
+              onChange={(e) => {
+                setSelectedCourseId(e.target.value);
+                // Clear lecturer when unit changes if lecturer-unit relationship exists
+                // For now, we keep lecturer selection independent
+              }}
               disabled={!selectedProgramId}
               required
             />
@@ -196,7 +220,9 @@ export function TimetableCellModal({
                 { value: '', label: 'Select lecturer' },
                 ...lecturers.map((l) => ({ value: l.id, label: l.full_name })),
               ]}
-              value={existingEntry?.lecturer_id || ''}
+              value={selectedLecturerId}
+              onChange={(e) => setSelectedLecturerId(e.target.value)}
+              required
             />
           </div>
 

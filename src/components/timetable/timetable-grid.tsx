@@ -243,7 +243,8 @@ export function TimetableGrid({
                                     >
                                       <div className="font-semibold">{entry.course?.code}</div>
                                       <div className="truncate">{entry.course?.name}</div>
-                                      <div className="truncate text-xs text-slate-500">{entry.intake?.name}</div>
+                                      <div className="truncate text-xs text-slate-500">{entry.program?.name}</div>
+                                      <div className="truncate text-xs text-slate-400">{entry.intake?.name}</div>
                                       <div className="truncate">{entry.lecturer?.full_name}</div>
                                       {entry.meeting_link && (
                                         <div className="text-xs text-blue-600 mt-1">
