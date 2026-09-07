@@ -167,6 +167,20 @@ export function TimetableCellModal({
           </div>
 
           <div className="space-y-2">
+            <label htmlFor="academic_year" className="text-sm font-medium text-slate-700">
+              Academic Year
+            </label>
+            <Input
+              id="academic_year"
+              name="academic_year"
+              type="text"
+              defaultValue={existingEntry?.academic_year || ''}
+              placeholder="2026/2027"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
             <label htmlFor="program_id" className="text-sm font-medium text-slate-700">
               Programme
             </label>

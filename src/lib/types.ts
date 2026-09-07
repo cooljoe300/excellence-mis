@@ -46,6 +46,7 @@ export interface Intake {
   end_date: string;
   is_current: boolean;
   is_active: boolean;
+  academic_year: string | null;
   created_at: string;
 }
 

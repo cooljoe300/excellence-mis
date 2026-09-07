@@ -225,6 +225,38 @@ export async function createTimetable(formData: FormData) {
     return { error: 'Please select a lecturer for this class.' };
   }
 
+  // Get academic year from selected intake
+  let academicYear = formData.get('academic_year') as string;
+  if (!academicYear && intakeId) {
+    const { data: intake } = await supabase
+      .from('intakes')
+      .select('academic_year')
+      .eq('id', intakeId)
+      .single();
+    
+    if (intake?.academic_year) {
+      academicYear = intake.academic_year;
+    } else {
+      // Generate academic year from intake start date
+      const { data: intakeWithDate } = await supabase
+        .from('intakes')
+        .select('start_date')
+        .eq('id', intakeId)
+        .single();
+      
+      if (intakeWithDate?.start_date) {
+        const year = new Date(intakeWithDate.start_date).getFullYear();
+        academicYear = `${year}/${year + 1}`;
+      } else {
+        academicYear = '2026/2027'; // Default fallback
+      }
+    }
+  }
+
+  if (!academicYear) {
+    academicYear = '2026/2027'; // Default fallback
+  }
+
   // Validate programme-unit relationship
   if (programId && courseId) {
     const { data: course } = await supabase
@@ -249,6 +281,8 @@ export async function createTimetable(formData: FormData) {
   }
 
   const timetableData = {
+    academic_year: academicYear,
+    semester: 'Semester 1',
     program_id: formData.get('program_id') || null,
     intake_id: formData.get('intake_id') || null,
     course_id: formData.get('course_id') || null,
