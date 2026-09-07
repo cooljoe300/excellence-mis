@@ -264,7 +264,7 @@ export function StudentTimetableGrid({
         size="lg"
       >
         <div className="print-timetable">
-          <CollegeOfficialLetterhead />
+          <CollegeOfficialLetterhead documentTitle="Student Timetable" />
           <div className="mb-4 text-center">
             <h1 className="text-xl font-bold text-slate-900 mb-1">
               {SCHOOL_NAME}
