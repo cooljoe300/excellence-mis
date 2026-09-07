@@ -62,6 +62,9 @@ export function TimetableCellModal({
   const [selectedLecturerId, setSelectedLecturerId] = useState<string>(
     existingEntry?.lecturer_id || ''
   );
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    existingEntry?.status || 'draft'
+  );
 
   // When editing, sync the values with the existing entry
   useEffect(() => {
@@ -76,6 +79,9 @@ export function TimetableCellModal({
     }
     if (existingEntry?.lecturer_id) {
       setSelectedLecturerId(existingEntry.lecturer_id);
+    }
+    if (existingEntry?.status) {
+      setSelectedStatus(existingEntry.status);
     }
   }, [existingEntry]);
 
@@ -103,6 +109,7 @@ export function TimetableCellModal({
     formData.set('day', day);
     formData.set('start_time', startTime);
     formData.set('end_time', endTime);
+    formData.set('status', selectedStatus); // Ensure status is set from state
     
     if (existingEntry?.id) {
       formData.set('id', existingEntry.id);
@@ -270,11 +277,12 @@ export function TimetableCellModal({
             <Select
               id="status"
               name="status"
-              value={existingEntry?.status || 'draft'}
+              value={selectedStatus}
               options={statuses.map((s) => ({
                 value: s,
                 label: s.charAt(0).toUpperCase() + s.slice(1),
               }))}
+              onChange={(e) => setSelectedStatus(e.target.value)}
             />
           </div>
 

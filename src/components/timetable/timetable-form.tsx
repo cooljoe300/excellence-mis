@@ -37,6 +37,8 @@ export function TimetableForm({
   const [selectedTimeSlotId, setSelectedTimeSlotId] = useState<string>('');
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('draft');
+  const [academicYear, setAcademicYear] = useState<string>('2026/2027');
 
   function handleTimeSlotChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const slotId = e.target.value;
@@ -59,6 +61,8 @@ export function TimetableForm({
     setConflicts([]);
 
     const formData = new FormData(e.currentTarget);
+    formData.set('status', selectedStatus); // Ensure status is set from state
+    formData.set('academic_year', academicYear); // Ensure academic year is set from state
     const result = await action(formData);
 
     if (result.error) {
@@ -111,7 +115,8 @@ export function TimetableForm({
           id="academic_year"
           name="academic_year"
           type="text"
-          defaultValue="2026/2027"
+          value={academicYear}
+          onChange={(e) => setAcademicYear(e.target.value)}
           placeholder="2026/2027"
           required
         />
@@ -240,8 +245,9 @@ export function TimetableForm({
         <Select
           id="status"
           name="status"
-          defaultValue="draft"
+          value={selectedStatus}
           options={statuses.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
+          onChange={(e) => setSelectedStatus(e.target.value)}
         />
       </div>
 
