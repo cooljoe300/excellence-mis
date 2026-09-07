@@ -218,6 +218,7 @@ export interface TimeSlot {
   start_time: string;
   end_time: string;
   is_active: boolean;
+  is_visible: boolean;
   created_at: string;
 }
 

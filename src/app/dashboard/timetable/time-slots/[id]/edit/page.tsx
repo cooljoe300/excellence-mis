@@ -32,6 +32,13 @@ export default async function EditTimeSlotPage({
     const endTime = formData.get('end_time') as string;
     const isActive = formData.get('is_active') === 'true';
 
+    // Get current is_visible value to preserve it
+    const { data: currentSlot } = await supabase
+      .from('time_slots')
+      .select('is_visible')
+      .eq('id', params.id)
+      .single();
+
     const { error } = await supabase
       .from('time_slots')
       .update({
@@ -39,6 +46,7 @@ export default async function EditTimeSlotPage({
         start_time: startTime,
         end_time: endTime,
         is_active: isActive,
+        is_visible: currentSlot?.is_visible !== false,
       })
       .eq('id', params.id);
 

@@ -22,6 +22,7 @@ async function createTimeSlot(formData: FormData) {
       start_time: startTime,
       end_time: endTime,
       is_active: isActive,
+      is_visible: true,
     });
 
   if (error) {

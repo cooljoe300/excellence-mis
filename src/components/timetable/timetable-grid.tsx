@@ -18,8 +18,6 @@ import {
   RotateCw,
   Search,
   Filter,
-  Eye,
-  EyeOff,
 } from 'lucide-react';
 import type { Timetable, Program, Room, TimeSlot } from '@/lib/types';
 
@@ -69,12 +67,11 @@ export function TimetableGrid({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
-  const [showTimeSlots, setShowTimeSlots] = useState(true);
 
   // Generate time slots from the timeSlots prop
   const TIME_SLOTS = useMemo(() => {
     return timeSlots
-      .filter(ts => ts.is_active)
+      .filter(ts => ts.is_active && ts.is_visible !== false)
       .map(ts => `${ts.start_time}-${ts.end_time}`)
       .sort();
   }, [timeSlots]);
@@ -118,7 +115,7 @@ export function TimetableGrid({
     });
 
     return map;
-  }, [filteredTimetables]);
+  }, [filteredTimetables, TIME_SLOTS]);
 
   function handleExportExcel() {
     // TODO: Implement Excel export
@@ -218,19 +215,6 @@ export function TimetableGrid({
                 <Calendar className="h-4 w-4 mr-2" />
                 Auto Generate
               </Button>
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                onClick={() => setShowTimeSlots(!showTimeSlots)}
-                title={showTimeSlots ? 'Hide Time Slots' : 'Show Time Slots'}
-              >
-                {showTimeSlots ? (
-                  <EyeOff className="h-4 w-4 mr-2" />
-                ) : (
-                  <Eye className="h-4 w-4 mr-2" />
-                )}
-                {showTimeSlots ? 'Hide Slots' : 'Show Slots'}
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -246,20 +230,14 @@ export function TimetableGrid({
                   <th className="sticky left-0 bg-slate-50 z-10 px-4 py-3 text-left font-semibold text-slate-700 min-w-[100px] border-r border-slate-200">
                     Day / Time
                   </th>
-                  {showTimeSlots ? (
-                    TIME_SLOTS.map((slot) => (
-                      <th
-                        key={slot}
-                        className="px-3 py-3 text-center font-semibold text-slate-700 min-w-[100px] border-r border-slate-200"
-                      >
-                        {slot}
-                      </th>
-                    ))
-                  ) : (
-                    <th className="px-3 py-3 text-center font-semibold text-slate-700 min-w-[200px] border-r border-slate-200">
-                      <span className="text-slate-400 italic">Time slots hidden</span>
+                  {TIME_SLOTS.map((slot) => (
+                    <th
+                      key={slot}
+                      className="px-3 py-3 text-center font-semibold text-slate-700 min-w-[100px] border-r border-slate-200"
+                    >
+                      {slot}
                     </th>
-                  )}
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -268,7 +246,7 @@ export function TimetableGrid({
                     <td className="sticky left-0 bg-white z-10 px-4 py-3 font-medium text-slate-900 border-r border-slate-200">
                       {day}
                     </td>
-                    {showTimeSlots ? (
+                    {TIME_SLOTS.length > 0 ? (
                       TIME_SLOTS.map((slot) => {
                         const key = `${day}-${slot}`;
                         const entries = timetableMap[key] || [];
@@ -310,11 +288,11 @@ export function TimetableGrid({
                       })
                     ) : (
                       <td 
-                        colSpan={TIME_SLOTS.length || 1} 
+                        colSpan={1} 
                         className="px-2 py-2 border-r border-slate-200 h-24 align-top"
                       >
                         <div className="h-full flex items-center justify-center text-slate-400 italic text-sm">
-                          Time slots hidden - use "Show Slots" button to display
+                          No visible time slots configured
                         </div>
                       </td>
                     )}

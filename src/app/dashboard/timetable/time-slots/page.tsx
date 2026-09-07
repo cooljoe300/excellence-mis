@@ -1,6 +1,6 @@
 import { PageHeader } from '@/components/ui/page-header';
 import { DataTable } from '@/components/ui/page-header';
-import { getTimeSlots } from '@/app/actions/timetable';
+import { getTimeSlots, toggleTimeSlotVisibility } from '@/app/actions/timetable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,6 +10,8 @@ import {
   Plus,
   ToggleLeft,
   ToggleRight,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
@@ -29,6 +31,11 @@ async function deleteTimeSlot(id: string) {
   }
 
   revalidatePath('/dashboard/timetable/time-slots');
+}
+
+async function handleToggleVisibility(id: string, currentVisibility: boolean) {
+  'use server';
+  await toggleTimeSlotVisibility(id, !currentVisibility);
 }
 
 export default async function TimeSlotsPage() {
@@ -59,13 +66,14 @@ export default async function TimeSlotsPage() {
                 <th className="px-4 py-3 text-left font-medium text-slate-700">End Time</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Duration</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Status</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-700">Visibility</th>
                 <th className="px-4 py-3 text-right font-medium text-slate-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
               {timeSlots.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     No time slots found. Add your first time slot to get started.
                   </td>
                 </tr>
@@ -74,6 +82,7 @@ export default async function TimeSlotsPage() {
                   const startTime = new Date(`2000-01-01T${slot.start_time}`);
                   const endTime = new Date(`2000-01-01T${slot.end_time}`);
                   const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
+                  const isVisible = slot.is_visible !== false; // Default to true if undefined
 
                   return (
                     <tr key={slot.id} className="hover:bg-slate-50">
@@ -90,6 +99,26 @@ export default async function TimeSlotsPage() {
                         <Badge status={slot.is_active ? 'active' : 'inactive'}>
                           {slot.is_active ? 'Active' : 'Inactive'}
                         </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <form action={handleToggleVisibility.bind(null, slot.id, isVisible)}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 w-7 p-0" 
+                            title={isVisible ? 'Visible on timetable' : 'Hidden from timetable'}
+                            type="submit"
+                          >
+                            {isVisible ? (
+                              <Eye className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <EyeOff className="h-3.5 w-3.5 text-slate-400" />
+                            )}
+                          </Button>
+                        </form>
+                        <span className="ml-2 text-xs text-slate-600">
+                          {isVisible ? 'Visible' : 'Hidden'}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">

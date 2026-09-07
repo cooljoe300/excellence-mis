@@ -84,6 +84,24 @@ export async function getTimeSlots() {
   return (data || []) as TimeSlot[];
 }
 
+export async function toggleTimeSlotVisibility(id: string, isVisible: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('time_slots')
+    .update({ is_visible: isVisible })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error toggling time slot visibility:', error);
+    throw new Error(error.message);
+  }
+
+  revalidatePath('/dashboard/timetable/time-slots');
+  revalidatePath('/dashboard/timetable');
+  
+  return { success: true };
+}
+
 export async function getTimetableFormData() {
   const supabase = await createClient();
   
@@ -93,7 +111,7 @@ export async function getTimetableFormData() {
       supabase.from('courses').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').eq('role', 'teacher').order('full_name', { ascending: true }),
       supabase.from('rooms').select('*').order('name', { ascending: true }),
-      supabase.from('time_slots').select('*').order('start_time', { ascending: true }),
+      supabase.from('time_slots').select('*').eq('is_visible', true).order('start_time', { ascending: true }),
       supabase.from('intakes').select('*').order('name', { ascending: true }),
       supabase.from('academic_terms').select('*').order('name', { ascending: true }),
     ]);
