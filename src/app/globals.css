@@ -86,6 +86,10 @@ body {
   animation: toast-in 0.3s ease-out;
 }
 
+#timetable-print-root {
+  display: none;
+}
+
 @media print {
   @page {
     margin: 1.2cm;
@@ -140,6 +144,56 @@ body {
 
   body:has(#official-class-timetable) {
     background: white !important;
+  }
+
+  body.print-timetable {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #0f172a !important;
+    font-family: "Segoe UI", Calibri, Arial, sans-serif !important;
+  }
+
+  body.print-timetable > *:not(#timetable-print-root) {
+    display: none !important;
+  }
+
+  body.print-timetable #timetable-print-root {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  body.print-timetable .print-timetable-document {
+    width: 100%;
+    color: #0f172a;
+  }
+
+  body.print-timetable .print-timetable-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  body.print-timetable .print-timetable-table thead {
+    display: table-header-group;
+  }
+
+  body.print-timetable .print-timetable-table tfoot {
+    display: table-footer-group;
+  }
+
+  body.print-timetable .print-timetable-table tr,
+  body.print-timetable .print-timetable-cell {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  body.print-timetable .print-timetable-heading {
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   @page timetable-landscape {

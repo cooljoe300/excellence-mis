@@ -1,5 +1,6 @@
 import Image from 'next/image';
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 export const SCHOOL_NAME = 'Excellence Online College';
 export const SCHOOL_NAME_OFFICIAL = 'EXCELLENCE ONLINE COLLEGE';
@@ -14,27 +15,41 @@ export const SCHOOL_WEBSITE = 'www.excellencecollege.ac.ke';
 
 export function CollegeOfficialLetterhead({
   documentTitle,
+  compact = false,
 }: {
   documentTitle: string;
+  compact?: boolean;
 }) {
   return (
-    <header className="document-letterhead border-b-2 border-slate-900 pb-3 text-center">
-      <div className="mb-1 flex justify-center">
+    <header
+      className={cn(
+        'document-letterhead border-b-2 border-slate-900 text-center',
+        compact ? 'pb-1.5' : 'pb-3'
+      )}
+    >
+      <div className={cn('flex justify-center', compact ? 'mb-0.5' : 'mb-1')}>
         <Image
           src="/logo.png"
           alt={SCHOOL_NAME}
-          width={56}
-          height={56}
-          className="h-14 w-14 object-contain"
+          width={compact ? 40 : 56}
+          height={compact ? 40 : 56}
+          className={cn('object-contain', compact ? 'h-10 w-10' : 'h-14 w-14')}
         />
       </div>
-      <p className="text-xl font-bold leading-tight text-slate-900">{SCHOOL_NAME_OFFICIAL}</p>
-      <p className="mt-0.5 text-[10px] text-slate-600">{SCHOOL_TAGLINE}</p>
-      <p className="mt-1 text-[9px] text-slate-500">
+      <p className={cn('font-bold leading-tight text-slate-900', compact ? 'text-base' : 'text-xl')}>
+        {SCHOOL_NAME_OFFICIAL}
+      </p>
+      <p className={cn('text-slate-600', compact ? 'text-[8px]' : 'mt-0.5 text-[10px]')}>{SCHOOL_TAGLINE}</p>
+      <p className={cn('text-slate-500', compact ? 'mt-0.5 text-[8px]' : 'mt-1 text-[9px]')}>
         {SCHOOL_CAMPUS} | {SCHOOL_CITY}, {SCHOOL_COUNTRY} | Tel: {SCHOOL_PHONE} | Email: {SCHOOL_EMAIL}
       </p>
-      <p className="text-[9px] text-slate-500">{SCHOOL_WEBSITE}</p>
-      <h1 className="mt-3 text-lg font-bold tracking-wide text-slate-900 underline underline-offset-4">
+      {!compact && <p className="text-[9px] text-slate-500">{SCHOOL_WEBSITE}</p>}
+      <h1
+        className={cn(
+          'font-bold tracking-wide text-slate-900',
+          compact ? 'mt-1.5 text-sm uppercase' : 'mt-3 text-lg underline underline-offset-4'
+        )}
+      >
         {documentTitle}
       </h1>
     </header>
