@@ -291,7 +291,7 @@ export function TimetableCellModal({
             {existingEntry && onDelete && (
               <Button
                 type="button"
-                variant="destructive"
+                variant="danger"
                 onClick={async () => {
                   if (confirm('Are you sure you want to delete this timetable entry?')) {
                     setLoading(true);
