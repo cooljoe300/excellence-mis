@@ -47,7 +47,9 @@ export interface Intake {
   is_current: boolean;
   is_active: boolean;
   academic_year: string | null;
+  term_id: string | null;
   created_at: string;
+  term?: AcademicTerm | null;
 }
 
 export interface Program {

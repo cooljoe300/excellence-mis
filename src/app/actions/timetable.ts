@@ -1,8 +1,9 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type { Timetable, Room, TimeSlot, Profile, Program, Course, Intake } from '@/lib/types';
+import type { Timetable, Room, TimeSlot, Profile, Program, Course, Intake, AcademicTerm } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
+import { resolveAcademicPeriod } from '@/lib/academic-period';
 import {
   durationMinutes,
   formatClockTime,
@@ -42,17 +43,23 @@ async function hydrateTimetables(rows: Timetable[] | null | undefined): Promise<
       ? supabase.from('profiles').select('*').in('id', lecturerIds)
       : Promise.resolve({ data: [] as Profile[] }),
     intakeIds.length
-      ? supabase.from('intakes').select('*').in('id', intakeIds)
-      : Promise.resolve({ data: [] as Intake[] }),
+      ? supabase.from('intakes').select('*, term:academic_terms(*)').in('id', intakeIds)
+      : Promise.resolve({ data: [] as Intake[], error: null }),
     roomIds.length
       ? supabase.from('rooms').select('*').in('id', roomIds)
       : Promise.resolve({ data: [] as Room[] }),
   ]);
 
+  let intakeRows = (intakes.data || []) as Intake[];
+  if (intakeIds.length && intakes.error) {
+    const fallback = await supabase.from('intakes').select('*').in('id', intakeIds);
+    intakeRows = (fallback.data || []) as Intake[];
+  }
+
   const programMap = mapById(programs.data as Program[] | null);
   const courseMap = mapById(courses.data as Course[] | null);
   const lecturerMap = mapById(lecturers.data as Profile[] | null);
-  const intakeMap = mapById(intakes.data as Intake[] | null);
+  const intakeMap = mapById(intakeRows);
   const roomMap = mapById(rooms.data as Room[] | null);
 
   return rows.map((row) => ({
@@ -197,16 +204,23 @@ export async function getTimetableFormData() {
       supabase.from('courses').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').eq('can_teach', true).order('full_name', { ascending: true }),
       supabase.from('time_slots').select('*').order('start_time', { ascending: true }),
-      supabase.from('intakes').select('*').order('start_date', { ascending: false }),
+      supabase.from('intakes').select('*, term:academic_terms(*)').order('start_date', { ascending: false }),
       supabase.from('rooms').select('*').order('name', { ascending: true }),
     ]);
+
+    let intakeRows = (intakes.data || []) as Intake[];
+    if (intakes.error) {
+      console.error('Error fetching intakes with academic terms:', intakes.error);
+      const fallback = await supabase.from('intakes').select('*').order('start_date', { ascending: false });
+      intakeRows = (fallback.data || []) as Intake[];
+    }
 
     return {
       programs: (programs.data || []) as Program[],
       courses: (courses.data || []) as Course[],
       lecturers: (lecturers.data || []) as Profile[],
       timeSlots: (timeSlots.data || []) as TimeSlot[],
-      intakes: (intakes.data || []) as Intake[],
+      intakes: intakeRows,
       rooms: (rooms.data || []) as Room[],
     };
   } catch (error) {
@@ -222,23 +236,85 @@ export async function getTimetableFormData() {
   }
 }
 
-async function resolveAcademicYear(intakeId: string | null, provided?: string | null) {
-  if (provided) return provided;
-  if (!intakeId) return '';
+function formString(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value.trim() : '';
+}
 
+async function resolveIntakeAcademicPeriod(intakeId: string): Promise<
+  { academicYear: string; semester: string } | { error: string }
+> {
   const supabase = await createClient();
-  const { data: intake } = await supabase
-    .from('intakes')
-    .select('academic_year, start_date, name')
-    .eq('id', intakeId)
-    .single();
+  const id = intakeId.trim();
 
-  if (intake?.academic_year) return intake.academic_year;
-  if (intake?.start_date) {
-    const year = new Date(intake.start_date).getFullYear();
-    return `${year}/${year + 1}`;
+  const withTerm = await supabase
+    .from('intakes')
+    .select('*, term:academic_terms(*)')
+    .eq('id', id)
+    .maybeSingle();
+
+  let intake = (withTerm.data || null) as (Intake & { term?: AcademicTerm | null }) | null;
+  if (withTerm.error) {
+    console.error('Error fetching intake academic period relationship:', withTerm.error);
+    const fallback = await supabase.from('intakes').select('*').eq('id', id).maybeSingle();
+    if (fallback.error) {
+      console.error('Error fetching intake:', fallback.error);
+    }
+    intake = (fallback.data || null) as Intake | null;
   }
-  return intake?.name || '';
+
+  if (!intake) {
+    return { error: 'The selected intake could not be found.' };
+  }
+
+  let term = intake.term || null;
+  if (!term && intake.term_id) {
+    const termResult = await supabase.from('academic_terms').select('*').eq('id', intake.term_id).maybeSingle();
+    term = (termResult.data || null) as AcademicTerm | null;
+  }
+  if (!term && intake.start_date) {
+    const overlapping = await supabase
+      .from('academic_terms')
+      .select('*')
+      .lte('start_date', intake.start_date)
+      .gte('end_date', intake.start_date)
+      .order('is_current', { ascending: false })
+      .limit(1);
+    term = ((overlapping.data || [])[0] || null) as AcademicTerm | null;
+  }
+
+  const existing = await supabase
+    .from('timetables')
+    .select('academic_year')
+    .eq('intake_id', id)
+    .not('academic_year', 'is', null)
+    .limit(1);
+
+  const existingAcademicYear = existing.data?.[0]?.academic_year || null;
+  const academicYear = resolveAcademicPeriod({
+    intake,
+    term,
+    existingAcademicYear,
+  });
+
+  if (!academicYear) {
+    return {
+      error:
+        'This intake is not configured with an academic period. Please configure the academic period for this intake before creating a timetable.',
+    };
+  }
+
+  const backfill: Record<string, string> = {};
+  if (!intake.academic_year) backfill.academic_year = academicYear;
+  if (term?.id && !intake.term_id) backfill.term_id = term.id;
+  if (Object.keys(backfill).length > 0) {
+    const { error: backfillError } = await supabase.from('intakes').update(backfill).eq('id', id);
+    if (backfillError) {
+      console.error('Unable to backfill intake academic period:', backfillError);
+    }
+  }
+
+  return { academicYear, semester: intake.name || academicYear };
 }
 
 export async function checkTimetableConflict(formData: FormData) {
@@ -316,15 +392,15 @@ export async function createTimetable(formData: FormData) {
     return { error: 'You must be logged in to create a timetable entry.' };
   }
 
-  const programId = formData.get('program_id') as string;
-  const courseId = formData.get('course_id') as string;
-  const intakeId = formData.get('intake_id') as string;
-  const lecturerId = formData.get('lecturer_id') as string;
-  const roomId = (formData.get('room_id') as string) || '';
-  const day = normalizeDay(formData.get('day') as string);
-  const startTime = formData.get('start_time') as string;
-  const endTime = formData.get('end_time') as string;
-  const status = ((formData.get('status') as string) || 'draft').toLowerCase();
+  const programId = formString(formData, 'program_id');
+  const courseId = formString(formData, 'course_id');
+  const intakeId = formString(formData, 'intake_id');
+  const lecturerId = formString(formData, 'lecturer_id');
+  const roomId = formString(formData, 'room_id');
+  const day = normalizeDay(formString(formData, 'day'));
+  const startTime = formString(formData, 'start_time');
+  const endTime = formString(formData, 'end_time');
+  const status = (formString(formData, 'status') || 'draft').toLowerCase();
 
   if (!programId) return { error: 'Please select a programme.' };
   if (!intakeId) return { error: 'Please select an intake.' };
@@ -339,12 +415,18 @@ export async function createTimetable(formData: FormData) {
     return { error: 'Please select a valid status.' };
   }
 
-  const academicYear = await resolveAcademicYear(intakeId, formData.get('academic_year') as string);
-  if (!academicYear) {
-    return { error: 'The selected intake does not have an academic period.' };
+  const period = await resolveIntakeAcademicPeriod(intakeId);
+  if ('error' in period) {
+    return { error: period.error };
   }
+  const academicYear = period.academicYear;
   formData.set('academic_year', academicYear);
   formData.set('day', day);
+  formData.set('program_id', programId);
+  formData.set('intake_id', intakeId);
+  formData.set('course_id', courseId);
+  formData.set('lecturer_id', lecturerId);
+  formData.set('room_id', roomId);
 
   const { data: course } = await supabase
     .from('courses')
@@ -360,8 +442,6 @@ export async function createTimetable(formData: FormData) {
     return { error: 'The selected unit does not belong to the selected programme.' };
   }
 
-  const { data: intake } = await supabase.from('intakes').select('name').eq('id', intakeId).single();
-
   const conflicts = await checkTimetableConflict(formData);
   if (conflicts.length > 0) {
     return { error: conflicts.join(' ') };
@@ -369,7 +449,7 @@ export async function createTimetable(formData: FormData) {
 
   const timetableData = {
     academic_year: academicYear,
-    semester: intake?.name || academicYear,
+    semester: period.semester,
     program_id: programId,
     intake_id: intakeId,
     course_id: courseId,
@@ -422,15 +502,15 @@ export async function updateTimetable(id: string, formData: FormData) {
 
   formData.set('id', id);
 
-  const programId = formData.get('program_id') as string;
-  const courseId = formData.get('course_id') as string;
-  const intakeId = formData.get('intake_id') as string;
-  const lecturerId = formData.get('lecturer_id') as string;
-  const roomId = (formData.get('room_id') as string) || '';
-  const day = normalizeDay(formData.get('day') as string);
-  const startTime = formData.get('start_time') as string;
-  const endTime = formData.get('end_time') as string;
-  const status = ((formData.get('status') as string) || 'draft').toLowerCase();
+  const programId = formString(formData, 'program_id');
+  const courseId = formString(formData, 'course_id');
+  const intakeId = formString(formData, 'intake_id');
+  const lecturerId = formString(formData, 'lecturer_id');
+  const roomId = formString(formData, 'room_id');
+  const day = normalizeDay(formString(formData, 'day'));
+  const startTime = formString(formData, 'start_time');
+  const endTime = formString(formData, 'end_time');
+  const status = (formString(formData, 'status') || 'draft').toLowerCase();
 
   if (!programId) return { error: 'Please select a programme.' };
   if (!intakeId) return { error: 'Please select an intake.' };
@@ -445,11 +525,18 @@ export async function updateTimetable(id: string, formData: FormData) {
     return { error: 'Please select a valid status.' };
   }
 
-  const academicYear = await resolveAcademicYear(intakeId, formData.get('academic_year') as string);
+  const period = await resolveIntakeAcademicPeriod(intakeId);
+  if ('error' in period) {
+    return { error: period.error };
+  }
+  const academicYear = period.academicYear;
   formData.set('academic_year', academicYear);
   formData.set('day', day);
-
-  const { data: intake } = await supabase.from('intakes').select('name').eq('id', intakeId).single();
+  formData.set('program_id', programId);
+  formData.set('intake_id', intakeId);
+  formData.set('course_id', courseId);
+  formData.set('lecturer_id', lecturerId);
+  formData.set('room_id', roomId);
 
   const conflicts = await checkTimetableConflict(formData);
   if (conflicts.length > 0) {
@@ -458,7 +545,7 @@ export async function updateTimetable(id: string, formData: FormData) {
 
   const timetableData = {
     academic_year: academicYear,
-    semester: intake?.name || academicYear,
+    semester: period.semester,
     program_id: programId,
     intake_id: intakeId,
     course_id: courseId,

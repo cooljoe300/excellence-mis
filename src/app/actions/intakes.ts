@@ -1,10 +1,32 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { academicYearFromDate } from '@/lib/academic-period';
 import { revalidatePath } from 'next/cache';
+
+function intakePayload(formData: FormData) {
+  const startDate = formData.get('start_date') as string;
+  const termId = ((formData.get('term_id') as string) || '').trim() || null;
+  return {
+    name: formData.get('name') as string,
+    code: formData.get('code') as string,
+    start_date: startDate,
+    end_date: formData.get('end_date') as string,
+    is_current: formData.get('is_current') === 'true',
+    is_active: formData.get('is_active') !== 'false',
+    academic_year: academicYearFromDate(startDate) || null,
+    term_id: termId,
+  };
+}
 
 export async function getIntakes() {
   const supabase = await createClient();
+  const withTerm = await supabase
+    .from('intakes')
+    .select('*, term:academic_terms(*)')
+    .order('start_date', { ascending: false });
+  if (!withTerm.error) return withTerm.data ?? [];
+
   const { data, error } = await supabase
     .from('intakes')
     .select('*')
@@ -30,19 +52,18 @@ export async function createIntake(formData: FormData) {
     await clearCurrentIntake(supabase);
   }
 
-  const { error } = await supabase.from('intakes').insert({
-    name: formData.get('name') as string,
-    code: formData.get('code') as string,
-    start_date: formData.get('start_date') as string,
-    end_date: formData.get('end_date') as string,
-    is_current: isCurrent,
-    is_active: formData.get('is_active') !== 'false',
-  });
+  const payload = intakePayload(formData);
+  if (isCurrent) {
+    payload.is_current = true;
+  }
+
+  const { error } = await supabase.from('intakes').insert(payload);
 
   if (error) return { error: error.message };
 
   revalidatePath('/dashboard/intakes');
   revalidatePath('/dashboard/students');
+  revalidatePath('/dashboard/timetable');
   return { success: true };
 }
 
@@ -54,22 +75,19 @@ export async function updateIntake(id: string, formData: FormData) {
     await clearCurrentIntake(supabase, id);
   }
 
+  const payload = intakePayload(formData);
+  payload.is_current = isCurrent;
+
   const { error } = await supabase
     .from('intakes')
-    .update({
-      name: formData.get('name') as string,
-      code: formData.get('code') as string,
-      start_date: formData.get('start_date') as string,
-      end_date: formData.get('end_date') as string,
-      is_current: isCurrent,
-      is_active: formData.get('is_active') !== 'false',
-    })
+    .update(payload)
     .eq('id', id);
 
   if (error) return { error: error.message };
 
   revalidatePath('/dashboard/intakes');
   revalidatePath('/dashboard/students');
+  revalidatePath('/dashboard/timetable');
   return { success: true };
 }
 
@@ -80,5 +98,6 @@ export async function deleteIntake(id: string) {
 
   revalidatePath('/dashboard/intakes');
   revalidatePath('/dashboard/students');
+  revalidatePath('/dashboard/timetable');
   return { success: true };
 }
