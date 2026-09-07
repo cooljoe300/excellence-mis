@@ -24,10 +24,8 @@ export default async function NewTimetablePage() {
             programs={formData.programs}
             courses={formData.courses}
             lecturers={formData.lecturers}
-            rooms={formData.rooms}
             timeSlots={formData.timeSlots}
             intakes={formData.intakes}
-            terms={formData.terms}
             action={createTimetable}
           />
         </CardContent>

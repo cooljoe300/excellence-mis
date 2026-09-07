@@ -58,12 +58,10 @@ export default async function TimetableDashboardPage() {
       <TimetableGridWrapper
         timetables={timetables}
         programs={formData.programs}
-        rooms={formData.rooms}
         timeSlots={formData.timeSlots}
         courses={formData.courses}
         lecturers={formData.lecturers}
         intakes={formData.intakes}
-        terms={formData.terms}
       />
     </div>
   );
