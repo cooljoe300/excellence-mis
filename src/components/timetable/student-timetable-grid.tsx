@@ -273,11 +273,11 @@ export function StudentTimetableGrid({
               Student Timetable
             </h2>
             <div className="text-sm text-slate-600 space-y-1">
-              <p><strong>Student:</strong> {studentName}</p>
-              <p><strong>Student Number:</strong> {studentNumber}</p>
-              <p><strong>Programme:</strong> {programmeName}</p>
-              {programme && <p><strong>Programme Code:</strong> {programme.code}</p>}
-              {intake && <p><strong>Intake:</strong> {intake.name}</p>
+              <p><span className="font-semibold">Student:</span> {studentName}</p>
+              <p><span className="font-semibold">Student Number:</span> {studentNumber}</p>
+              <p><span className="font-semibold">Programme:</span> {programmeName}</p>
+              {programme && <p><span className="font-semibold">Programme Code:</span> {programme.code}</p>}
+              {intake && <p><span className="font-semibold">Intake:</span> {intake.name}</p>}
             </div>
           </div>
           <TimetablePrintDocument
