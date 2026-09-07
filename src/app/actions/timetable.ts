@@ -1011,14 +1011,14 @@ export async function getStudentTimetable() {
       if (timetable.class_type !== 'shared') {
         return true; // Regular classes for enrolled courses are always included
       }
-      
+
       // For shared classes, check if student's programme is in the assignments
       if (timetable.programme_assignments && timetable.programme_assignments.length > 0) {
         return timetable.programme_assignments.some(
-          assignment => assignment.programme_id === student.program_id
+          (assignment: TimetableProgrammeAssignment) => assignment.programme_id === student.program_id
         );
       }
-      
+
       return false;
     });
 
