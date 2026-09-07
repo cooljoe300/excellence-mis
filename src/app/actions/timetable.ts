@@ -138,6 +138,7 @@ export async function checkTimetableConflict(formData: FormData) {
   const lecturerId = formData.get('lecturer_id') as string;
   const courseId = formData.get('course_id') as string;
   const intakeId = formData.get('intake_id') as string;
+  const programId = formData.get('program_id') as string;
 
   const conflicts: string[] = [];
 
