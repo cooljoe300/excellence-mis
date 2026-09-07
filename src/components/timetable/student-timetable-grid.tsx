@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Printer, Download, Link } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import type { Timetable, TimeSlot } from '@/lib/types';
+import type { Timetable, TimeSlot, Program, Intake } from '@/lib/types';
 import {
   TIMETABLE_DAYS,
   TIMETABLE_DAY_LABELS,
@@ -25,8 +25,8 @@ interface StudentTimetableGridProps {
   studentName: string;
   studentNumber: string;
   programmeName: string;
-  programme?: { code: string; name: string };
-  intake?: { code: string; name: string };
+  programme?: Partial<Program>;
+  intake?: Partial<Intake>;
   onPreview?: () => void;
   onPrint?: () => void;
   onDownload?: () => void;
@@ -282,8 +282,8 @@ export function StudentTimetableGrid({
           </div>
           <TimetablePrintDocument
             timetables={timetables}
-            program={programme}
-            intake={intake}
+            program={undefined}
+            intake={undefined}
             timeSlots={timeSlots}
             documentId="student-timetable"
           />
