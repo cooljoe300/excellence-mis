@@ -44,7 +44,6 @@ const allNavItems = [
   { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/timetable', label: 'Timetable', icon: Calendar, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/timetable/rooms', label: 'Rooms', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/timetable/time-slots', label: 'Time Slots', icon: CalendarDays, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/fees', label: 'Fees', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },

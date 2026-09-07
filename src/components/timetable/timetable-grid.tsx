@@ -18,6 +18,8 @@ import {
   RotateCw,
   Search,
   Filter,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import type { Timetable, Program, Room, TimeSlot } from '@/lib/types';
 
@@ -67,6 +69,7 @@ export function TimetableGrid({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [selectedSemester, setSelectedSemester] = useState('');
+  const [showTimeSlots, setShowTimeSlots] = useState(true);
 
   // Generate time slots from the timeSlots prop
   const TIME_SLOTS = useMemo(() => {
@@ -215,6 +218,19 @@ export function TimetableGrid({
                 <Calendar className="h-4 w-4 mr-2" />
                 Auto Generate
               </Button>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => setShowTimeSlots(!showTimeSlots)}
+                title={showTimeSlots ? 'Hide Time Slots' : 'Show Time Slots'}
+              >
+                {showTimeSlots ? (
+                  <EyeOff className="h-4 w-4 mr-2" />
+                ) : (
+                  <Eye className="h-4 w-4 mr-2" />
+                )}
+                {showTimeSlots ? 'Hide Slots' : 'Show Slots'}
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -230,14 +246,20 @@ export function TimetableGrid({
                   <th className="sticky left-0 bg-slate-50 z-10 px-4 py-3 text-left font-semibold text-slate-700 min-w-[100px] border-r border-slate-200">
                     Day / Time
                   </th>
-                  {TIME_SLOTS.map((slot) => (
-                    <th
-                      key={slot}
-                      className="px-3 py-3 text-center font-semibold text-slate-700 min-w-[100px] border-r border-slate-200"
-                    >
-                      {slot}
+                  {showTimeSlots ? (
+                    TIME_SLOTS.map((slot) => (
+                      <th
+                        key={slot}
+                        className="px-3 py-3 text-center font-semibold text-slate-700 min-w-[100px] border-r border-slate-200"
+                      >
+                        {slot}
+                      </th>
+                    ))
+                  ) : (
+                    <th className="px-3 py-3 text-center font-semibold text-slate-700 min-w-[200px] border-r border-slate-200">
+                      <span className="text-slate-400 italic">Time slots hidden</span>
                     </th>
-                  ))}
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -246,45 +268,56 @@ export function TimetableGrid({
                     <td className="sticky left-0 bg-white z-10 px-4 py-3 font-medium text-slate-900 border-r border-slate-200">
                       {day}
                     </td>
-                    {TIME_SLOTS.map((slot) => {
-                      const key = `${day}-${slot}`;
-                      const entries = timetableMap[key] || [];
-                      
-                      return (
-                        <td
-                          key={slot}
-                          className="px-2 py-2 min-w-[100px] border-r border-slate-200 h-24 align-top cursor-pointer hover:bg-slate-100"
-                          onClick={() => onCellClick(day, slot)}
-                        >
-                          {entries.length > 0 ? (
-                            <div className="space-y-1">
-                              {entries.map((entry) => {
-                                const colorClass = getProgramColor(entry.program?.name || '');
-                                return (
-                                  <div
-                                    key={entry.id}
-                                    className={`p-2 rounded border text-xs ${colorClass}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // TODO: Open edit modal
-                                    }}
-                                  >
-                                    <div className="font-semibold">{entry.course?.code}</div>
-                                    <div className="truncate">{entry.course?.name}</div>
-                                    <div className="truncate">{entry.lecturer?.full_name}</div>
-                                    <div className="truncate">{entry.room?.name}</div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="h-full flex items-center justify-center text-slate-300">
-                              <Plus className="h-4 w-4" />
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
+                    {showTimeSlots ? (
+                      TIME_SLOTS.map((slot) => {
+                        const key = `${day}-${slot}`;
+                        const entries = timetableMap[key] || [];
+                        
+                        return (
+                          <td
+                            key={slot}
+                            className="px-2 py-2 min-w-[100px] border-r border-slate-200 h-24 align-top cursor-pointer hover:bg-slate-100"
+                            onClick={() => onCellClick(day, slot)}
+                          >
+                            {entries.length > 0 ? (
+                              <div className="space-y-1">
+                                {entries.map((entry) => {
+                                  const colorClass = getProgramColor(entry.program?.name || '');
+                                  return (
+                                    <div
+                                      key={entry.id}
+                                      className={`p-2 rounded border text-xs ${colorClass}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // TODO: Open edit modal
+                                      }}
+                                    >
+                                      <div className="font-semibold">{entry.course?.code}</div>
+                                      <div className="truncate">{entry.course?.name}</div>
+                                      <div className="truncate">{entry.lecturer?.full_name}</div>
+                                      <div className="truncate">{entry.room?.name}</div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="h-full flex items-center justify-center text-slate-300">
+                                <Plus className="h-4 w-4" />
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })
+                    ) : (
+                      <td 
+                        colSpan={TIME_SLOTS.length || 1} 
+                        className="px-2 py-2 border-r border-slate-200 h-24 align-top"
+                      >
+                        <div className="h-full flex items-center justify-center text-slate-400 italic text-sm">
+                          Time slots hidden - use "Show Slots" button to display
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
