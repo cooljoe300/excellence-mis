@@ -59,6 +59,7 @@ export function TimetableGridWrapper({
     }
     
     if (result.success) {
+      console.log('Save successful, refreshing timetables...');
       await refreshTimetables();
       setIsModalOpen(false);
     }

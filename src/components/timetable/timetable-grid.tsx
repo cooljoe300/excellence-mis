@@ -78,12 +78,11 @@ export function TimetableGrid({
 
   // Filter timetables based on selected filters
   const filteredTimetables = useMemo(() => {
-    return timetables.filter((tt) => {
-      if (selectedProgram && tt.program_id !== selectedProgram) return false;
-      if (selectedIntake && tt.intake_id !== selectedIntake) return false;
-      if (selectedStatus && selectedStatus !== 'all') {
-        if (tt.status !== selectedStatus) return false;
-      }
+    const filtered = timetables.filter((tt) => {
+      // Only filter if a value is actually selected (not empty string)
+      if (selectedProgram && selectedProgram !== '' && tt.program_id !== selectedProgram) return false;
+      if (selectedIntake && selectedIntake !== '' && tt.intake_id !== selectedIntake) return false;
+      if (selectedStatus && selectedStatus !== 'all' && tt.status !== selectedStatus) return false;
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -95,6 +94,12 @@ export function TimetableGrid({
       }
       return true;
     });
+    
+    console.log('Filter applied:', { selectedProgram, selectedIntake, selectedStatus });
+    console.log('Total timetables:', timetables.length);
+    console.log('Filtered timetables:', filtered.length);
+    
+    return filtered;
   }, [timetables, selectedProgram, selectedIntake, selectedStatus, searchQuery]);
 
 
