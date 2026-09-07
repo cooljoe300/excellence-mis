@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type { Timetable, Room, TimeSlot } from '@/lib/types';
+import type { Timetable, Room, TimeSlot, Profile } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
 export async function getTimetableStats() {
@@ -105,7 +105,7 @@ export async function getTimetableFormData() {
     const [programs, courses, lecturers, timeSlots, intakes] = await Promise.all([
       supabase.from('programs').select('*').order('name', { ascending: true }),
       supabase.from('courses').select('*').order('name', { ascending: true }),
-      supabase.from('profiles').select('*').eq('role', 'teacher').order('full_name', { ascending: true }),
+      supabase.from('profiles').select('*').eq('can_teach', true).order('full_name', { ascending: true }),
       supabase.from('time_slots').select('*').eq('is_visible', true).order('start_time', { ascending: true }),
       supabase.from('intakes').select('*').order('name', { ascending: true }),
     ]);
@@ -153,7 +153,7 @@ export async function checkTimetableConflict(formData: FormData) {
       .neq('status', 'archived');
 
     if (lecturerConflict && lecturerConflict.length > 0) {
-      conflicts.push('Lecturer has another class at this time');
+      conflicts.push('This lecturer already has another class scheduled during the selected time.');
     }
   }
 
@@ -219,10 +219,10 @@ export async function createTimetable(formData: FormData) {
     return { error: 'Please select a unit.' };
   }
 
-  // Validate lecturer selection
+  // Validate lecturer selection (recommended but not required)
   const lecturerId = formData.get('lecturer_id') as string;
   if (!lecturerId) {
-    return { error: 'Please select a lecturer.' };
+    return { error: 'Please select a lecturer for this class.' };
   }
 
   // Validate programme-unit relationship
@@ -516,4 +516,109 @@ export async function importTimetableFromCSV(csvContent: string) {
     errors,
     total: lines.length - 1,
   };
+}
+
+// Lecturer Management Actions
+export async function getLecturers() {
+  const supabase = await createClient();
+  
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('full_name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching lecturers:', error);
+      return [];
+    }
+    return (data || []) as Profile[];
+  } catch (error) {
+    console.error('Error fetching lecturers:', error);
+    return [];
+  }
+}
+
+export async function updateLecturer(lecturerId: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return { error: 'You must be logged in to update lecturer information.' };
+  }
+
+  const lecturerData = {
+    full_name: formData.get('full_name'),
+    email: formData.get('email'),
+    phone: formData.get('phone') || null,
+    staff_number: formData.get('staff_number') || null,
+    department: formData.get('department') || null,
+    specialization: formData.get('specialization') || null,
+    employment_status: formData.get('employment_status') || 'active',
+    can_teach: formData.get('can_teach') === 'true',
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(lecturerData)
+    .eq('id', lecturerId)
+    .select()
+    .single();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/timetable');
+  revalidatePath('/dashboard/users');
+
+  return { success: true, data };
+}
+
+export async function toggleLecturerCanTeach(lecturerId: string, canTeach: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return { error: 'You must be logged in to update lecturer permissions.' };
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ can_teach: canTeach, updated_at: new Date().toISOString() })
+    .eq('id', lecturerId)
+    .select()
+    .single();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/timetable');
+  revalidatePath('/dashboard/users');
+
+  return { success: true, data };
+}
+
+export async function getLecturerWorkload(lecturerId: string) {
+  const supabase = await createClient();
+  
+  try {
+    const { data, error } = await supabase
+      .from('timetables')
+      .select('*, program:programs(*), course:courses(*), intake:intakes(*)')
+      .eq('lecturer_id', lecturerId)
+      .eq('status', 'active')
+      .order('day', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching lecturer workload:', error);
+      return [];
+    }
+    return (data || []) as Timetable[];
+  } catch (error) {
+    console.error('Error fetching lecturer workload:', error);
+    return [];
+  }
 }

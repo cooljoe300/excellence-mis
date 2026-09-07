@@ -1,7 +1,10 @@
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { TimetableGridWrapper } from '@/components/timetable/timetable-grid-wrapper';
-import { getTimetableStats, getTimetables, getTimetableFormData } from '@/app/actions/timetable';
+import { LecturerManagement } from '@/components/timetable/lecturer-management';
+import { LecturerWorkload } from '@/components/timetable/lecturer-workload';
+import { LecturerMyTimetable } from '@/components/timetable/lecturer-my-timetable';
+import { getTimetableStats, getTimetables, getTimetableFormData, getLecturers, updateLecturer, toggleLecturerCanTeach, getLecturerWorkload } from '@/app/actions/timetable';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
@@ -11,27 +14,33 @@ import {
   Timer,
   Users,
   Settings,
+  Users as UsersIcon,
 } from 'lucide-react';
 
 export default async function TimetableDashboardPage() {
   const stats = await getTimetableStats();
   const timetables = await getTimetables();
   const formData = await getTimetableFormData();
+  const lecturers = await getLecturers();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
   // Get user role from profiles
   let userRole = null;
+  let userCanTeach = false;
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, can_teach')
       .eq('id', user.id)
       .single();
     userRole = profile?.role;
+    userCanTeach = profile?.can_teach || false;
   }
 
   const canManageTimeSlots = userRole && ['superadmin', 'admin', 'staff'].includes(userRole);
+  const canManageLecturers = userRole && ['superadmin', 'admin'].includes(userRole);
+  const isLecturer = userCanTeach;
 
   return (
     <div>
@@ -63,6 +72,21 @@ export default async function TimetableDashboardPage() {
         lecturers={formData.lecturers}
         intakes={formData.intakes}
       />
+
+      {canManageLecturers && (
+        <LecturerManagement
+          lecturers={lecturers}
+          onUpdateLecturer={updateLecturer}
+          onToggleCanTeach={toggleLecturerCanTeach}
+        />
+      )}
+
+      <LecturerWorkload
+        lecturers={lecturers}
+        onGetWorkload={getLecturerWorkload}
+      />
+
+      {isLecturer && <LecturerMyTimetable />}
     </div>
   );
 }

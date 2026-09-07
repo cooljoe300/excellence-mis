@@ -40,6 +40,7 @@ export interface ManagedUserRow {
   full_name: string | null;
   email: string | null;
   role: UserRole;
+  can_teach: boolean | null;
   created_at: string;
 }
 
@@ -86,7 +87,7 @@ export async function getManagedUsers() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, created_at')
+    .select('id, full_name, email, role, can_teach, created_at')
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
@@ -96,6 +97,7 @@ export async function getManagedUsers() {
     full_name: row.full_name as string | null,
     email: row.email as string | null,
     role: row.role as UserRole,
+    can_teach: row.can_teach as boolean | null,
     created_at: row.created_at as string,
   }));
 

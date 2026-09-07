@@ -19,6 +19,11 @@ export interface Profile {
   role: UserRole;
   phone: string | null;
   avatar_url: string | null;
+  can_teach: boolean;
+  staff_number: string | null;
+  department: string | null;
+  specialization: string | null;
+  employment_status: string | null;
   created_at: string;
   updated_at: string;
 }

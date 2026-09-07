@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
 import { updateUserRole, deleteUser, resetUserPassword, forcePasswordChange, type ManagedUserRow } from '@/app/actions/user-roles';
+import { toggleLecturerCanTeach } from '@/app/actions/timetable';
 import { formatDate } from '@/lib/utils';
 import type { UserRole } from '@/lib/types';
-import { Trash2, KeyRound, RefreshCw } from 'lucide-react';
+import { Trash2, KeyRound, RefreshCw, ToggleLeft, ToggleRight } from 'lucide-react';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
@@ -52,6 +53,7 @@ export function RoleManagementTable({
   const [forcePasswordChangeDialogOpen, setForcePasswordChangeDialogOpen] = useState(false);
   const [userToForcePasswordChange, setUserToForcePasswordChange] = useState<ManagedUserRow | null>(null);
   const [forcePasswordChangeLoading, setForcePasswordChangeLoading] = useState(false);
+  const [toggleCanTeachLoading, setToggleCanTeachLoading] = useState<string | null>(null);
 
   async function saveRole(userId: string) {
     const role = roleDrafts[userId];
@@ -149,6 +151,24 @@ export function RoleManagementTable({
     setForcePasswordChangeDialogOpen(false);
     setUserToForcePasswordChange(null);
     setForcePasswordChangeLoading(false);
+    setMessage('User will be required to change password on next login.');
+    setTimeout(() => setMessage(null), 3000);
+  }
+
+  async function handleToggleCanTeach(userId: string, currentCanTeach: boolean) {
+    setToggleCanTeachLoading(userId);
+    const result = await toggleLecturerCanTeach(userId, !currentCanTeach);
+    if (result.error) {
+      setError(result.error);
+      setToggleCanTeachLoading(null);
+      return;
+    }
+    setToggleCanTeachLoading(null);
+    setMessage(`Lecturer capability ${!currentCanTeach ? 'enabled' : 'disabled'} successfully.`);
+    setTimeout(() => setMessage(null), 3000);
+  }
+    setUserToForcePasswordChange(null);
+    setForcePasswordChangeLoading(false);
     setMessage('User will be required to change their password on next login.');
     setTimeout(() => setMessage(null), 3000);
   }
@@ -167,6 +187,7 @@ export function RoleManagementTable({
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Current role</th>
+              <th className="px-4 py-3 font-medium">Can Teach</th>
               <th className="px-4 py-3 font-medium">Created</th>
               <th className="px-4 py-3 font-medium">Update role</th>
               <th className="px-4 py-3 font-medium">Actions</th>
@@ -187,6 +208,22 @@ export function RoleManagementTable({
                   </td>
                   <td className="px-4 py-3 text-slate-600">{user.email ?? '—'}</td>
                   <td className="px-4 py-3 capitalize text-slate-700">{user.role}</td>
+                  <td className="px-4 py-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleCanTeach(user.id, user.can_teach || false)}
+                      disabled={toggleCanTeachLoading === user.id}
+                    >
+                      {toggleCanTeachLoading === user.id ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : user.can_teach ? (
+                        <ToggleRight className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <ToggleLeft className="h-4 w-4 text-slate-400" />
+                      )}
+                    </Button>
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{formatDate(user.created_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex min-w-[260px] items-end gap-2">

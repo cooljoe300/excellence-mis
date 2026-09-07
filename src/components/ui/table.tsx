@@ -47,3 +47,15 @@ export function TableCell({ className, ...props }: React.TdHTMLAttributes<HTMLTa
     <td className={cn('px-6 py-4', className)} {...props} />
   );
 }
+
+export function TableFooter({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return (
+    <tfoot className={cn('border-t border-border bg-slate-50/80', className)} {...props} />
+  );
+}
+
+export function TableCaption({ className, ...props }: React.HTMLAttributes<HTMLTableCaptionElement>) {
+  return (
+    <caption className={cn('mt-4 text-sm text-slate-500', className)} {...props} />
+  );
+}
