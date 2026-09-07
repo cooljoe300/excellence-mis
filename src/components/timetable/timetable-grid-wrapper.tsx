@@ -45,6 +45,7 @@ export function TimetableGridWrapper({
   const [previewTimetables, setPreviewTimetables] = useState<Timetable[]>([]);
   const [selectedProgramForPreview, setSelectedProgramForPreview] = useState('');
   const [selectedIntakeForPreview, setSelectedIntakeForPreview] = useState('');
+  const [pendingPrint, setPendingPrint] = useState(false);
 
   useEffect(() => {
     setLocalTimetables(timetables);
@@ -111,10 +112,8 @@ export function TimetableGridWrapper({
     setPreviewTimetables(filtered);
     setSelectedProgramForPreview(programId || '');
     setSelectedIntakeForPreview(intakeId || '');
+    setPendingPrint(print);
     setIsPreviewOpen(true);
-    if (print) {
-      setTimeout(() => window.print(), 250);
-    }
   }
 
   return (
@@ -152,13 +151,18 @@ export function TimetableGridWrapper({
       />
       <TimetablePreview
         isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setPendingPrint(false);
+        }}
         timetables={previewTimetables}
         program={programs.find((program) => program.id === selectedProgramForPreview)}
         intake={intakes.find((intake) => intake.id === selectedIntakeForPreview)}
         academicYear={previewTimetables[0]?.academic_year}
         timeSlots={timeSlots}
         isDraft={previewTimetables.some((entry) => entry.status === 'draft')}
+        autoPrint={pendingPrint}
+        onPrinted={() => setPendingPrint(false)}
       />
     </>
   );
