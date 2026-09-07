@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { TimetableGrid } from '@/components/timetable/timetable-grid';
 import { TimetableCellModal } from '@/components/timetable/timetable-cell-modal';
-import { createTimetable } from '@/app/actions/timetable';
+import { createTimetable, updateTimetable, deleteTimetable, getTimetables } from '@/app/actions/timetable';
 import type { Timetable, Program, Course, Profile, Room, TimeSlot, Intake, AcademicTerm } from '@/lib/types';
 
 interface TimetableGridWrapperProps {
@@ -28,19 +28,48 @@ export function TimetableGridWrapper({
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [existingEntry, setExistingEntry] = useState<any>(null);
   const [localTimetables, setLocalTimetables] = useState(timetables);
+  const [isLoading, setIsLoading] = useState(false);
 
-  function handleCellClick(day: string, timeSlot: string) {
+  function handleCellClick(day: string, timeSlot: string, entry?: Timetable) {
     setSelectedDay(day);
     setSelectedTimeSlot(timeSlot);
-    setExistingEntry(null);
+    setExistingEntry(entry || null);
     setIsModalOpen(true);
   }
 
+  async function refreshTimetables() {
+    setIsLoading(true);
+    const updatedTimetables = await getTimetables();
+    setLocalTimetables(updatedTimetables);
+    setIsLoading(false);
+  }
+
   async function handleSave(formData: FormData) {
-    const result = await createTimetable(formData);
+    let result;
+    if (existingEntry?.id) {
+      result = await updateTimetable(existingEntry.id, formData);
+    } else {
+      result = await createTimetable(formData);
+    }
+    
     if (result.success) {
-      // Refresh the page to show updated data
-      window.location.reload();
+      await refreshTimetables();
+      setIsModalOpen(false);
+    }
+    return result;
+  }
+
+  async function handleDelete() {
+    if (existingEntry?.id) {
+      return await handleTimetableDelete(existingEntry.id);
+    }
+    return { error: 'No entry to delete' };
+  }
+
+  async function handleTimetableDelete(id: string) {
+    const result = await deleteTimetable(id);
+    if (result.success) {
+      await refreshTimetables();
     }
     return result;
   }
@@ -51,12 +80,13 @@ export function TimetableGridWrapper({
     );
   }
 
-  function handleTimetableDelete(id: string) {
-    setLocalTimetables((prev) => prev.filter((tt) => tt.id !== id));
-  }
-
   return (
     <>
+      {isLoading && (
+        <div className="text-center py-4 text-slate-600">
+          Loading timetable...
+        </div>
+      )}
       <TimetableGrid
         timetables={localTimetables}
         programs={programs}
@@ -70,6 +100,7 @@ export function TimetableGridWrapper({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
+        onDelete={existingEntry ? handleDelete : undefined}
         day={selectedDay}
         timeSlot={selectedTimeSlot}
         programs={programs}

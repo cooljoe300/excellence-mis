@@ -42,8 +42,7 @@ export async function getTimetables() {
   const { data, error } = await supabase
     .from('timetables')
     .select('*, program:programs(*), course:courses(*), lecturer:profiles(*), intake:intakes(*)')
-    .order('created_at', { ascending: false })
-    .limit(10);
+    .order('day, start_time', { ascending: true });
 
   if (error) {
     console.error('Error fetching timetables:', error);
@@ -321,6 +320,104 @@ export async function createTimetable(formData: FormData) {
   revalidatePath('/dashboard/timetable/list');
 
   return { success: true, data };
+}
+
+export async function updateTimetable(id: string, formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Unauthorized' };
+  }
+
+  // Get academic year from selected intake
+  let academicYear = formData.get('academic_year') as string;
+  const intakeId = formData.get('intake_id') as string;
+  
+  if (!academicYear && intakeId) {
+    const { data: intake } = await supabase
+      .from('intakes')
+      .select('academic_year')
+      .eq('id', intakeId)
+      .single();
+    
+    if (intake?.academic_year) {
+      academicYear = intake.academic_year;
+    } else {
+      const { data: intakeWithDate } = await supabase
+        .from('intakes')
+        .select('start_date')
+        .eq('id', intakeId)
+        .single();
+      
+      if (intakeWithDate?.start_date) {
+        const year = new Date(intakeWithDate.start_date).getFullYear();
+        academicYear = `${year}/${year + 1}`;
+      } else {
+        academicYear = '2026/2027';
+      }
+    }
+  }
+
+  if (!academicYear) {
+    academicYear = '2026/2027';
+  }
+
+  const timetableData = {
+    academic_year: academicYear,
+    semester: 'Semester 1',
+    program_id: formData.get('program_id') || null,
+    intake_id: formData.get('intake_id') || null,
+    course_id: formData.get('course_id') || null,
+    lecturer_id: formData.get('lecturer_id') || null,
+    day: formData.get('day'),
+    start_time: formData.get('start_time'),
+    end_time: formData.get('end_time'),
+    teaching_mode: 'online',
+    meeting_link: formData.get('meeting_link') || null,
+    status: formData.get('status') || 'draft',
+    notes: formData.get('notes') || null,
+    updated_by: user.id,
+  };
+
+  const { data, error } = await supabase
+    .from('timetables')
+    .update(timetableData)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/timetable');
+  revalidatePath('/dashboard/timetable/list');
+
+  return { success: true, data };
+}
+
+export async function deleteTimetable(id: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Unauthorized' };
+  }
+
+  const { error } = await supabase
+    .from('timetables')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/timetable');
+  revalidatePath('/dashboard/timetable/list');
+
+  return { success: true };
 }
 
 export async function getStudentTimetable() {

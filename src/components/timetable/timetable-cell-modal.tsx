@@ -14,6 +14,7 @@ interface TimetableCellModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: FormData) => Promise<{ error?: string; success?: boolean }>;
+  onDelete?: () => Promise<{ error?: string; success?: boolean }>;
   day: string;
   timeSlot: string;
   programs: Program[];
@@ -30,6 +31,7 @@ export function TimetableCellModal({
   isOpen,
   onClose,
   onSave,
+  onDelete,
   day,
   timeSlot,
   programs,
@@ -97,6 +99,10 @@ export function TimetableCellModal({
     formData.set('day', day);
     formData.set('start_time', startTime);
     formData.set('end_time', endTime);
+    
+    if (existingEntry?.id) {
+      formData.set('id', existingEntry.id);
+    }
 
     const result = await onSave(formData);
 
@@ -174,7 +180,7 @@ export function TimetableCellModal({
               id="academic_year"
               name="academic_year"
               type="text"
-              defaultValue={existingEntry?.academic_year || ''}
+              defaultValue={existingEntry?.academic_year || '2026/2027'}
               placeholder="2026/2027"
               required
             />
@@ -282,6 +288,27 @@ export function TimetableCellModal({
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
+            {existingEntry && onDelete && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={async () => {
+                  if (confirm('Are you sure you want to delete this timetable entry?')) {
+                    setLoading(true);
+                    const result = await onDelete();
+                    if (result.success) {
+                      onClose();
+                    } else {
+                      setError(result.error || 'Failed to delete');
+                      setLoading(false);
+                    }
+                  }
+                }}
+                disabled={loading}
+              >
+                Delete
+              </Button>
+            )}
             <Button
               type="button"
               variant="secondary"
@@ -291,7 +318,7 @@ export function TimetableCellModal({
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : 'Save Timetable Entry'}
+              {loading ? 'Saving...' : existingEntry ? 'Update Timetable Entry' : 'Save Timetable Entry'}
             </Button>
           </div>
         </form>

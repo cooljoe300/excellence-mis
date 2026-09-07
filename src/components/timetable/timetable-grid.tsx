@@ -26,7 +26,7 @@ interface TimetableGridProps {
   programs: Program[];
   timeSlots: TimeSlot[];
   intakes: Intake[];
-  onCellClick: (day: string, timeSlot: string) => void;
+  onCellClick: (day: string, timeSlot: string, entry?: Timetable) => void;
   onTimetableUpdate: (timetable: Timetable) => void;
   onTimetableDelete: (id: string) => void;
 }
@@ -102,9 +102,27 @@ export function TimetableGrid({
     });
 
     filteredTimetables.forEach((tt) => {
-      const key = `${tt.day}-${tt.start_time}-${tt.end_time}`;
+      // Normalize time to ensure matching with time slots
+      const startTime = tt.start_time || '';
+      const endTime = tt.end_time || '';
+      const key = `${tt.day}-${startTime}-${endTime}`;
+      
+      // Try to match with exact key first
       if (map[key]) {
         map[key].push(tt);
+      } else {
+        // Try to match by time slot range
+        const slotKey = TIME_SLOTS.find(slot => {
+          const [slotStart, slotEnd] = slot.split('-');
+          return startTime === slotStart && endTime === slotEnd;
+        });
+        
+        if (slotKey) {
+          const fallbackKey = `${tt.day}-${slotKey}`;
+          if (map[fallbackKey]) {
+            map[fallbackKey].push(tt);
+          }
+        }
       }
     });
 
@@ -134,6 +152,9 @@ export function TimetableGrid({
     // TODO: Implement auto-generation
     console.log('Auto Generate');
   }
+
+  // Display empty state when no entries match filters
+  const showEmptyState = filteredTimetables.length === 0 && (selectedProgram || selectedIntake);
 
   return (
     <div className="space-y-4">
@@ -235,10 +256,10 @@ export function TimetableGrid({
                                   return (
                                     <div
                                       key={entry.id}
-                                      className={`p-2 rounded border text-xs ${colorClass}`}
+                                      className={`p-2 rounded border text-xs ${colorClass} cursor-pointer hover:opacity-80`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        // TODO: Open edit modal
+                                        onCellClick(day, slot, entry);
                                       }}
                                     >
                                       <div className="font-semibold">{entry.course?.code}</div>
@@ -280,6 +301,16 @@ export function TimetableGrid({
           </div>
         </CardContent>
       </Card>
+      
+      {showEmptyState && (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <p className="text-slate-600">
+              No timetable entries found for the selected programme and intake.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
