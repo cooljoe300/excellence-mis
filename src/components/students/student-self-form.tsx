@@ -290,17 +290,19 @@ export function StudentSelfForm({
 
           if (result?.error) {
             console.error('Photo upload error:', result.error);
-            setError(result.error);
-            setLoading(false);
-            return;
+            // Don't block the entire flow - just show a warning and continue
+            console.warn('Photo upload failed, but continuing with registration:', result.error);
+            // Clear the file so we don't retry
+            setSelectedPhotoFile(null);
+          } else {
+            // Clear the selected file after successful upload
+            setSelectedPhotoFile(null);
           }
-          // Clear the selected file after successful upload
-          setSelectedPhotoFile(null);
         } catch (photoError) {
           console.error('Photo upload exception:', photoError);
-          setError('Failed to upload passport photo. Please try again.');
-          setLoading(false);
-          return;
+          // Don't block the entire flow - just show a warning and continue
+          console.warn('Photo upload failed with exception, but continuing with registration:', photoError);
+          setSelectedPhotoFile(null);
         }
       }
 

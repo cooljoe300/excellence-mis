@@ -219,14 +219,17 @@ export async function createStudent(formData: FormData) {
 
   // Handle passport photo upload if provided
   const photoResult = await applyPhotoFromForm(supabase, data.id as string, formData);
-  if (photoResult.error) return { error: photoResult.error };
-
-  if (photoResult.photoUrl) {
+  if (photoResult.error) {
+    console.warn('Photo upload failed during student creation (admin), but continuing:', photoResult.error);
+    // Don't fail the entire registration - just log the error
+  } else if (photoResult.photoUrl) {
     const { error: photoUpdateError } = await supabase
       .from('students')
       .update({ photo_url: photoResult.photoUrl })
       .eq('id', data.id);
-    if (photoUpdateError) return { error: photoUpdateError.message };
+    if (photoUpdateError) {
+      console.warn('Failed to update photo_url in database (admin), but continuing:', photoUpdateError.message);
+    }
   }
 
   revalidatePath('/dashboard/students');
@@ -267,7 +270,10 @@ export async function updateStudent(id: string, formData: FormData) {
 
   // Handle passport photo upload if provided
   const photoResult = await applyPhotoFromForm(supabase, id, formData);
-  if (photoResult.error) return { error: photoResult.error };
+  if (photoResult.error) {
+    console.warn('Photo upload failed during student update (admin), but continuing:', photoResult.error);
+    // Don't fail the entire update - just log the error
+  }
 
   // Build update object
   const updateData: Record<string, any> = {
@@ -289,7 +295,7 @@ export async function updateStudent(id: string, formData: FormData) {
     notes: (formData.get('notes') as string) || null,
   };
 
-  // Add photo URL if uploaded
+  // Add photo URL if uploaded successfully
   if (photoResult.photoUrl) {
     updateData.photo_url = photoResult.photoUrl;
   }

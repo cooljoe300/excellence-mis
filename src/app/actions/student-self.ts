@@ -329,15 +329,18 @@ export async function createMyStudentRecord(formData: FormData) {
   }
 
   const photoResult = await applyPhotoFromForm(supabase, data.id as string, formData);
-  if (photoResult.error) return { error: photoResult.error };
-
-  if (photoResult.photoUrl) {
+  if (photoResult.error) {
+    console.warn('Photo upload failed during student creation, but continuing:', photoResult.error);
+    // Don't fail the entire registration - just log the error
+  } else if (photoResult.photoUrl) {
     const { error: photoUpdateError } = await supabase
       .from('students')
       .update({ photo_url: photoResult.photoUrl })
       .eq('id', data.id)
       .eq('profile_id', user.id);
-    if (photoUpdateError) return { error: photoUpdateError.message };
+    if (photoUpdateError) {
+      console.warn('Failed to update photo_url in database, but continuing:', photoUpdateError.message);
+    }
   }
 
   revalidatePath('/student');
@@ -364,11 +367,14 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
   if (!user) return { error: 'You must be signed in.' };
 
   const photoResult = await applyPhotoFromForm(supabase, studentId, formData);
-  if (photoResult.error) return { error: photoResult.error };
+  if (photoResult.error) {
+    console.warn('Photo upload failed during student update, but continuing:', photoResult.error);
+    // Don't fail the entire update - just log the error
+  }
 
   // Build update object with only fields that are present in FormData
   const updateData: Record<string, any> = {};
-  
+
   // Only include fields that are actually provided in the form
   if (formData.get('first_name') !== null) {
     updateData.first_name = formData.get('first_name') as string;
@@ -403,8 +409,8 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
   if (formData.get('emergency_contact_phone') !== null) {
     updateData.emergency_contact_phone = (formData.get('emergency_contact_phone') as string) || null;
   }
-  
-  // Add photo URL if uploaded
+
+  // Add photo URL if uploaded successfully
   if (photoResult.photoUrl) {
     updateData.photo_url = photoResult.photoUrl;
   }
