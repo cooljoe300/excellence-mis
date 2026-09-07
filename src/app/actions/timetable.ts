@@ -578,7 +578,7 @@ export async function createTimetable(formData: FormData) {
       .select('program_id')
       .eq('id', courseId);
 
-    const availableProgramIds = (courseProgrammes || []).map((c: any) => c.program_id);
+    const availableProgramIds = (courseProgrammes || []).map((c: any) => c.program_id).filter(Boolean);
     const unavailablePrograms = selectedProgramIds.filter(id => !availableProgramIds.includes(id));
     
     if (unavailablePrograms.length > 0) {
@@ -754,7 +754,7 @@ export async function updateTimetable(id: string, formData: FormData) {
       .select('program_id')
       .eq('id', courseId);
 
-    const availableProgramIds = (courseProgrammes || []).map((c: any) => c.program_id);
+    const availableProgramIds = (courseProgrammes || []).map((c: any) => c.program_id).filter(Boolean);
     const unavailablePrograms = selectedProgramIds.filter(id => !availableProgramIds.includes(id));
     
     if (unavailablePrograms.length > 0) {

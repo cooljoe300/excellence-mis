@@ -35,7 +35,7 @@ export function IntakeSelector({
       return;
     }
 
-    const selectedPrograms = programmes.filter((p) => selectedProgramIds.includes(p.id));
+    const selectedPrograms = programmes.filter((p) => p.id && selectedProgramIds.includes(p.id));
     
     if (selectedPrograms.length === 0) {
       setCommonIntake(null);

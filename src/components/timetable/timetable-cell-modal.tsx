@@ -88,7 +88,7 @@ export function TimetableCellModal({
   }, [isOpen, existingEntry, day, timeSlot]);
 
   const filteredCourses = selectedProgramIds.length > 0
-    ? courses.filter((course) => selectedProgramIds.includes(course.program_id))
+    ? courses.filter((course) => course.program_id && selectedProgramIds.includes(course.program_id))
     : [];
 
   function applyTimeSlot(slotId: string) {
