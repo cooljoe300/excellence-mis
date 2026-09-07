@@ -97,6 +97,8 @@ export function TimetableGrid({
     });
   }, [timetables, selectedProgram, selectedIntake, selectedStatus, searchQuery]);
 
+
+
   // Create a map of timetable entries by day and time slot
   const timetableMap = useMemo(() => {
     const map: Record<string, Timetable[]> = {};
@@ -242,13 +244,13 @@ export function TimetableGrid({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="sticky left-0 bg-slate-50 z-10 px-4 py-3 text-left font-semibold text-slate-700 min-w-[100px] border-r border-slate-200">
-                    Day / Time
+                  <th className="sticky left-0 bg-slate-50 z-10 px-3 py-2 text-left font-semibold text-slate-700 min-w-[80px] border-r border-slate-200 text-xs">
+                    Time
                   </th>
                   {TIME_SLOTS.map((slot) => (
                     <th
                       key={slot}
-                      className="px-3 py-3 text-center font-semibold text-slate-700 min-w-[100px] border-r border-slate-200"
+                      className="px-2 py-2 text-center font-semibold text-slate-700 min-w-[140px] border-r border-slate-200 text-xs"
                     >
                       {slot}
                     </th>
@@ -258,7 +260,7 @@ export function TimetableGrid({
               <tbody>
                 {DAYS.map((day) => (
                   <tr key={day} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="sticky left-0 bg-white z-10 px-4 py-3 font-medium text-slate-900 border-r border-slate-200">
+                    <td className="sticky left-0 bg-white z-10 px-2 py-2 font-medium text-slate-900 border-r border-slate-200 text-xs">
                       {day}
                     </td>
                     {TIME_SLOTS.length > 0 ? (
@@ -269,7 +271,7 @@ export function TimetableGrid({
                         return (
                           <td
                             key={slot}
-                            className="px-2 py-2 min-w-[100px] border-r border-slate-200 h-24 align-top cursor-pointer hover:bg-slate-100"
+                            className="px-1 py-1 min-w-[140px] border-r border-slate-200 h-28 align-top cursor-pointer hover:bg-slate-100"
                             onClick={() => onCellClick(day, slot)}
                           >
                             {entries.length > 0 ? (
@@ -279,26 +281,24 @@ export function TimetableGrid({
                                   return (
                                     <div
                                       key={entry.id}
-                                      className={`p-2 rounded border text-xs ${colorClass} cursor-pointer hover:opacity-80`}
+                                      className={`p-1.5 rounded border text-[10px] ${colorClass} cursor-pointer hover:opacity-80`}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         onCellClick(day, slot, entry);
                                       }}
                                     >
-                                      <div className="font-semibold">{entry.course?.code}</div>
-                                      <div className="truncate">{entry.course?.name}</div>
-                                      <div className="truncate text-xs text-slate-500">{entry.program?.name}</div>
-                                      <div className="truncate text-xs text-slate-400">{entry.intake?.name}</div>
-                                      <div className="truncate">{entry.lecturer?.full_name}</div>
+                                      <div className="font-semibold text-[10px]">{entry.course?.code}</div>
+                                      <div className="truncate text-[9px]">{entry.course?.name}</div>
+                                      <div className="truncate text-[9px] text-slate-600">{entry.lecturer?.full_name}</div>
                                       <Badge 
                                         variant={entry.status === 'active' ? 'default' : 'secondary'}
-                                        className="text-xs mt-1"
+                                        className="text-[8px] mt-0.5"
                                       >
                                         {entry.status?.toUpperCase()}
                                       </Badge>
                                       {entry.meeting_link && (
-                                        <div className="text-xs text-blue-600 mt-1">
-                                          📺 Online Class
+                                        <div className="text-[8px] text-blue-600 mt-0.5">
+                                          📺
                                         </div>
                                       )}
                                     </div>
@@ -307,7 +307,7 @@ export function TimetableGrid({
                               </div>
                             ) : (
                               <div className="h-full flex items-center justify-center text-slate-300">
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-3 w-3" />
                               </div>
                             )}
                           </td>
@@ -316,10 +316,10 @@ export function TimetableGrid({
                     ) : (
                       <td 
                         colSpan={1} 
-                        className="px-2 py-2 border-r border-slate-200 h-24 align-top"
+                        className="px-1 py-1 border-r border-slate-200 h-28 align-top"
                       >
-                        <div className="h-full flex items-center justify-center text-slate-400 italic text-sm">
-                          No visible time slots configured
+                        <div className="h-full flex items-center justify-center text-slate-400 italic text-[10px]">
+                          No slots
                         </div>
                       </td>
                     )}
