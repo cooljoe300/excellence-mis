@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Printer, Download, Link } from 'lucide-react';
@@ -62,11 +62,39 @@ export function StudentTimetableGrid({
   onDownload,
 }: StudentTimetableGridProps) {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
   const displaySlots = useMemo(() => getDisplayTimeSlots(timeSlots), [timeSlots]);
 
   const handlePrint = () => {
-    // Show preview first for user to see what will be printed
-    setShowPreviewModal(true);
+    if (!printRef.current) {
+      console.error('Print ref is null');
+      return;
+    }
+
+    console.log('Print ref element:', printRef.current);
+    console.log('Print ref innerHTML length:', printRef.current.innerHTML.length);
+    console.log('Print ref children count:', printRef.current.children.length);
+
+    const title = `Student Timetable - ${studentName} (${studentNumber})`;
+    const originalTitle = document.title;
+    document.title = title;
+    document.body.classList.add('print-timetable');
+
+    const pageStyle = document.createElement('style');
+    pageStyle.id = 'student-timetable-print-page-style';
+    pageStyle.textContent = '@page { size: A4 landscape; margin: 8mm 10mm; }';
+    document.head.appendChild(pageStyle);
+
+    const cleanup = () => {
+      document.title = originalTitle;
+      document.body.classList.remove('print-timetable');
+      pageStyle.remove();
+      window.removeEventListener('afterprint', cleanup);
+    };
+
+    window.addEventListener('afterprint', cleanup);
+    window.setTimeout(cleanup, 3000);
+    window.print();
   };
 
   const handlePreview = () => {
@@ -79,6 +107,39 @@ export function StudentTimetableGrid({
 
   return (
     <div className="space-y-4">
+      {/* Always-mounted print root (visually hidden, visible during print) */}
+      <div
+        ref={printRef}
+        id="student-timetable-print-root"
+        className="hidden print:block"
+      >
+        <div className="print-timetable-document">
+          <CollegeOfficialLetterhead documentTitle="Student Timetable" />
+          <div className="mb-4 text-center">
+            <h1 className="text-xl font-bold text-slate-900 mb-1">
+              {SCHOOL_NAME}
+            </h1>
+            <h2 className="text-lg font-semibold text-slate-700 mb-2">
+              Student Timetable
+            </h2>
+            <div className="text-sm text-slate-600 space-y-1">
+              <p><span className="font-semibold">Student:</span> {studentName}</p>
+              <p><span className="font-semibold">Student Number:</span> {studentNumber}</p>
+              <p><span className="font-semibold">Programme:</span> {programmeName}</p>
+              {programme && <p><span className="font-semibold">Programme Code:</span> {programme.code}</p>}
+              {intake && <p><span className="font-semibold">Intake:</span> {intake.name}</p>}
+            </div>
+          </div>
+          <TimetablePrintDocument
+            timetables={timetables}
+            program={undefined}
+            intake={undefined}
+            timeSlots={timeSlots}
+            documentId="student-timetable"
+          />
+        </div>
+      </div>
+
       {/* Student Info Header */}
       <Card>
         <CardContent className="p-4">
@@ -264,61 +325,30 @@ export function StudentTimetableGrid({
         title="Preview Timetable"
         size="lg"
       >
-        <div className="space-y-4">
-          <div className="flex justify-end no-print">
-            <Button
-              onClick={() => {
-                const title = `Student Timetable - ${studentName} (${studentNumber})`;
-                const originalTitle = document.title;
-                document.title = title;
-                document.body.classList.add('print-timetable');
-
-                const pageStyle = document.createElement('style');
-                pageStyle.id = 'student-timetable-print-page-style';
-                pageStyle.textContent = '@page { size: A4 landscape; margin: 8mm 10mm; }';
-                document.head.appendChild(pageStyle);
-
-                const cleanup = () => {
-                  document.title = originalTitle;
-                  document.body.classList.remove('print-timetable');
-                  pageStyle.remove();
-                  window.removeEventListener('afterprint', cleanup);
-                };
-
-                window.addEventListener('afterprint', cleanup);
-                window.setTimeout(cleanup, 3000);
-                window.print();
-              }}
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Print
-            </Button>
-          </div>
-          <div className="print-timetable">
-            <CollegeOfficialLetterhead documentTitle="Student Timetable" />
-            <div className="mb-4 text-center">
-              <h1 className="text-xl font-bold text-slate-900 mb-1">
-                {SCHOOL_NAME}
-              </h1>
-              <h2 className="text-lg font-semibold text-slate-700 mb-2">
-                Student Timetable
-              </h2>
-              <div className="text-sm text-slate-600 space-y-1">
-                <p><span className="font-semibold">Student:</span> {studentName}</p>
-                <p><span className="font-semibold">Student Number:</span> {studentNumber}</p>
-                <p><span className="font-semibold">Programme:</span> {programmeName}</p>
-                {programme && <p><span className="font-semibold">Programme Code:</span> {programme.code}</p>}
-                {intake && <p><span className="font-semibold">Intake:</span> {intake.name}</p>}
-              </div>
+        <div className="print-timetable">
+          <CollegeOfficialLetterhead documentTitle="Student Timetable" />
+          <div className="mb-4 text-center">
+            <h1 className="text-xl font-bold text-slate-900 mb-1">
+              {SCHOOL_NAME}
+            </h1>
+            <h2 className="text-lg font-semibold text-slate-700 mb-2">
+              Student Timetable
+            </h2>
+            <div className="text-sm text-slate-600 space-y-1">
+              <p><span className="font-semibold">Student:</span> {studentName}</p>
+              <p><span className="font-semibold">Student Number:</span> {studentNumber}</p>
+              <p><span className="font-semibold">Programme:</span> {programmeName}</p>
+              {programme && <p><span className="font-semibold">Programme Code:</span> {programme.code}</p>}
+              {intake && <p><span className="font-semibold">Intake:</span> {intake.name}</p>}
             </div>
-            <TimetablePrintDocument
-              timetables={timetables}
-              program={undefined}
-              intake={undefined}
-              timeSlots={timeSlots}
-              documentId="student-timetable"
-            />
           </div>
+          <TimetablePrintDocument
+            timetables={timetables}
+            program={undefined}
+            intake={undefined}
+            timeSlots={timeSlots}
+            documentId="student-timetable"
+          />
         </div>
       </Modal>
     </div>

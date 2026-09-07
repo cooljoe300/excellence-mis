@@ -154,11 +154,12 @@ body {
     font-family: "Segoe UI", Calibri, Arial, sans-serif !important;
   }
 
-  body.print-timetable > *:not(#timetable-print-root) {
+  body.print-timetable > *:not(#timetable-print-root):not(#student-timetable-print-root) {
     display: none !important;
   }
 
-  body.print-timetable #timetable-print-root {
+  body.print-timetable #timetable-print-root,
+  body.print-timetable #student-timetable-print-root {
     display: block !important;
     width: 100% !important;
     margin: 0 !important;
@@ -203,23 +204,6 @@ body {
 
   #official-class-timetable {
     page: timetable-landscape;
-  }
-
-  /* Student timetable print styling */
-  body.print-timetable [role="dialog"] {
-    display: block !important;
-    position: static !important;
-    background: white !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  body.print-timetable [role="dialog"] > *:not(.print-timetable) {
-    display: none !important;
-  }
-
-  body.print-timetable .print-timetable {
-    display: block !important;
   }
 
   @page id-card {
