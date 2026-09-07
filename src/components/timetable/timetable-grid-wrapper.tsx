@@ -61,6 +61,7 @@ export function TimetableGridWrapper({
         timetables={localTimetables}
         programs={programs}
         timeSlots={timeSlots}
+        intakes={intakes}
         onCellClick={handleCellClick}
         onTimetableUpdate={handleTimetableUpdate}
         onTimetableDelete={handleTimetableDelete}

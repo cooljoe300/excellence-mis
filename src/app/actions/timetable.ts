@@ -41,7 +41,7 @@ export async function getTimetables() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('timetables')
-    .select('*, program:programs(*), course:courses(*), lecturer:profiles(*), room:rooms(*)')
+    .select('*, program:programs(*), course:courses(*), lecturer:profiles(*), intake:intakes(*)')
     .order('created_at', { ascending: false })
     .limit(10);
 
@@ -172,6 +172,22 @@ export async function checkTimetableConflict(formData: FormData) {
     }
   }
 
+  // Check intake conflict for the same programme and time slot
+  if (intakeId && programId) {
+    const { data: intakeConflict } = await supabase
+      .from('timetables')
+      .select('*')
+      .eq('day', day)
+      .eq('intake_id', intakeId)
+      .eq('program_id', programId)
+      .or(`start_time.lte.${endTime}&end_time.gte.${startTime}`)
+      .neq('status', 'archived');
+
+    if (intakeConflict && intakeConflict.length > 0) {
+      conflicts.push('This intake already has a class at this time for this programme');
+    }
+  }
+
   return conflicts;
 }
 
@@ -185,6 +201,12 @@ export async function createTimetable(formData: FormData) {
 
   const programId = formData.get('program_id') as string;
   const courseId = formData.get('course_id') as string;
+  const intakeId = formData.get('intake_id') as string;
+
+  // Validate intake selection
+  if (!intakeId) {
+    return { error: 'Please select an intake.' };
+  }
 
   // Validate programme-unit relationship
   if (programId && courseId) {

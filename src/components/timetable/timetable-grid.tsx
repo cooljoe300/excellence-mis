@@ -19,12 +19,13 @@ import {
   Search,
   Filter,
 } from 'lucide-react';
-import type { Timetable, Program, Room, TimeSlot } from '@/lib/types';
+import type { Timetable, Program, Room, TimeSlot, Intake } from '@/lib/types';
 
 interface TimetableGridProps {
   timetables: Timetable[];
   programs: Program[];
   timeSlots: TimeSlot[];
+  intakes: Intake[];
   onCellClick: (day: string, timeSlot: string) => void;
   onTimetableUpdate: (timetable: Timetable) => void;
   onTimetableDelete: (id: string) => void;
@@ -55,6 +56,7 @@ export function TimetableGrid({
   timetables,
   programs,
   timeSlots,
+  intakes,
   onCellClick,
   onTimetableUpdate,
   onTimetableDelete,
@@ -81,7 +83,8 @@ export function TimetableGrid({
         return (
           tt.course?.code?.toLowerCase().includes(query) ||
           tt.course?.name?.toLowerCase().includes(query) ||
-          tt.lecturer?.full_name?.toLowerCase().includes(query)
+          tt.lecturer?.full_name?.toLowerCase().includes(query) ||
+          tt.intake?.name?.toLowerCase().includes(query)
         );
       }
       return true;
@@ -144,9 +147,7 @@ export function TimetableGrid({
                 name="intake_id"
                 options={[
                   { value: '', label: 'Intake' },
-                  { value: 'intake-1', label: 'January 2027' },
-                  { value: 'intake-2', label: 'May 2027' },
-                  { value: 'intake-3', label: 'September 2027' },
+                  ...intakes.map((i) => ({ value: i.id, label: i.name })),
                 ]}
                 value={selectedIntake}
                 onChange={(e) => setSelectedIntake(e.target.value)}
@@ -242,6 +243,7 @@ export function TimetableGrid({
                                     >
                                       <div className="font-semibold">{entry.course?.code}</div>
                                       <div className="truncate">{entry.course?.name}</div>
+                                      <div className="truncate text-xs text-slate-500">{entry.intake?.name}</div>
                                       <div className="truncate">{entry.lecturer?.full_name}</div>
                                       {entry.meeting_link && (
                                         <div className="text-xs text-blue-600 mt-1">

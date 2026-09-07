@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,19 @@ export function TimetableCellModal({
   const [selectedProgramId, setSelectedProgramId] = useState<string>(
     existingEntry?.program_id || ''
   );
+  const [selectedIntakeId, setSelectedIntakeId] = useState<string>(
+    existingEntry?.intake_id || ''
+  );
+
+  // When editing, sync the values with the existing entry
+  useEffect(() => {
+    if (existingEntry?.program_id) {
+      setSelectedProgramId(existingEntry.program_id);
+    }
+    if (existingEntry?.intake_id) {
+      setSelectedIntakeId(existingEntry.intake_id);
+    }
+  }, [existingEntry]);
 
   const [startTime, endTime] = timeSlot.split('-');
 
@@ -128,7 +141,8 @@ export function TimetableCellModal({
                 { value: '', label: 'Select intake' },
                 ...intakes.map((i) => ({ value: i.id, label: i.name })),
               ]}
-              value={existingEntry?.intake_id || ''}
+              value={selectedIntakeId}
+              onChange={(e) => setSelectedIntakeId(e.target.value)}
               required
             />
           </div>
