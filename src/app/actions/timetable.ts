@@ -970,21 +970,18 @@ export async function getStudentTimetable() {
       .single();
 
     if (!student) {
+      console.log('[STUDENT TIMETABLE] No student found for user:', user.id);
       return { student: null, timetables: [], timeSlots: [], programme: null, intake: null };
     }
 
-    // Get enrolled courses
-    const { data: enrollments } = await supabase
-      .from('enrollments')
-      .select('course_id')
-      .eq('student_id', student.id)
-      .eq('status', 'active');
-
-    if (!enrollments || enrollments.length === 0) {
-      return { student, timetables: [], timeSlots: [], programme: student.program, intake: student.intake };
-    }
-
-    const courseIds = enrollments.map((enrollment) => enrollment.course_id);
+    console.log('[STUDENT TIMETABLE] Student found:', {
+      id: student.id,
+      name: `${student.first_name} ${student.last_name}`,
+      programme_id: student.program_id,
+      programme_name: student.program?.name,
+      intake_id: student.intake_id,
+      intake_name: student.intake?.name,
+    });
 
     // Get time slots
     const { data: timeSlots } = await supabase
@@ -992,7 +989,126 @@ export async function getStudentTimetable() {
       .select('*')
       .order('start_time', { ascending: true });
 
-    // Get timetable entries for enrolled courses with programme assignments
+    console.log('[STUDENT TIMETABLE] Time slots found:', timeSlots?.length || 0);
+
+    // Use the same approach as admin timetable for consistency
+    // Get timetable entries based on student's programme (not just enrolled courses)
+    // This allows students to see timetable even before unit enrollment
+    if (student.program_id) {
+      console.log('[STUDENT TIMETABLE] Fetching timetable for programme:', student.program_id);
+
+      // Get programme assignments (both direct and shared sessions)
+      const { data: assignments, error: assignmentError } = await supabase
+        .from('timetable_programme_assignments')
+        .select('timetable_id, programme_id, intake_id')
+        .eq('programme_id', student.program_id);
+
+      if (assignmentError) {
+        console.error('[STUDENT TIMETABLE] Error fetching programme assignments:', assignmentError);
+      }
+
+      console.log('[STUDENT TIMETABLE] Programme assignments found:', assignments?.length || 0);
+
+      const assignedTimetableIds = (assignments || []).map((a: any) => a.timetable_id);
+      console.log('[STUDENT TIMETABLE] Assigned timetable IDs:', assignedTimetableIds);
+
+      // Get regular timetables for this programme
+      const { data: regularTimetables, error: regularError } = await supabase
+        .from('timetables')
+        .select('*')
+        .eq('program_id', student.program_id)
+        .eq('status', 'active');
+
+      if (regularError) {
+        console.error('[STUDENT TIMETABLE] Error fetching regular timetables:', regularError);
+      }
+
+      console.log('[STUDENT TIMETABLE] Regular timetables found:', regularTimetables?.length || 0);
+
+      // Get shared timetables
+      const { data: sharedTimetables, error: sharedError } = assignedTimetableIds.length > 0
+        ? await supabase
+            .from('timetables')
+            .select('*')
+            .in('id', assignedTimetableIds)
+            .eq('status', 'active')
+        : { data: [], error: null };
+
+      if (sharedError) {
+        console.error('[STUDENT TIMETABLE] Error fetching shared timetables:', sharedError);
+      }
+
+      console.log('[STUDENT TIMETABLE] Shared timetables found:', sharedTimetables?.length || 0);
+
+      // Combine and deduplicate
+      const allTimetables = [...(regularTimetables || []), ...(sharedTimetables || [])];
+      const uniqueTimetables = Array.from(
+        new Map(allTimetables.map((tt) => [tt.id, tt])).values()
+      );
+
+      console.log('[STUDENT TIMETABLE] Total unique timetables after deduplication:', uniqueTimetables.length);
+
+      // Filter by intake if student has one
+      let filteredTimetables = uniqueTimetables;
+      if (student.intake_id) {
+        console.log('[STUDENT TIMETABLE] Filtering by intake:', student.intake_id);
+        filteredTimetables = uniqueTimetables.filter((tt: any) => {
+          // Include if no intake restriction or intake matches
+          return !tt.intake_id || tt.intake_id === student.intake_id;
+        });
+        console.log('[STUDENT TIMETABLE] Timetables after intake filter:', filteredTimetables.length);
+      }
+
+      // Further filter by enrolled courses if student has enrollments
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('course_id')
+        .eq('student_id', student.id)
+        .eq('status', 'active');
+
+      console.log('[STUDENT TIMETABLE] Active enrollments found:', enrollments?.length || 0);
+
+      if (enrollments && enrollments.length > 0) {
+        const enrolledCourseIds = enrollments.map((e: any) => e.course_id);
+        console.log('[STUDENT TIMETABLE] Enrolled course IDs:', enrolledCourseIds);
+
+        // Filter to only show timetable for enrolled courses
+        filteredTimetables = filteredTimetables.filter((tt: any) => {
+          return enrolledCourseIds.includes(tt.course_id);
+        });
+
+        console.log('[STUDENT TIMETABLE] Timetables after course enrollment filter:', filteredTimetables.length);
+      }
+
+      const hydratedTimetables = await hydrateTimetables(filteredTimetables as Timetable[]);
+      console.log('[STUDENT TIMETABLE] Final hydrated timetables:', hydratedTimetables.length);
+
+      return {
+        student,
+        timetables: hydratedTimetables,
+        timeSlots: timeSlots || [],
+        programme: student.program,
+        intake: student.intake,
+      };
+    }
+
+    // Fallback: If no programme, try using enrolled courses only
+    console.log('[STUDENT TIMETABLE] No programme found, using enrolled courses only');
+
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('course_id')
+      .eq('student_id', student.id)
+      .eq('status', 'active');
+
+    if (!enrollments || enrollments.length === 0) {
+      console.log('[STUDENT TIMETABLE] No enrollments found');
+      return { student, timetables: [], timeSlots: timeSlots || [], programme: student.program, intake: student.intake };
+    }
+
+    const courseIds = enrollments.map((enrollment) => enrollment.course_id);
+    console.log('[STUDENT TIMETABLE] Enrolled course IDs:', courseIds);
+
     const { data: timetables, error } = await supabase
       .from('timetables')
       .select('*, programme_assignments:timetable_programme_assignments(*)')
@@ -1002,9 +1118,11 @@ export async function getStudentTimetable() {
       .order('start_time', { ascending: true });
 
     if (error) {
-      console.error('Error fetching student timetable:', error);
+      console.error('[STUDENT TIMETABLE] Error fetching timetable by courses:', error);
       return { student, timetables: [], timeSlots: timeSlots || [], programme: student.program, intake: student.intake };
     }
+
+    console.log('[STUDENT TIMETABLE] Timetables found by courses:', timetables?.length || 0);
 
     // Filter for shared sessions where student's programme is included
     const filteredTimetables = (timetables || []).filter((timetable) => {
@@ -1022,6 +1140,8 @@ export async function getStudentTimetable() {
       return false;
     });
 
+    console.log('[STUDENT TIMETABLE] Timetables after shared session filter:', filteredTimetables.length);
+
     return {
       student,
       timetables: await hydrateTimetables(filteredTimetables),
@@ -1030,7 +1150,7 @@ export async function getStudentTimetable() {
       intake: student.intake,
     };
   } catch (error) {
-    console.error('Error fetching student timetable:', error);
+    console.error('[STUDENT TIMETABLE] Error:', error);
     return { student: null, timetables: [], timeSlots: [], programme: null, intake: null };
   }
 }
