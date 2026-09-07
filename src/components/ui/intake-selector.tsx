@@ -84,7 +84,7 @@ export function IntakeSelector({
       label="Intake"
       required
       value={selectedIntakeId}
-      onChange={onIntakeChange}
+      onChange={(event) => onIntakeChange(event.target.value)}
       error={error}
       disabled={disabled}
       options={[

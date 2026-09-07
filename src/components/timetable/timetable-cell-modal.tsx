@@ -165,7 +165,6 @@ export function TimetableCellModal({
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Class information</h3>
           <MultiSelect
-            id="programme_ids"
             name="programme_ids"
             label="Programme(s)"
             required

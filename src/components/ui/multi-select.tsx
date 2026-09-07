@@ -14,6 +14,7 @@ interface MultiSelectProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  name?: string;
 }
 
 export function MultiSelect({
