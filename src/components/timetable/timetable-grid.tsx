@@ -29,6 +29,7 @@ interface TimetableGridProps {
   onCellClick: (day: string, timeSlot: string, entry?: Timetable) => void;
   onTimetableUpdate: (timetable: Timetable) => void;
   onTimetableDelete: (id: string) => void;
+  onPreview?: (programId?: string, intakeId?: string, status?: string) => void;
 }
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -60,6 +61,7 @@ export function TimetableGrid({
   onCellClick,
   onTimetableUpdate,
   onTimetableDelete,
+  onPreview,
 }: TimetableGridProps) {
   const [selectedProgram, setSelectedProgram] = useState('');
   const [selectedIntake, setSelectedIntake] = useState('');
@@ -222,6 +224,12 @@ export function TimetableGrid({
                 <Calendar className="h-4 w-4 mr-2" />
                 Auto Generate
               </Button>
+              {onPreview && (
+                <Button variant="secondary" size="sm" onClick={() => onPreview(selectedProgram, selectedIntake, selectedStatus)}>
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Preview Timetable
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>

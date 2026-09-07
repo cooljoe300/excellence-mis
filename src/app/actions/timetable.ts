@@ -51,6 +51,41 @@ export async function getTimetables() {
   return (data || []) as Timetable[];
 }
 
+export async function getTimetablesByFilter(filters: {
+  programId?: string;
+  intakeId?: string;
+  academicYear?: string;
+  status?: string;
+}) {
+  const supabase = await createClient();
+  
+  let query = supabase
+    .from('timetables')
+    .select('*, program:programs(*), course:courses(*), lecturer:profiles(*), intake:intakes(*)')
+    .order('day, start_time', { ascending: true });
+
+  if (filters.programId) {
+    query = query.eq('program_id', filters.programId);
+  }
+  if (filters.intakeId) {
+    query = query.eq('intake_id', filters.intakeId);
+  }
+  if (filters.academicYear) {
+    query = query.eq('academic_year', filters.academicYear);
+  }
+  if (filters.status) {
+    query = query.eq('status', filters.status);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('Error fetching filtered timetables:', error);
+    return [];
+  }
+  return (data || []) as Timetable[];
+}
+
 export async function getRooms() {
   const supabase = await createClient();
   const { data, error } = await supabase
