@@ -315,11 +315,13 @@ export async function createMyStudentRecord(formData: FormData) {
     .select('id, admission_number, student_number')
     .single();
 
+  console.log('[createMyStudentRecord] Insert result:', { data, error });
+
   if (error) {
     // Provide user-friendly error for admission number conflicts
     if (error.message.includes('duplicate key') && error.message.includes('admission_number')) {
-      return { 
-        error: 'Could not generate a unique admission number. Please try again. The system will automatically find the next available number.' 
+      return {
+        error: 'Could not generate a unique admission number. Please try again. The system will automatically find the next available number.'
       };
     }
     if (error.code === '23505') {
@@ -327,6 +329,8 @@ export async function createMyStudentRecord(formData: FormData) {
     }
     return { error: error.message };
   }
+
+  console.log('[createMyStudentRecord] Student ID from data:', data.id);
 
   const photoResult = await applyPhotoFromForm(supabase, data.id as string, formData);
   if (photoResult.error) {
@@ -352,9 +356,12 @@ export async function createMyStudentRecord(formData: FormData) {
     revalidatePath('/dashboard/students');
   });
 
+  const studentId = data.id as string;
+  console.log('[createMyStudentRecord] Returning student ID:', studentId);
+
   return {
     success: true,
-    id: data.id as string,
+    id: studentId,
     admissionNumber: data.admission_number ?? data.student_number,
   };
 }

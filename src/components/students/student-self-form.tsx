@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -66,6 +67,7 @@ export function StudentSelfForm({
   const [feesData, setFeesData] = useState<any>(null);
   const [loadingFees, setLoadingFees] = useState(false);
   const [personalInfo, setPersonalInfo] = useState<Record<string, string>>({});
+  const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
   const currentStepId = STEPS[currentStep].id;
 
@@ -247,15 +249,9 @@ export function StudentSelfForm({
             mergedFormData.append(key, value);
           });
 
-          // Add photo file if selected
-          if (selectedPhotoFile) {
-            console.log('Appending photo file to merged FormData:', selectedPhotoFile.name, selectedPhotoFile.size);
-            mergedFormData.append('photo', selectedPhotoFile);
-          } else {
-            console.log('No photo file to append during student creation');
-          }
-
           const createResult = await createMyStudentRecord(mergedFormData);
+
+          console.log('createMyStudentRecord result:', createResult);
 
           if (createResult?.error) {
             setError(createResult.error);
@@ -263,8 +259,15 @@ export function StudentSelfForm({
             return;
           }
 
-          if (createResult?.id) {
+          const newStudentId = createResult?.id;
+          console.log('Extracted student ID from result:', newStudentId);
+
+          if (newStudentId) {
             setStudentCreated(true);
+            setCreatedStudentId(newStudentId);
+            console.log('Student created with ID:', newStudentId);
+          } else {
+            console.error('createMyStudentRecord did not return an ID:', createResult);
           }
         }
 
@@ -282,29 +285,45 @@ export function StudentSelfForm({
       }
 
       // When moving from ID Card to Review, upload the photo if one was selected
-      if (currentStepId === 'idcard' && selectedPhotoFile && existingStudent?.id) {
+      if (currentStepId === 'idcard' && selectedPhotoFile) {
         try {
           const formData = new FormData();
-          console.log('Appending photo file for existing student:', selectedPhotoFile.name, selectedPhotoFile.size);
+          console.log('Appending photo file for student:', selectedPhotoFile.name, selectedPhotoFile.size);
           formData.append('photo', selectedPhotoFile);
 
-          console.log('Uploading photo for existing student:', existingStudent.id);
-          const result = await updateMyStudentRecord(existingStudent.id, formData);
-          console.log('Photo upload result:', result);
+          // For existing students, update their record
+          if (existingStudent?.id) {
+            console.log('Uploading photo for existing student:', existingStudent.id);
+            const result = await updateMyStudentRecord(existingStudent.id, formData);
+            console.log('Photo upload result (existing student):', result);
 
-          if (result?.error) {
-            console.error('Photo upload error:', result.error);
-            // Don't block the entire flow - just show a warning and continue
-            console.warn('Photo upload failed, but continuing with registration:', result.error);
-            // Clear the file so we don't retry
-            setSelectedPhotoFile(null);
-          } else {
-            // Clear the selected file after successful upload
-            setSelectedPhotoFile(null);
+            if (result?.error) {
+              console.error('Photo upload error:', result.error);
+              console.warn('Photo upload failed, but continuing with registration:', result.error);
+            } else {
+              console.log('Photo uploaded successfully for existing student');
+            }
           }
+          // For new students, upload photo after student creation
+          else if (studentCreated && createdStudentId) {
+            console.log('Uploading photo for newly created student ID:', createdStudentId);
+            const result = await updateMyStudentRecord(createdStudentId, formData);
+            console.log('Photo upload result (new student):', result);
+
+            if (result?.error) {
+              console.error('Photo upload error:', result.error);
+              console.warn('Photo upload failed, but continuing with registration:', result.error);
+            } else {
+              console.log('Photo uploaded successfully for new student');
+              // Refresh the student data to get the updated photo_url
+              router.refresh();
+            }
+          }
+
+          // Clear the file after upload attempt
+          setSelectedPhotoFile(null);
         } catch (photoError) {
           console.error('Photo upload exception:', photoError);
-          // Don't block the entire flow - just show a warning and continue
           console.warn('Photo upload failed with exception, but continuing with registration:', photoError);
           setSelectedPhotoFile(null);
         }
