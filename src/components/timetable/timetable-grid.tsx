@@ -211,7 +211,6 @@ export function TimetableGrid({
                                 const primary = isPrimarySlotForEntry(entry, slot);
                                 const colourClasses = getEntryColourClasses(entry);
                                 const isShared = entry.class_type === 'shared';
-                                const programmeName = entry.program?.name || entry.programme_assignments?.[0]?.programme?.name;
                                 const previousEntry = entries[index - 1];
                                 const previousProgrammeId = previousEntry?.program_id || previousEntry?.programme_assignments?.[0]?.programme_id;
                                 const currentProgrammeId = entry.program_id || entry.programme_assignments?.[0]?.programme_id;
@@ -324,6 +323,7 @@ export function TimetableGrid({
                                       <p className="text-[9px] text-slate-500">continues</p>
                                     )}
                                   </article>
+                                  </div>
                                 );
                               })}
                             </div>
