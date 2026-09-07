@@ -249,7 +249,10 @@ export function StudentSelfForm({
 
           // Add photo file if selected
           if (selectedPhotoFile) {
+            console.log('Appending photo file to merged FormData:', selectedPhotoFile.name, selectedPhotoFile.size);
             mergedFormData.append('photo', selectedPhotoFile);
+          } else {
+            console.log('No photo file to append during student creation');
           }
 
           const createResult = await createMyStudentRecord(mergedFormData);
@@ -282,9 +285,10 @@ export function StudentSelfForm({
       if (currentStepId === 'idcard' && selectedPhotoFile && existingStudent?.id) {
         try {
           const formData = new FormData();
+          console.log('Appending photo file for existing student:', selectedPhotoFile.name, selectedPhotoFile.size);
           formData.append('photo', selectedPhotoFile);
 
-          console.log('Uploading photo for student:', existingStudent.id);
+          console.log('Uploading photo for existing student:', existingStudent.id);
           const result = await updateMyStudentRecord(existingStudent.id, formData);
           console.log('Photo upload result:', result);
 
@@ -456,7 +460,10 @@ export function StudentSelfForm({
 
       // Append the selected photo file if one was chosen
       if (selectedPhotoFile) {
+        console.log('Appending photo file in handleSubmit:', selectedPhotoFile.name, selectedPhotoFile.size);
         formData.append('photo', selectedPhotoFile);
+      } else {
+        console.log('No photo file in handleSubmit');
       }
 
       const result = await updateMyStudentRecord(existingStudent.id, formData);

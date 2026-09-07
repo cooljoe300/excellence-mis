@@ -59,6 +59,7 @@ export function StudentForm({
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(student?.photo_url ?? null);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
 
   const [programId, setProgramId] = useState(student?.program_id ?? '');
   const [termId, setTermId] = useState<string | null>(null);
@@ -128,6 +129,27 @@ export function StudentForm({
     setError('');
 
     const formData = new FormData(e.currentTarget);
+
+    // Log all form data for debugging
+    console.log('Form data entries before photo:');
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}:`, value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value);
+    }
+
+    // Append the selected photo file if one was chosen
+    if (selectedPhotoFile) {
+      console.log('Appending photo file to form data:', selectedPhotoFile.name, selectedPhotoFile.size, selectedPhotoFile.type);
+      formData.append('photo', selectedPhotoFile);
+    } else {
+      console.log('No photo file selected in state');
+    }
+
+    // Log form data after photo append
+    console.log('Form data entries after photo:');
+    for (const [key, value] of formData.entries()) {
+      console.log(`${key}:`, value instanceof File ? `File: ${value.name} (${value.size} bytes)` : value);
+    }
+
     const result = student
       ? await updateStudent(student.id, formData)
       : await createStudent(formData);
@@ -319,6 +341,7 @@ Excellence Online College`;
             <PassportPhotoUpload
               existingPhotoUrl={student?.photo_url}
               onPreviewChange={setPhotoPreviewUrl}
+              onFileChange={setSelectedPhotoFile}
             />
           </div>
         </CardContent>

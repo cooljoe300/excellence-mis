@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import type { Program, Student } from '@/lib/types';
 import { StudentIdCardDocument } from '@/components/students/student-id-card-document';
 
@@ -59,8 +59,10 @@ export function PassportPhotoUpload({
 }) {
   const [localPreview, setLocalPreview] = useState<string | null>(null);
 
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    console.log('File input change event:', file);
     if (!file) {
       setLocalPreview(null);
       onPreviewChange(null);
@@ -68,6 +70,7 @@ export function PassportPhotoUpload({
       return;
     }
 
+    console.log('File selected:', file.name, file.size, file.type);
     const url = URL.createObjectURL(file);
     setLocalPreview(url);
     onPreviewChange(url);
@@ -99,6 +102,9 @@ export function PassportPhotoUpload({
             onChange={handleChange}
           />
         </label>
+        {localPreview && (
+          <p className="text-[10px] text-emerald-600 font-medium">✓ Photo selected</p>
+        )}
         <p className="max-w-[120px] text-center text-[11px] text-slate-500">
           JPG, PNG or WebP · max 2 MB · plain background recommended
         </p>
