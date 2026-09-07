@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { Printer, Link } from 'lucide-react';
 import type { Timetable, Program, Intake, TimeSlot } from '@/lib/types';
 import {
   CollegeOfficialLetterhead,
@@ -19,6 +19,7 @@ import {
   isPrimarySlotForEntry,
 } from '@/lib/timetable-utils';
 import { formatDate } from '@/lib/utils';
+import { getProgrammeColourClasses, getSharedClassColourClasses } from '@/lib/programme-colours';
 
 interface TimetablePreviewProps {
   isOpen: boolean;
@@ -36,6 +37,22 @@ interface TimetablePreviewProps {
 function venueLabel(entry: Timetable) {
   if (!entry.room?.name) return 'Online';
   return entry.room.building ? `${entry.room.name} (${entry.room.building})` : entry.room.name;
+}
+
+function getEntryColourClasses(entry: Timetable): {
+  border: string;
+  background: string;
+  text: string;
+  badge: string;
+} {
+  // Use shared class colour for shared classes
+  if (entry.class_type === 'shared') {
+    return getSharedClassColourClasses();
+  }
+
+  // Use programme colour for regular classes
+  const programmeId = entry.program_id || (entry.programme_assignments?.[0]?.programme_id);
+  return getProgrammeColourClasses(programmeId);
 }
 
 function printTitle(program?: Program, intake?: Intake) {
@@ -148,23 +165,47 @@ export function TimetablePrintDocument({
                     key={`${day}-${slot.id}`}
                     className="print-timetable-cell h-14 align-top border border-slate-400 px-1 py-1"
                   >
-                    {entries.map((entry) => (
-                      <div key={entry.id} className="mb-1 last:mb-0">
-                        <p className="font-bold leading-tight">{entry.course?.code}</p>
-                        <p className="leading-tight">{entry.course?.name}</p>
-                        <p className="leading-tight">{entry.lecturer?.full_name || 'To Be Confirmed'}</p>
-                        <p className="leading-tight">{venueLabel(entry)}</p>
-                        <p className="leading-tight">{formatTimeRange(entry.start_time, entry.end_time)}</p>
-                        {entry.class_type === 'shared' && (
-                          <p className="leading-tight text-xs italic">Shared Class</p>
-                        )}
-                        {entry.class_type === 'shared' && entry.programme_assignments && entry.programme_assignments.length > 1 && (
-                          <p className="leading-tight text-xs">
-                            Shared by: {entry.programme_assignments.map(pa => pa.programme?.name).filter(Boolean).join(', ')}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                    {entries.map((entry) => {
+                      const colourClasses = getEntryColourClasses(entry);
+                      const isShared = entry.class_type === 'shared';
+                      
+                      return (
+                        <div 
+                          key={entry.id} 
+                          className="mb-1 last:mb-0"
+                          style={{
+                            borderLeft: `2px solid ${colourClasses.border}`,
+                            paddingLeft: '4px',
+                          }}
+                        >
+                          <p className="font-bold leading-tight">{entry.course?.code}</p>
+                          <p className="leading-tight">{entry.course?.name}</p>
+                          <p className="leading-tight">{entry.lecturer?.full_name || 'To Be Confirmed'}</p>
+                          <p className="leading-tight">{venueLabel(entry)}</p>
+                          <p className="leading-tight">{formatTimeRange(entry.start_time, entry.end_time)}</p>
+                          
+                          {/* Programme indicator */}
+                          {!isShared && entry.program && (
+                            <p className="leading-tight text-xs" style={{ color: colourClasses.text }}>
+                              {entry.program.code}
+                            </p>
+                          )}
+                          
+                          {isShared && (
+                            <p className="leading-tight text-xs italic" style={{ color: colourClasses.text }}>
+                              Shared Class
+                            </p>
+                          )}
+                          
+                          {isShared && entry.programme_assignments && entry.programme_assignments.length > 1 && (
+                            <p className="leading-tight text-xs">
+                              {entry.programme_assignments.slice(0, 2).map((pa) => pa.programme?.code).filter(Boolean).join(', ')}
+                              {entry.programme_assignments.length > 2 && ` +${entry.programme_assignments.length - 2}`}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </td>
                 );
               })}

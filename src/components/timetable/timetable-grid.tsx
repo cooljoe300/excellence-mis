@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Printer, Pencil } from 'lucide-react';
+import { Plus, Printer, Pencil, Link } from 'lucide-react';
 import type { Timetable, Program, TimeSlot, Intake } from '@/lib/types';
 import {
   TIMETABLE_DAYS,
@@ -17,6 +17,8 @@ import {
   getDisplayTimeSlots,
   isPrimarySlotForEntry,
 } from '@/lib/timetable-utils';
+import { getProgrammeColourClasses, getSharedClassColourClasses } from '@/lib/programme-colours';
+import { ProgrammeLegend } from './programme-legend';
 
 interface TimetableGridProps {
   timetables: Timetable[];
@@ -29,14 +31,20 @@ interface TimetableGridProps {
   onPrint?: (programId?: string, intakeId?: string, status?: string) => void;
 }
 
-function programTint(programName: string): string {
-  const name = programName.toLowerCase();
-  if (name.includes('business')) return 'border-l-[#003380] bg-[#eef2f9]';
-  if (name.includes('ict') || name.includes('comput')) return 'border-l-emerald-700 bg-emerald-50';
-  if (name.includes('education')) return 'border-l-violet-700 bg-violet-50';
-  if (name.includes('health')) return 'border-l-orange-700 bg-orange-50';
-  if (name.includes('engineer')) return 'border-l-red-700 bg-red-50';
-  return 'border-l-[#003380] bg-white';
+function getEntryColourClasses(entry: Timetable): {
+  border: string;
+  background: string;
+  text: string;
+  badge: string;
+} {
+  // Use shared class colour for shared classes
+  if (entry.class_type === 'shared') {
+    return getSharedClassColourClasses();
+  }
+
+  // Use programme colour for regular classes
+  const programmeId = entry.program_id || (entry.programme_assignments?.[0]?.programme_id);
+  return getProgrammeColourClasses(programmeId);
 }
 
 export function TimetableGrid({
@@ -123,6 +131,13 @@ export function TimetableGrid({
                 aria-label="Search units, lecturers or rooms"
               />
             </div>
+            
+            {/* Programme Legend */}
+            <ProgrammeLegend
+              programmes={programs}
+              timetables={filteredTimetables}
+              showCompact
+            />
             <div className="flex flex-wrap gap-2">
               {onPreview && (
                 <Button
@@ -190,14 +205,21 @@ export function TimetableGrid({
                           onClick={() => onCellClick(day, slotValue)}
                         >
                           {entries.length > 0 ? (
-                            <div className="space-y-1">
+                            <div className="space-y-1.5">
                               {entries.map((entry) => {
                                 const primary = isPrimarySlotForEntry(entry, slot);
+                                const colourClasses = getEntryColourClasses(entry);
+                                const isShared = entry.class_type === 'shared';
+                                
                                 return (
                                   <article
                                     key={entry.id}
-                                    className={`relative rounded border border-slate-200 border-l-4 p-1.5 text-left ${programTint(entry.program?.name || '')}`}
-                                    style={primary ? { minHeight: cardHeightForDuration(entry.start_time, entry.end_time) } : undefined}
+                                    className={`relative rounded border border-slate-200 border-l-4 p-1.5 text-left`}
+                                    style={{
+                                      borderLeftColor: colourClasses.border,
+                                      backgroundColor: colourClasses.background,
+                                      minHeight: primary ? cardHeightForDuration(entry.start_time, entry.end_time) : undefined,
+                                    }}
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       onCellClick(day, slotValue, entry);
@@ -215,6 +237,23 @@ export function TimetableGrid({
                                     >
                                       <Pencil className="h-3 w-3" />
                                     </button>
+                                    
+                                    {/* Programme indicator */}
+                                    <div className="flex items-center gap-1 mb-1">
+                                      {isShared ? (
+                                        <div className="flex items-center gap-1">
+                                          <Link className="h-3 w-3" style={{ color: colourClasses.text }} />
+                                          <span className="text-[9px] font-semibold" style={{ color: colourClasses.text }}>
+                                            SHARED CLASS
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <span className="text-[9px] font-semibold" style={{ color: colourClasses.text }}>
+                                          {entry.program?.code || entry.programme_assignments?.[0]?.programme?.code || 'PROGRAMME'}
+                                        </span>
+                                      )}
+                                    </div>
+
                                     <p className="pr-5 text-[11px] font-bold leading-tight text-slate-900">
                                       {entry.course?.code || 'Unit'}
                                     </p>
@@ -238,15 +277,32 @@ export function TimetableGrid({
                                         >
                                           {entry.status}
                                         </Badge>
-                                        {entry.class_type === 'shared' && (
-                                          <Badge className="mt-1 text-[9px] uppercase tracking-wide bg-blue-100 text-blue-800">
-                                            Shared
-                                          </Badge>
-                                        )}
-                                        {entry.class_type === 'shared' && entry.programme_assignments && entry.programme_assignments.length > 1 && (
-                                          <p className="mt-1 text-[9px] text-slate-500">
-                                            +{entry.programme_assignments.length - 1} more
-                                          </p>
+                                        
+                                        {/* Shared class programme indicators */}
+                                        {isShared && entry.programme_assignments && entry.programme_assignments.length > 0 && (
+                                          <div className="mt-1 flex flex-wrap gap-1">
+                                            {entry.programme_assignments.slice(0, 3).map((assignment) => {
+                                              const progColour = getProgrammeColourClasses(assignment.programme_id);
+                                              return (
+                                                <span
+                                                  key={assignment.programme_id}
+                                                  className="text-[8px] px-1.5 py-0.5 rounded-full"
+                                                  style={{
+                                                    backgroundColor: progColour.background,
+                                                    color: progColour.text,
+                                                    border: `1px solid ${progColour.border}`,
+                                                  }}
+                                                >
+                                                  {assignment.programme?.code || 'PROG'}
+                                                </span>
+                                              );
+                                            })}
+                                            {entry.programme_assignments.length > 3 && (
+                                              <span className="text-[8px] text-slate-500">
+                                                +{entry.programme_assignments.length - 3}
+                                              </span>
+                                            )}
+                                          </div>
                                         )}
                                       </>
                                     )}
