@@ -205,6 +205,23 @@ body {
     page: timetable-landscape;
   }
 
+  /* Student timetable print styling */
+  body.print-timetable [role="dialog"] {
+    display: block !important;
+    position: static !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.print-timetable [role="dialog"] > *:not(.print-timetable) {
+    display: none !important;
+  }
+
+  body.print-timetable .print-timetable {
+    display: block !important;
+  }
+
   @page id-card {
     size: 85.6mm 53.98mm;
     margin: 0;
