@@ -167,9 +167,27 @@ export function RoleManagementTable({
     setMessage(`Lecturer capability ${!currentCanTeach ? 'enabled' : 'disabled'} successfully.`);
     setTimeout(() => setMessage(null), 3000);
   }
+
+  function openForcePasswordChangeDialog(user: ManagedUserRow) {
+    setUserToForcePasswordChange(user);
+    setForcePasswordChangeDialogOpen(true);
+  }
+
+  async function confirmForcePasswordChange() {
+    if (!userToForcePasswordChange) return;
+    setForcePasswordChangeLoading(true);
+
+    const result = await forcePasswordChange(userToForcePasswordChange.id);
+    if (result.error) {
+      setError(result.error);
+      setForcePasswordChangeLoading(false);
+      return;
+    }
+
+    setForcePasswordChangeDialogOpen(false);
     setUserToForcePasswordChange(null);
     setForcePasswordChangeLoading(false);
-    setMessage('User will be required to change their password on next login.');
+    setMessage('User will be required to change password on next login.');
     setTimeout(() => setMessage(null), 3000);
   }
 
