@@ -63,6 +63,7 @@ export function TimetableGrid({
 }: TimetableGridProps) {
   const [selectedProgram, setSelectedProgram] = useState('');
   const [selectedIntake, setSelectedIntake] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Generate time slots from the timeSlots prop
@@ -78,6 +79,9 @@ export function TimetableGrid({
     return timetables.filter((tt) => {
       if (selectedProgram && tt.program_id !== selectedProgram) return false;
       if (selectedIntake && tt.intake_id !== selectedIntake) return false;
+      if (selectedStatus && selectedStatus !== 'all') {
+        if (tt.status !== selectedStatus) return false;
+      }
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
@@ -89,7 +93,7 @@ export function TimetableGrid({
       }
       return true;
     });
-  }, [timetables, selectedProgram, selectedIntake, searchQuery]);
+  }, [timetables, selectedProgram, selectedIntake, selectedStatus, searchQuery]);
 
   // Create a map of timetable entries by day and time slot
   const timetableMap = useMemo(() => {
@@ -183,6 +187,17 @@ export function TimetableGrid({
                 value={selectedProgram}
                 onChange={(e) => setSelectedProgram(e.target.value)}
               />
+              <Select
+                id="status"
+                name="status"
+                options={[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'draft', label: 'Draft' },
+                  { value: 'active', label: 'Active' },
+                ]}
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+              />
               <Input
                 placeholder="Search units or lecturers..."
                 value={searchQuery}
@@ -267,6 +282,12 @@ export function TimetableGrid({
                                       <div className="truncate text-xs text-slate-500">{entry.program?.name}</div>
                                       <div className="truncate text-xs text-slate-400">{entry.intake?.name}</div>
                                       <div className="truncate">{entry.lecturer?.full_name}</div>
+                                      <Badge 
+                                        variant={entry.status === 'active' ? 'default' : 'secondary'}
+                                        className="text-xs mt-1"
+                                      >
+                                        {entry.status?.toUpperCase()}
+                                      </Badge>
                                       {entry.meeting_link && (
                                         <div className="text-xs text-blue-600 mt-1">
                                           📺 Online Class

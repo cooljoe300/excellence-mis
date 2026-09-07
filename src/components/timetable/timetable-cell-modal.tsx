@@ -15,6 +15,8 @@ interface TimetableCellModalProps {
   onClose: () => void;
   onSave: (data: FormData) => Promise<{ error?: string; success?: boolean }>;
   onDelete?: () => Promise<{ error?: string; success?: boolean }>;
+  onPublish?: () => Promise<{ error?: string; success?: boolean }>;
+  onUnpublish?: () => Promise<{ error?: string; success?: boolean }>;
   day: string;
   timeSlot: string;
   programs: Program[];
@@ -32,6 +34,8 @@ export function TimetableCellModal({
   onClose,
   onSave,
   onDelete,
+  onPublish,
+  onUnpublish,
   day,
   timeSlot,
   programs,
@@ -288,6 +292,44 @@ export function TimetableCellModal({
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t">
+            {existingEntry && existingEntry.status === 'draft' && onPublish && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  setLoading(true);
+                  const result = await onPublish();
+                  if (result.success) {
+                    onClose();
+                  } else {
+                    setError(result.error || 'Failed to publish');
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+              >
+                Publish
+              </Button>
+            )}
+            {existingEntry && existingEntry.status === 'active' && onUnpublish && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  setLoading(true);
+                  const result = await onUnpublish();
+                  if (result.success) {
+                    onClose();
+                  } else {
+                    setError(result.error || 'Failed to unpublish');
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+              >
+                Move to Draft
+              </Button>
+            )}
             {existingEntry && onDelete && (
               <Button
                 type="button"

@@ -138,8 +138,29 @@ export async function checkTimetableConflict(formData: FormData) {
   const courseId = formData.get('course_id') as string;
   const intakeId = formData.get('intake_id') as string;
   const programId = formData.get('program_id') as string;
+  const academicYear = formData.get('academic_year') as string;
+  const existingId = formData.get('id') as string; // For edit case
 
   const conflicts: string[] = [];
+
+  // Check for exact duplicate (all fields match)
+  const { data: exactDuplicate } = await supabase
+    .from('timetables')
+    .select('*')
+    .eq('day', day)
+    .eq('start_time', startTime)
+    .eq('end_time', endTime)
+    .eq('program_id', programId)
+    .eq('intake_id', intakeId)
+    .eq('course_id', courseId)
+    .eq('lecturer_id', lecturerId)
+    .eq('academic_year', academicYear)
+    .single();
+
+  if (exactDuplicate && exactDuplicate.id !== existingId) {
+    conflicts.push('Duplicate timetable entry. This timetable already exists.');
+    return conflicts;
+  }
 
   // Check lecturer conflict
   if (lecturerId) {
@@ -149,7 +170,8 @@ export async function checkTimetableConflict(formData: FormData) {
       .eq('day', day)
       .eq('lecturer_id', lecturerId)
       .or(`start_time.lte.${endTime}&end_time.gte.${startTime}`)
-      .neq('status', 'archived');
+      .neq('status', 'archived')
+      .neq('id', existingId || '');
 
     if (lecturerConflict && lecturerConflict.length > 0) {
       conflicts.push('This lecturer already has another class scheduled during the selected time.');
@@ -165,7 +187,8 @@ export async function checkTimetableConflict(formData: FormData) {
       .eq('course_id', courseId)
       .eq('intake_id', intakeId)
       .or(`start_time.lte.${endTime}&end_time.gte.${startTime}`)
-      .neq('status', 'archived');
+      .neq('status', 'archived')
+      .neq('id', existingId || '');
 
     if (courseConflict && courseConflict.length > 0) {
       conflicts.push('This unit already has a class at this time for this intake');
@@ -181,7 +204,8 @@ export async function checkTimetableConflict(formData: FormData) {
       .eq('intake_id', intakeId)
       .eq('program_id', programId)
       .or(`start_time.lte.${endTime}&end_time.gte.${startTime}`)
-      .neq('status', 'archived');
+      .neq('status', 'archived')
+      .neq('id', existingId || '');
 
     if (intakeConflict && intakeConflict.length > 0) {
       conflicts.push('This intake already has a class at this time for this programme');
@@ -255,6 +279,9 @@ export async function createTimetable(formData: FormData) {
   if (!academicYear) {
     academicYear = '2026/2027'; // Default fallback
   }
+
+  // Add academic year to formData for conflict checking
+  formData.set('academic_year', academicYear);
 
   // Validate programme-unit relationship
   if (programId && courseId) {
@@ -330,6 +357,9 @@ export async function updateTimetable(id: string, formData: FormData) {
     return { error: 'Unauthorized' };
   }
 
+  // Add ID to formData for conflict checking (exclude self)
+  formData.set('id', id);
+
   // Get academic year from selected intake
   let academicYear = formData.get('academic_year') as string;
   const intakeId = formData.get('intake_id') as string;
@@ -361,6 +391,15 @@ export async function updateTimetable(id: string, formData: FormData) {
 
   if (!academicYear) {
     academicYear = '2026/2027';
+  }
+
+  // Add academic year to formData for conflict checking
+  formData.set('academic_year', academicYear);
+
+  // Check for conflicts
+  const conflicts = await checkTimetableConflict(formData);
+  if (conflicts.length > 0) {
+    return { error: conflicts.join('. ') };
   }
 
   const timetableData = {
@@ -408,6 +447,88 @@ export async function deleteTimetable(id: string) {
   const { error } = await supabase
     .from('timetables')
     .delete()
+    .eq('id', id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/timetable');
+  revalidatePath('/dashboard/timetable/list');
+
+  return { success: true };
+}
+
+export async function publishTimetable(id: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Unauthorized' };
+  }
+
+  // Get current timetable to check conflicts before publishing
+  const { data: currentTimetable } = await supabase
+    .from('timetables')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (!currentTimetable) {
+    return { error: 'Timetable entry not found' };
+  }
+
+  // Create FormData for conflict checking
+  const formData = new FormData();
+  formData.set('id', id);
+  formData.set('day', currentTimetable.day);
+  formData.set('start_time', currentTimetable.start_time);
+  formData.set('end_time', currentTimetable.end_time);
+  formData.set('lecturer_id', currentTimetable.lecturer_id || '');
+  formData.set('course_id', currentTimetable.course_id || '');
+  formData.set('intake_id', currentTimetable.intake_id || '');
+  formData.set('program_id', currentTimetable.program_id || '');
+  formData.set('academic_year', currentTimetable.academic_year);
+
+  // Check for conflicts
+  const conflicts = await checkTimetableConflict(formData);
+  if (conflicts.length > 0) {
+    return { error: `Cannot publish: ${conflicts.join('. ')}` };
+  }
+
+  const { error } = await supabase
+    .from('timetables')
+    .update({ 
+      status: 'active',
+      published_by: user.id,
+      published_at: new Date().toISOString()
+    })
+    .eq('id', id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath('/dashboard/timetable');
+  revalidatePath('/dashboard/timetable/list');
+
+  return { success: true };
+}
+
+export async function unpublishTimetable(id: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: 'Unauthorized' };
+  }
+
+  const { error } = await supabase
+    .from('timetables')
+    .update({ 
+      status: 'draft',
+      updated_by: user.id
+    })
     .eq('id', id);
 
   if (error) {

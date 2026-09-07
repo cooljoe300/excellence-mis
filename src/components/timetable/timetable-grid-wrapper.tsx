@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { TimetableGrid } from '@/components/timetable/timetable-grid';
 import { TimetableCellModal } from '@/components/timetable/timetable-cell-modal';
-import { createTimetable, updateTimetable, deleteTimetable, getTimetables } from '@/app/actions/timetable';
+import { createTimetable, updateTimetable, deleteTimetable, publishTimetable, unpublishTimetable, getTimetables } from '@/app/actions/timetable';
 import type { Timetable, Program, Course, Profile, Room, TimeSlot, Intake, AcademicTerm } from '@/lib/types';
 
 interface TimetableGridWrapperProps {
@@ -66,6 +66,30 @@ export function TimetableGridWrapper({
     return { error: 'No entry to delete' };
   }
 
+  async function handlePublish() {
+    if (existingEntry?.id) {
+      const result = await publishTimetable(existingEntry.id);
+      if (result.success) {
+        await refreshTimetables();
+        setIsModalOpen(false);
+      }
+      return result;
+    }
+    return { error: 'No entry to publish' };
+  }
+
+  async function handleUnpublish() {
+    if (existingEntry?.id) {
+      const result = await unpublishTimetable(existingEntry.id);
+      if (result.success) {
+        await refreshTimetables();
+        setIsModalOpen(false);
+      }
+      return result;
+    }
+    return { error: 'No entry to unpublish' };
+  }
+
   async function handleTimetableDelete(id: string) {
     const result = await deleteTimetable(id);
     if (result.success) {
@@ -101,6 +125,8 @@ export function TimetableGridWrapper({
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
         onDelete={existingEntry ? handleDelete : undefined}
+        onPublish={existingEntry ? handlePublish : undefined}
+        onUnpublish={existingEntry ? handleUnpublish : undefined}
         day={selectedDay}
         timeSlot={selectedTimeSlot}
         programs={programs}
