@@ -1,22 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Program, Course, Profile, Room, TimeSlot, Intake, AcademicTerm } from '@/lib/types';
+import type { Program, Course, Profile, Room, TimeSlot, Intake, Timetable } from '@/lib/types';
+import { TIMETABLE_DAYS, formatClockTime, timeToMinutes, toTimeInputValue } from '@/lib/timetable-utils';
 
 interface TimetableCellModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: FormData) => Promise<{ error?: string; success?: boolean }>;
   onDelete?: () => Promise<{ error?: string; success?: boolean }>;
-  onPublish?: () => Promise<{ error?: string; success?: boolean }>;
-  onUnpublish?: () => Promise<{ error?: string; success?: boolean }>;
   day: string;
   timeSlot: string;
   programs: Program[];
@@ -25,8 +23,7 @@ interface TimetableCellModalProps {
   rooms: Room[];
   timeSlots: TimeSlot[];
   intakes: Intake[];
-  terms: AcademicTerm[];
-  existingEntry?: any;
+  existingEntry?: Timetable | null;
 }
 
 export function TimetableCellModal({
@@ -34,8 +31,6 @@ export function TimetableCellModal({
   onClose,
   onSave,
   onDelete,
-  onPublish,
-  onUnpublish,
   day,
   timeSlot,
   programs,
@@ -44,335 +39,312 @@ export function TimetableCellModal({
   rooms,
   timeSlots,
   intakes,
-  terms,
   existingEntry,
 }: TimetableCellModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conflicts, setConflicts] = useState<string[]>([]);
-  const [selectedProgramId, setSelectedProgramId] = useState<string>(
-    existingEntry?.program_id || ''
-  );
-  const [selectedIntakeId, setSelectedIntakeId] = useState<string>(
-    existingEntry?.intake_id || ''
-  );
-  const [selectedCourseId, setSelectedCourseId] = useState<string>(
-    existingEntry?.course_id || ''
-  );
-  const [selectedLecturerId, setSelectedLecturerId] = useState<string>(
-    existingEntry?.lecturer_id || ''
-  );
-  const [selectedStatus, setSelectedStatus] = useState<string>(
-    existingEntry?.status || 'draft'
-  );
+  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [selectedIntakeId, setSelectedIntakeId] = useState('');
+  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [selectedLecturerId, setSelectedLecturerId] = useState('');
+  const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('draft');
+  const [selectedDay, setSelectedDay] = useState(day);
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState('');
 
-  // When editing, sync the values with the existing entry
   useEffect(() => {
-    if (existingEntry?.program_id) {
-      setSelectedProgramId(existingEntry.program_id);
-    }
-    if (existingEntry?.intake_id) {
-      setSelectedIntakeId(existingEntry.intake_id);
-    }
-    if (existingEntry?.course_id) {
-      setSelectedCourseId(existingEntry.course_id);
-    }
-    if (existingEntry?.lecturer_id) {
-      setSelectedLecturerId(existingEntry.lecturer_id);
-    }
-    if (existingEntry?.status) {
-      setSelectedStatus(existingEntry.status);
-    }
-  }, [existingEntry]);
+    if (!isOpen) return;
+    const [slotStart, slotEnd] = timeSlot.includes('-')
+      ? [timeSlot.slice(0, timeSlot.indexOf('-')), timeSlot.slice(timeSlot.indexOf('-') + 1)]
+      : ['', ''];
 
-  // Clear course when program changes
-  useEffect(() => {
-    if (selectedProgramId && !existingEntry) {
-      setSelectedCourseId('');
-    }
-  }, [selectedProgramId, existingEntry]);
+    setError(null);
+    setLoading(false);
+    setSelectedProgramId(existingEntry?.program_id || '');
+    setSelectedIntakeId(existingEntry?.intake_id || '');
+    setSelectedCourseId(existingEntry?.course_id || '');
+    setSelectedLecturerId(existingEntry?.lecturer_id || '');
+    setSelectedRoomId(existingEntry?.room_id || '');
+    setSelectedStatus(existingEntry?.status || 'draft');
+    setSelectedDay(existingEntry?.day || day || 'Monday');
+    setStartTime(toTimeInputValue(existingEntry?.start_time || slotStart));
+    setEndTime(toTimeInputValue(existingEntry?.end_time || slotEnd));
+    setSelectedSlotId('');
+  }, [isOpen, existingEntry, day, timeSlot]);
 
-  const [startTime, endTime] = timeSlot.split('-');
-
-  // Filter courses based on selected program
   const filteredCourses = selectedProgramId
     ? courses.filter((course) => course.program_id === selectedProgramId)
-    : courses;
+    : [];
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function applyTimeSlot(slotId: string) {
+    setSelectedSlotId(slotId);
+    const selectedSlot = timeSlots.find((slot) => slot.id === slotId);
+    if (selectedSlot) {
+      setStartTime(toTimeInputValue(selectedSlot.start_time));
+      setEndTime(toTimeInputValue(selectedSlot.end_time));
+    }
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
-    setConflicts([]);
 
-    const formData = new FormData(e.currentTarget);
-    formData.set('day', day);
-    formData.set('start_time', startTime);
-    formData.set('end_time', endTime);
-    formData.set('status', selectedStatus); // Ensure status is set from state
-    
-    if (existingEntry?.id) {
-      formData.set('id', existingEntry.id);
+    if (!selectedProgramId || !selectedIntakeId || !selectedCourseId || !selectedLecturerId) {
+      setError('Programme, intake, unit and lecturer are required.');
+      setLoading(false);
+      return;
+    }
+    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+      setError('Start time must be earlier than end time.');
+      setLoading(false);
+      return;
     }
 
-    const result = await onSave(formData);
+    const formData = new FormData(event.currentTarget);
+    formData.set('day', selectedDay);
+    formData.set('start_time', startTime);
+    formData.set('end_time', endTime);
+    formData.set('status', selectedStatus);
+    formData.set('program_id', selectedProgramId);
+    formData.set('intake_id', selectedIntakeId);
+    formData.set('course_id', selectedCourseId);
+    formData.set('lecturer_id', selectedLecturerId);
+    formData.set('room_id', selectedRoomId);
+    if (existingEntry?.id) formData.set('id', existingEntry.id);
 
+    const result = await onSave(formData);
     if (result.error) {
       setError(result.error);
       setLoading(false);
       return;
     }
-
     setLoading(false);
-    onClose();
   }
-
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const teachingModes = ['physical', 'online', 'hybrid'];
-  const statuses = ['draft', 'active'];
 
   return (
     <Modal open={isOpen} onClose={onClose} size="lg">
-      <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5" key={existingEntry?.id || `new-${day}-${timeSlot}`}>
         <div>
           <h2 className="text-xl font-semibold text-slate-900">
             {existingEntry ? 'Edit Timetable Entry' : 'Add Timetable Entry'}
           </h2>
-          <div className="flex items-center gap-2 text-sm text-slate-600 mt-2">
-            <Badge>{day}</Badge>
-            <Badge>{timeSlot}</Badge>
+          <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-600">
+            <Badge>{selectedDay || 'Day'}</Badge>
+            <Badge>
+              {startTime && endTime ? `${formatClockTime(startTime)}–${formatClockTime(endTime)}` : 'Time'}
+            </Badge>
+            {existingEntry && <Badge status={existingEntry.status}>{existingEntry.status}</Badge>}
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="p-4">
-                <p className="text-sm text-red-700">{error}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {conflicts.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardContent className="p-4">
-                <p className="text-sm font-medium text-orange-900 mb-2">Conflicts detected:</p>
-                <ul className="text-sm text-orange-700 list-disc list-inside space-y-1">
-                  {conflicts.map((conflict, idx) => (
-                    <li key={idx}>{conflict}</li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="space-y-2">
-            <label htmlFor="intake_id" className="text-sm font-medium text-slate-700">
-              Intake
-            </label>
-            <Select
-              id="intake_id"
-              name="intake_id"
-              options={[
-                { value: '', label: 'Select intake' },
-                ...intakes.map((i) => ({ value: i.id, label: i.name })),
-              ]}
-              value={selectedIntakeId}
-              onChange={(e) => setSelectedIntakeId(e.target.value)}
-              required
-            />
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {error}
           </div>
+        )}
 
-          <div className="space-y-2">
-            <label htmlFor="academic_year" className="text-sm font-medium text-slate-700">
-              Academic Year
-            </label>
-            <Input
-              id="academic_year"
-              name="academic_year"
-              type="text"
-              defaultValue={existingEntry?.academic_year || '2026/2027'}
-              placeholder="2026/2027"
-              required
-            />
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Class information</h3>
+          <Select
+            id="program_id"
+            name="program_id"
+            label="Programme"
+            required
+            value={selectedProgramId}
+            onChange={(event) => {
+              setSelectedProgramId(event.target.value);
+              setSelectedCourseId('');
+            }}
+            options={[
+              { value: '', label: 'Select programme' },
+              ...programs.map((program) => ({
+                value: program.id,
+                label: `${program.code} - ${program.name}`,
+              })),
+            ]}
+          />
+          <Select
+            id="intake_id"
+            name="intake_id"
+            label="Intake"
+            required
+            value={selectedIntakeId}
+            onChange={(event) => setSelectedIntakeId(event.target.value)}
+            options={[
+              { value: '', label: 'Select intake' },
+              ...intakes.map((intake) => ({ value: intake.id, label: intake.name })),
+            ]}
+          />
+          <Select
+            id="course_id"
+            name="course_id"
+            label="Unit"
+            required
+            disabled={!selectedProgramId}
+            value={selectedCourseId}
+            onChange={(event) => setSelectedCourseId(event.target.value)}
+            options={
+              selectedProgramId
+                ? [
+                    { value: '', label: 'Select unit' },
+                    ...filteredCourses.map((course) => ({
+                      value: course.id,
+                      label: `${course.code} - ${course.name}`,
+                    })),
+                  ]
+                : [{ value: '', label: 'Select a programme first' }]
+            }
+          />
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Teaching</h3>
+          <Select
+            id="lecturer_id"
+            name="lecturer_id"
+            label="Lecturer"
+            required
+            value={selectedLecturerId}
+            onChange={(event) => setSelectedLecturerId(event.target.value)}
+            options={[
+              { value: '', label: 'Select lecturer' },
+              ...lecturers.map((lecturer) => ({ value: lecturer.id, label: lecturer.full_name })),
+            ]}
+          />
+          <Select
+            id="room_id"
+            name="room_id"
+            label="Room"
+            value={selectedRoomId}
+            onChange={(event) => setSelectedRoomId(event.target.value)}
+            options={[
+              { value: '', label: rooms.length ? 'Online / no room' : 'No rooms configured' },
+              ...rooms.map((room) => ({
+                value: room.id,
+                label: room.building ? `${room.name} (${room.building})` : room.name,
+              })),
+            ]}
+          />
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Schedule</h3>
+          <Select
+            id="day"
+            name="day"
+            label="Day"
+            required
+            value={selectedDay}
+            onChange={(event) => setSelectedDay(event.target.value)}
+            options={TIMETABLE_DAYS.map((item) => ({ value: item, label: item }))}
+          />
+          <Select
+            id="time_slot_id"
+            name="time_slot_id"
+            label="Configured time slot"
+            value={selectedSlotId}
+            onChange={(event) => applyTimeSlot(event.target.value)}
+            options={[
+              { value: '', label: 'Choose a configured slot or set custom times' },
+              ...timeSlots.map((slot) => ({
+                value: slot.id,
+                label: `${slot.name} (${formatClockTime(slot.start_time)}–${formatClockTime(slot.end_time)})`,
+              })),
+            ]}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label htmlFor="start_time" className="text-sm font-medium text-slate-700">
+                Start time
+              </label>
+              <Input
+                id="start_time"
+                name="start_time"
+                type="time"
+                required
+                value={startTime}
+                onChange={(event) => setStartTime(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="end_time" className="text-sm font-medium text-slate-700">
+                End time
+              </label>
+              <Input
+                id="end_time"
+                name="end_time"
+                type="time"
+                required
+                value={endTime}
+                onChange={(event) => setEndTime(event.target.value)}
+              />
+            </div>
           </div>
+        </section>
 
-          <div className="space-y-2">
-            <label htmlFor="program_id" className="text-sm font-medium text-slate-700">
-              Programme
-            </label>
-            <Select
-              id="program_id"
-              name="program_id"
-              options={[
-                { value: '', label: 'Select programme' },
-                ...programs.map((p) => ({ value: p.id, label: `${p.code} - ${p.name}` })),
-              ]}
-              value={selectedProgramId}
-              onChange={(e) => setSelectedProgramId(e.target.value)}
-              required
-            />
-          </div>
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Publishing</h3>
+          <Select
+            id="status"
+            name="status"
+            label="Status"
+            required
+            value={selectedStatus}
+            onChange={(event) => setSelectedStatus(event.target.value)}
+            options={[
+              { value: 'draft', label: 'Draft' },
+              { value: 'active', label: 'Active' },
+            ]}
+          />
+          <Input
+            id="meeting_link"
+            name="meeting_link"
+            type="url"
+            label="Online class link"
+            defaultValue={existingEntry?.meeting_link || ''}
+            placeholder="https://zoom.us/j/..."
+          />
+          <Textarea
+            id="notes"
+            name="notes"
+            rows={3}
+            label="Notes (optional)"
+            defaultValue={existingEntry?.notes || ''}
+            placeholder="Additional notes..."
+          />
+        </section>
 
-          <div className="space-y-2">
-            <label htmlFor="course_id" className="text-sm font-medium text-slate-700">
-              Unit
-            </label>
-            <Select
-              id="course_id"
-              name="course_id"
-              options={
-                selectedProgramId
-                  ? [
-                      { value: '', label: 'Select unit' },
-                      ...filteredCourses.map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` })),
-                    ]
-                  : [{ value: '', label: 'Select a programme first' }]
-              }
-              value={selectedCourseId}
-              onChange={(e) => {
-                setSelectedCourseId(e.target.value);
-                // Clear lecturer when unit changes if lecturer-unit relationship exists
-                // For now, we keep lecturer selection independent
-              }}
-              disabled={!selectedProgramId}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="lecturer_id" className="text-sm font-medium text-slate-700">
-              Lecturer
-            </label>
-            <Select
-              id="lecturer_id"
-              name="lecturer_id"
-              options={[
-                { value: '', label: 'Select lecturer' },
-                ...lecturers.map((l) => ({ value: l.id, label: l.full_name })),
-              ]}
-              value={selectedLecturerId}
-              onChange={(e) => setSelectedLecturerId(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="meeting_link" className="text-sm font-medium text-slate-700">
-              Online Class Link
-            </label>
-            <Input
-              id="meeting_link"
-              name="meeting_link"
-              type="url"
-              defaultValue={existingEntry?.meeting_link || ''}
-              placeholder="https://zoom.us/j/..."
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="status" className="text-sm font-medium text-slate-700">
-              Status
-            </label>
-            <Select
-              id="status"
-              name="status"
-              value={selectedStatus}
-              options={statuses.map((s) => ({
-                value: s,
-                label: s.charAt(0).toUpperCase() + s.slice(1),
-              }))}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="notes" className="text-sm font-medium text-slate-700">
-              Notes (optional)
-            </label>
-            <Textarea
-              id="notes"
-              name="notes"
-              rows={3}
-              defaultValue={existingEntry?.notes || ''}
-              placeholder="Additional notes..."
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            {existingEntry && existingEntry.status === 'draft' && onPublish && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={async () => {
-                  setLoading(true);
-                  const result = await onPublish();
-                  if (result.success) {
-                    onClose();
-                  } else {
-                    setError(result.error || 'Failed to publish');
-                    setLoading(false);
-                  }
-                }}
-                disabled={loading}
-              >
-                Publish
-              </Button>
-            )}
-            {existingEntry && existingEntry.status === 'active' && onUnpublish && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={async () => {
-                  setLoading(true);
-                  const result = await onUnpublish();
-                  if (result.success) {
-                    onClose();
-                  } else {
-                    setError(result.error || 'Failed to unpublish');
-                    setLoading(false);
-                  }
-                }}
-                disabled={loading}
-              >
-                Move to Draft
-              </Button>
-            )}
-            {existingEntry && onDelete && (
-              <Button
-                type="button"
-                variant="danger"
-                onClick={async () => {
-                  if (confirm('Are you sure you want to delete this timetable entry?')) {
-                    setLoading(true);
-                    const result = await onDelete();
-                    if (result.success) {
-                      onClose();
-                    } else {
-                      setError(result.error || 'Failed to delete');
-                      setLoading(false);
-                    }
-                  }
-                }}
-                disabled={loading}
-              >
-                Delete
-              </Button>
-            )}
+        <div className="flex flex-wrap justify-end gap-3 border-t pt-4">
+          {existingEntry && onDelete && (
             <Button
               type="button"
-              variant="secondary"
-              onClick={onClose}
+              variant="danger"
               disabled={loading}
+              onClick={async () => {
+                if (!confirm('Delete this timetable entry? This cannot be undone.')) return;
+                setLoading(true);
+                const result = await onDelete();
+                if (result.error) {
+                  setError(result.error);
+                  setLoading(false);
+                }
+              }}
             >
-              Cancel
+              Delete
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : existingEntry ? 'Update Timetable Entry' : 'Save Timetable Entry'}
-            </Button>
-          </div>
-        </form>
-      </div>
+          )}
+          <Button type="button" variant="secondary" onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={loading} aria-busy={loading}>
+            {loading ? 'Saving...' : existingEntry ? 'Update Timetable Entry' : 'Save Timetable Entry'}
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 }

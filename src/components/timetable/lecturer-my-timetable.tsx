@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { createClient } from '@/lib/supabase/client';
+import { getLecturerTimetable } from '@/app/actions/timetable';
 import type { Timetable } from '@/lib/types';
-import { Calendar, Clock, User } from 'lucide-react';
+import { formatTimeRange } from '@/lib/timetable-utils';
+import { Calendar, Clock } from 'lucide-react';
 
 export function LecturerMyTimetable() {
   const [timetables, setTimetables] = useState<Timetable[]>([]);
@@ -16,51 +16,11 @@ export function LecturerMyTimetable() {
 
   useEffect(() => {
     async function loadMyTimetable() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('can_teach')
-          .eq('id', user.id)
-          .single();
-
-        if (!profile?.can_teach) {
-          setError('You do not have lecturer capability enabled.');
-          setLoading(false);
-          return;
-        }
-
-        const { data, error: fetchError } = await supabase
-          .from('timetables')
-          .select('*, program:programs(*), course:courses(*), intake:intakes(*)')
-          .eq('lecturer_id', user.id)
-          .eq('status', 'active')
-          .order('day', { ascending: true })
-          .order('start_time', { ascending: true });
-
-        if (fetchError) {
-          setError(fetchError.message);
-        } else {
-          setTimetables(data || []);
-          
-          // Calculate total hours
-          const hours = (data || []).reduce((sum, tt) => {
-            const start = new Date(`2000-01-01T${tt.start_time}`);
-            const end = new Date(`2000-01-01T${tt.end_time}`);
-            return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-          }, 0);
-          setTotalHours(hours);
-        }
-      } catch (err) {
+        const result = await getLecturerTimetable();
+        setTimetables(result.timetables || []);
+        setTotalHours(result.totalHours || 0);
+      } catch {
         setError('Failed to load your timetable');
       } finally {
         setLoading(false);
@@ -134,7 +94,7 @@ export function LecturerMyTimetable() {
               {timetables.map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell className="font-medium">{entry.day}</TableCell>
-                  <TableCell>{entry.start_time} - {entry.end_time}</TableCell>
+                  <TableCell>{formatTimeRange(entry.start_time, entry.end_time)}</TableCell>
                   <TableCell>
                     <div className="font-medium">{entry.course?.code}</div>
                     <div className="text-sm text-slate-500">{entry.course?.name}</div>

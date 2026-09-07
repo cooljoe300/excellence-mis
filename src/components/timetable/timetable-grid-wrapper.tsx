@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { TimetableGrid } from '@/components/timetable/timetable-grid';
 import { TimetableCellModal } from '@/components/timetable/timetable-cell-modal';
 import { TimetablePreview } from '@/components/timetable/timetable-preview';
-import { createTimetable, updateTimetable, deleteTimetable, publishTimetable, unpublishTimetable, getTimetables, getTimetablesByFilter } from '@/app/actions/timetable';
-import type { Timetable, Program, Course, Profile, Room, TimeSlot, Intake, AcademicTerm } from '@/lib/types';
+import {
+  createTimetable,
+  updateTimetable,
+  deleteTimetable,
+  getTimetables,
+  getTimetablesByFilter,
+} from '@/app/actions/timetable';
+import type { Timetable, Program, Course, Profile, Room, TimeSlot, Intake } from '@/lib/types';
 
 interface TimetableGridWrapperProps {
   timetables: Timetable[];
@@ -14,6 +21,7 @@ interface TimetableGridWrapperProps {
   courses: Course[];
   lecturers: Profile[];
   intakes: Intake[];
+  rooms: Room[];
 }
 
 export function TimetableGridWrapper({
@@ -23,21 +31,26 @@ export function TimetableGridWrapper({
   courses,
   lecturers,
   intakes,
+  rooms,
 }: TimetableGridWrapperProps) {
+  const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedDay, setSelectedDay] = useState('Monday');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
-  const [existingEntry, setExistingEntry] = useState<any>(null);
+  const [existingEntry, setExistingEntry] = useState<Timetable | null>(null);
   const [localTimetables, setLocalTimetables] = useState(timetables);
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [previewTimetables, setPreviewTimetables] = useState<Timetable[]>([]);
-  const [selectedProgramForPreview, setSelectedProgramForPreview] = useState<string>('');
-  const [selectedIntakeForPreview, setSelectedIntakeForPreview] = useState<string>('');
-  const [selectedStatusForPreview, setSelectedStatusForPreview] = useState<string>('all');
+  const [selectedProgramForPreview, setSelectedProgramForPreview] = useState('');
+  const [selectedIntakeForPreview, setSelectedIntakeForPreview] = useState('');
 
-  function handleCellClick(day: string, timeSlot: string, entry?: Timetable) {
+  useEffect(() => {
+    setLocalTimetables(timetables);
+  }, [timetables]);
+
+  function openModal(day: string, timeSlot: string, entry?: Timetable) {
     setSelectedDay(day);
     setSelectedTimeSlot(timeSlot);
     setExistingEntry(entry || null);
@@ -49,134 +62,103 @@ export function TimetableGridWrapper({
     const updatedTimetables = await getTimetables();
     setLocalTimetables(updatedTimetables);
     setIsLoading(false);
+    router.refresh();
+  }
+
+  function upsertLocal(entry: Timetable) {
+    setLocalTimetables((previous) => {
+      const without = previous.filter((item) => item.id !== entry.id);
+      return [...without, entry];
+    });
   }
 
   async function handleSave(formData: FormData) {
-    let result;
-    if (existingEntry?.id) {
-      result = await updateTimetable(existingEntry.id, formData);
-    } else {
-      result = await createTimetable(formData);
+    const result = existingEntry?.id
+      ? await updateTimetable(existingEntry.id, formData)
+      : await createTimetable(formData);
+
+    if (!result.success || result.error) {
+      return result;
     }
-    
-    if (result.success) {
-      setSuccessMessage(existingEntry?.id ? 'Timetable entry updated successfully.' : 'Timetable entry added successfully.');
-      setTimeout(() => setSuccessMessage(null), 3000);
-      await refreshTimetables();
-      setIsModalOpen(false);
+
+    if (result.data) {
+      upsertLocal(result.data as Timetable);
     }
+    setSuccessMessage(existingEntry?.id ? 'Timetable entry updated.' : 'Timetable entry saved.');
+    setTimeout(() => setSuccessMessage(null), 3000);
+    setIsModalOpen(false);
+    await refreshTimetables();
     return result;
   }
 
   async function handleDelete() {
-    if (existingEntry?.id) {
-      return await handleTimetableDelete(existingEntry.id);
+    if (!existingEntry?.id) return { error: 'No entry to delete' };
+    const result = await deleteTimetable(existingEntry.id);
+    if (result.success) {
+      setLocalTimetables((previous) => previous.filter((item) => item.id !== existingEntry.id));
+      setIsModalOpen(false);
+      await refreshTimetables();
     }
-    return { error: 'No entry to delete' };
+    return result;
   }
 
-  async function handlePublish() {
-    if (existingEntry?.id) {
-      const result = await publishTimetable(existingEntry.id);
-      if (result.success) {
-        await refreshTimetables();
-        setIsModalOpen(false);
-      }
-      return result;
-    }
-    return { error: 'No entry to publish' };
-  }
-
-  async function handleUnpublish() {
-    if (existingEntry?.id) {
-      const result = await unpublishTimetable(existingEntry.id);
-      if (result.success) {
-        await refreshTimetables();
-        setIsModalOpen(false);
-      }
-      return result;
-    }
-    return { error: 'No entry to unpublish' };
-  }
-
-  async function handlePreview(programId?: string, intakeId?: string, status?: string) {
-    // Fetch filtered timetables for preview
+  async function openPreview(programId?: string, intakeId?: string, status?: string, print = false) {
     const filtered = await getTimetablesByFilter({
       programId: programId || undefined,
       intakeId: intakeId || undefined,
       status: status === 'all' ? undefined : status,
     });
-
     setPreviewTimetables(filtered);
     setSelectedProgramForPreview(programId || '');
     setSelectedIntakeForPreview(intakeId || '');
-    setSelectedStatusForPreview(status || 'all');
     setIsPreviewOpen(true);
-  }
-
-  async function handleTimetableDelete(id: string) {
-    const result = await deleteTimetable(id);
-    if (result.success) {
-      await refreshTimetables();
+    if (print) {
+      setTimeout(() => window.print(), 250);
     }
-    return result;
-  }
-
-  function handleTimetableUpdate(updatedTimetable: Timetable) {
-    setLocalTimetables((prev) =>
-      prev.map((tt) => (tt.id === updatedTimetable.id ? updatedTimetable : tt))
-    );
   }
 
   return (
     <>
       {successMessage && (
-        <div className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800 mb-4">
+        <div className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {successMessage}
         </div>
       )}
-      {isLoading && (
-        <div className="text-center py-4 text-slate-600">
-          Loading timetable...
-        </div>
-      )}
+      {isLoading && <div className="py-2 text-sm text-slate-600">Refreshing timetable…</div>}
       <TimetableGrid
         timetables={localTimetables}
         programs={programs}
         timeSlots={timeSlots}
         intakes={intakes}
-        onCellClick={handleCellClick}
-        onTimetableUpdate={handleTimetableUpdate}
-        onTimetableDelete={handleTimetableDelete}
-        onPreview={handlePreview}
+        onCellClick={openModal}
+        onAddEntry={() => openModal('Monday', '')}
+        onPreview={(programId, intakeId, status) => openPreview(programId, intakeId, status)}
+        onPrint={(programId, intakeId, status) => openPreview(programId, intakeId, status, true)}
       />
       <TimetableCellModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSave}
         onDelete={existingEntry ? handleDelete : undefined}
-        onPublish={existingEntry ? handlePublish : undefined}
-        onUnpublish={existingEntry ? handleUnpublish : undefined}
         day={selectedDay}
         timeSlot={selectedTimeSlot}
         programs={programs}
         courses={courses}
         lecturers={lecturers}
-        rooms={[]}
+        rooms={rooms}
         timeSlots={timeSlots}
         intakes={intakes}
-        terms={[]}
         existingEntry={existingEntry}
       />
       <TimetablePreview
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         timetables={previewTimetables}
-        program={programs.find(p => p.id === selectedProgramForPreview)}
-        intake={intakes.find(i => i.id === selectedIntakeForPreview)}
+        program={programs.find((program) => program.id === selectedProgramForPreview)}
+        intake={intakes.find((intake) => intake.id === selectedIntakeForPreview)}
         academicYear={previewTimetables[0]?.academic_year}
         timeSlots={timeSlots}
-        isDraft={previewTimetables.some(t => t.status === 'draft')}
+        isDraft={previewTimetables.some((entry) => entry.status === 'draft')}
       />
     </>
   );

@@ -71,6 +71,7 @@ export default async function TimetableDashboardPage() {
         courses={formData.courses}
         lecturers={formData.lecturers}
         intakes={formData.intakes}
+        rooms={formData.rooms}
       />
 
       {canManageLecturers && (

@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import type { Program, Course, Profile, TimeSlot, Intake } from '@/lib/types';
+import type { Program, Course, Profile, TimeSlot, Intake, Room } from '@/lib/types';
+import { TIMETABLE_DAYS, formatClockTime, timeToMinutes, toTimeInputValue } from '@/lib/timetable-utils';
 
 interface TimetableFormProps {
   programs: Program[];
@@ -15,7 +16,8 @@ interface TimetableFormProps {
   lecturers: Profile[];
   timeSlots: TimeSlot[];
   intakes: Intake[];
-  action: (formData: FormData) => Promise<{ error?: string; success?: boolean; data?: any }>;
+  rooms?: Room[];
+  action: (formData: FormData) => Promise<{ error?: string; success?: boolean; data?: unknown }>;
 }
 
 export function TimetableForm({
@@ -24,6 +26,7 @@ export function TimetableForm({
   lecturers,
   timeSlots,
   intakes,
+  rooms = [],
   action,
 }: TimetableFormProps) {
   const router = useRouter();
@@ -37,8 +40,9 @@ export function TimetableForm({
   const [selectedTimeSlotId, setSelectedTimeSlotId] = useState<string>('');
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
+  const [selectedRoomId, setSelectedRoomId] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('draft');
-  const [academicYear, setAcademicYear] = useState<string>('2026/2027');
+  const [academicYear, setAcademicYear] = useState<string>('');
 
   function handleTimeSlotChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const slotId = e.target.value;
@@ -46,8 +50,8 @@ export function TimetableForm({
     
     const selectedSlot = timeSlots.find(slot => slot.id === slotId);
     if (selectedSlot) {
-      setStartTime(selectedSlot.start_time);
-      setEndTime(selectedSlot.end_time);
+      setStartTime(toTimeInputValue(selectedSlot.start_time));
+      setEndTime(toTimeInputValue(selectedSlot.end_time));
     } else {
       setStartTime('');
       setEndTime('');
@@ -61,8 +65,13 @@ export function TimetableForm({
     setConflicts([]);
 
     const formData = new FormData(e.currentTarget);
-    formData.set('status', selectedStatus); // Ensure status is set from state
-    formData.set('academic_year', academicYear); // Ensure academic year is set from state
+    formData.set('status', selectedStatus);
+    formData.set('room_id', selectedRoomId);
+    if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+      setError('Start time must be earlier than end time.');
+      setLoading(false);
+      return;
+    }
     const result = await action(formData);
 
     if (result.error) {
@@ -72,12 +81,11 @@ export function TimetableForm({
     }
 
     setLoading(false);
-    router.push('/dashboard/timetable/list');
+    router.push('/dashboard/timetable');
     router.refresh();
   }
 
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const teachingModes = ['physical', 'online', 'hybrid'];
+  const days = [...TIMETABLE_DAYS];
   const statuses = ['draft', 'active'];
 
   // Filter courses based on selected program
@@ -172,6 +180,25 @@ export function TimetableForm({
         />
       </div>
 
+      <div className="space-y-2">
+        <label htmlFor="room_id" className="text-sm font-medium text-slate-700">
+          Room
+        </label>
+        <Select
+          id="room_id"
+          name="room_id"
+          options={[
+            { value: '', label: 'Online / no room' },
+            ...rooms.map((room) => ({
+              value: room.id,
+              label: room.building ? `${room.name} (${room.building})` : room.name,
+            })),
+          ]}
+          value={selectedRoomId}
+          onChange={(e) => setSelectedRoomId(e.target.value)}
+        />
+      </div>
+
       <div className="grid gap-6 md:grid-cols-4">
         <div className="space-y-2">
           <label htmlFor="day" className="text-sm font-medium text-slate-700">
@@ -192,7 +219,7 @@ export function TimetableForm({
           <Select
             id="time_slot_id"
             name="time_slot_id"
-            options={[{ value: '', label: 'Select time slot' }, ...timeSlots.map(ts => ({ value: ts.id, label: `${ts.name} (${ts.start_time} - ${ts.end_time})` }))]}
+            options={[{ value: '', label: 'Select time slot' }, ...timeSlots.map(ts => ({ value: ts.id, label: `${ts.name} (${formatClockTime(ts.start_time)} – ${formatClockTime(ts.end_time)})` }))]}
             onChange={handleTimeSlotChange}
           />
         </div>

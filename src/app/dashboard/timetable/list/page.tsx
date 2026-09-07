@@ -69,7 +69,7 @@ export default async function TimetableListPage() {
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Unit Code</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Unit Name</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Programme</th>
-                <th className="px-4 py-3 text-left font-medium text-slate-700">Semester</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-700">Intake</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Lecturer</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Room</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Day</th>
@@ -95,7 +95,7 @@ export default async function TimetableListPage() {
                     <td className="px-4 py-3 text-slate-600">{timetable.course?.code || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{timetable.course?.name || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{timetable.program?.name || '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{timetable.semester || '—'}</td>
+                    <td className="px-4 py-3 text-slate-600">{timetable.intake?.name || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{timetable.lecturer?.full_name || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{timetable.room?.name || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{timetable.day}</td>
