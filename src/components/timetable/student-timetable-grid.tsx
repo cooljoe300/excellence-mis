@@ -16,7 +16,6 @@ import {
   isPrimarySlotForEntry,
 } from '@/lib/timetable-utils';
 import { getProgrammeColourClasses, getSharedClassColourClasses } from '@/lib/programme-colours';
-import { TimetablePrintDocument } from './timetable-preview';
 import { CollegeOfficialLetterhead, SCHOOL_NAME } from '@/components/documents/document-letterhead';
 
 interface StudentTimetableGridProps {
@@ -47,6 +46,152 @@ function getEntryColourClasses(entry: Timetable): {
   const programmeId = entry.program_id || (entry.programme_assignments?.[0]?.programme_id);
   const programmeName = entry.program?.name || entry.programme_assignments?.[0]?.programme?.name;
   return getProgrammeColourClasses(programmeId, programmeName);
+}
+
+function StudentTimetableDocument({
+  timetables,
+  timeSlots,
+  studentName,
+  studentNumber,
+  programmeName,
+  programme,
+  intake,
+}: {
+  timetables: Timetable[];
+  timeSlots: TimeSlot[];
+  studentName: string;
+  studentNumber: string;
+  programmeName: string;
+  programme?: Partial<Program>;
+  intake?: Partial<Intake>;
+}) {
+  const displaySlots = useMemo(() => getDisplayTimeSlots(timeSlots), [timeSlots]);
+
+  return (
+    <div
+      id="student-timetable-document"
+      className="print-document print-timetable-document bg-white text-slate-900"
+    >
+      <div className="print-timetable-heading">
+        <CollegeOfficialLetterhead documentTitle="Student Timetable" compact />
+
+        <table className="mt-2 w-full border-collapse text-[10px]">
+          <tbody>
+            <tr>
+              <td className="w-1/4 border border-slate-400 px-1.5 py-1 align-top">
+                <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">Student</p>
+                <p className="font-medium">{studentName}</p>
+              </td>
+              <td className="w-1/4 border border-slate-400 px-1.5 py-1 align-top">
+                <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">Student Number</p>
+                <p className="font-medium">{studentNumber}</p>
+              </td>
+              <td className="w-1/4 border border-slate-400 px-1.5 py-1 align-top">
+                <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">Programme</p>
+                <p className="font-medium">{programmeName}</p>
+              </td>
+              <td className="w-1/4 border border-slate-400 px-1.5 py-1 align-top">
+                <p className="text-[8px] font-semibold uppercase tracking-wide text-slate-500">Intake</p>
+                <p className="font-medium">{intake?.name || '—'}</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      {/* Timetable Grid */}
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[760px] border-collapse text-[10px]">
+          <thead>
+            <tr className="border-b-2 border-slate-800 bg-slate-50">
+              <th className="sticky left-0 z-10 w-[60px] min-w-[60px] max-w-[70px] border-r border-slate-800 bg-slate-50 px-1 py-1 text-left text-[9px] font-semibold text-slate-900">
+                Day
+              </th>
+              {displaySlots.map((slot) => (
+                <th
+                  key={slot.id}
+                  className="border-r border-slate-800 px-1 py-1 text-center text-[9px] font-semibold text-slate-900"
+                >
+                  {slot.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {TIMETABLE_DAYS.map((day) => (
+              <tr key={day} className="border-b border-slate-200">
+                <td
+                  className="sticky left-0 z-10 w-[60px] min-w-[60px] max-w-[70px] border-r border-slate-200 bg-white px-1 py-1 text-[9px] font-semibold text-slate-900"
+                  title={day}
+                >
+                  {TIMETABLE_DAY_LABELS[day]}
+                </td>
+                {displaySlots.map((slot) => {
+                  const entries = entriesForSlot(timetables, day, slot);
+                  return (
+                    <td
+                      key={`${day}-${slot.id}`}
+                      className="h-16 min-w-[120px] border-r border-slate-200 px-0.5 py-0.5 align-top"
+                    >
+                      {entries.length > 0 ? (
+                        <div className="space-y-1">
+                          {entries.map((entry) => {
+                            const primary = isPrimarySlotForEntry(entry, slot);
+                            const colourClasses = getEntryColourClasses(entry);
+                            const isShared = entry.class_type === 'shared';
+
+                            return (
+                              <article
+                                key={entry.id}
+                                className="relative rounded border border-slate-200 border-l-2 p-1 text-left"
+                                style={{
+                                  borderLeftColor: colourClasses.border,
+                                  backgroundColor: colourClasses.background,
+                                }}
+                              >
+                                {isShared && (
+                                  <div className="flex items-center gap-0.5 mb-0.5">
+                                    <Link className="h-2 w-2" style={{ color: colourClasses.text }} />
+                                    <span className="text-[7px] font-semibold" style={{ color: colourClasses.text }}>
+                                      SHARED
+                                    </span>
+                                  </div>
+                                )}
+                                <p className="text-[9px] font-bold leading-tight text-slate-900">
+                                  {entry.course?.code || 'Unit'}
+                                </p>
+                                {primary && (
+                                  <>
+                                    <p className="text-[8px] leading-snug text-slate-700 line-clamp-2">
+                                      {entry.course?.name}
+                                    </p>
+                                    <p className="text-[8px] text-slate-600">
+                                      {entry.lecturer?.full_name || 'To Be Confirmed'}
+                                    </p>
+                                    <p className="text-[8px] text-slate-600">
+                                      {entry.room?.name || 'Online'}
+                                    </p>
+                                  </>
+                                )}
+                              </article>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex h-full min-h-[48px] items-center justify-center text-slate-300">
+                          <span className="text-[8px] text-slate-400">—</span>
+                        </div>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 export function StudentTimetableGrid({
@@ -113,31 +258,15 @@ export function StudentTimetableGrid({
         id="student-timetable-print-root"
         className="hidden print:block"
       >
-        <div className="print-timetable-document">
-          <CollegeOfficialLetterhead documentTitle="Student Timetable" />
-          <div className="mb-4 text-center">
-            <h1 className="text-xl font-bold text-slate-900 mb-1">
-              {SCHOOL_NAME}
-            </h1>
-            <h2 className="text-lg font-semibold text-slate-700 mb-2">
-              Student Timetable
-            </h2>
-            <div className="text-sm text-slate-600 space-y-1">
-              <p><span className="font-semibold">Student:</span> {studentName}</p>
-              <p><span className="font-semibold">Student Number:</span> {studentNumber}</p>
-              <p><span className="font-semibold">Programme:</span> {programmeName}</p>
-              {programme && <p><span className="font-semibold">Programme Code:</span> {programme.code}</p>}
-              {intake && <p><span className="font-semibold">Intake:</span> {intake.name}</p>}
-            </div>
-          </div>
-          <TimetablePrintDocument
-            timetables={timetables}
-            program={undefined}
-            intake={undefined}
-            timeSlots={timeSlots}
-            documentId="student-timetable"
-          />
-        </div>
+        <StudentTimetableDocument
+          timetables={timetables}
+          timeSlots={timeSlots}
+          studentName={studentName}
+          studentNumber={studentNumber}
+          programmeName={programmeName}
+          programme={programme}
+          intake={intake}
+        />
       </div>
 
       {/* Student Info Header */}
@@ -214,7 +343,7 @@ export function StudentTimetableGrid({
                                 const primary = isPrimarySlotForEntry(entry, slot);
                                 const colourClasses = getEntryColourClasses(entry);
                                 const isShared = entry.class_type === 'shared';
-                                
+
                                 return (
                                   <article
                                     key={entry.id}
@@ -258,7 +387,7 @@ export function StudentTimetableGrid({
                                         <p className="mt-1 text-[10px] font-medium text-slate-800">
                                           {formatTimeRange(entry.start_time, entry.end_time)}
                                         </p>
-                                        
+
                                         {/* Shared class programme indicators */}
                                         {isShared && entry.programme_assignments && entry.programme_assignments.length > 0 && (
                                           <div className="mt-1 flex flex-wrap gap-1">
@@ -325,31 +454,15 @@ export function StudentTimetableGrid({
         title="Preview Timetable"
         size="lg"
       >
-        <div className="print-timetable">
-          <CollegeOfficialLetterhead documentTitle="Student Timetable" />
-          <div className="mb-4 text-center">
-            <h1 className="text-xl font-bold text-slate-900 mb-1">
-              {SCHOOL_NAME}
-            </h1>
-            <h2 className="text-lg font-semibold text-slate-700 mb-2">
-              Student Timetable
-            </h2>
-            <div className="text-sm text-slate-600 space-y-1">
-              <p><span className="font-semibold">Student:</span> {studentName}</p>
-              <p><span className="font-semibold">Student Number:</span> {studentNumber}</p>
-              <p><span className="font-semibold">Programme:</span> {programmeName}</p>
-              {programme && <p><span className="font-semibold">Programme Code:</span> {programme.code}</p>}
-              {intake && <p><span className="font-semibold">Intake:</span> {intake.name}</p>}
-            </div>
-          </div>
-          <TimetablePrintDocument
-            timetables={timetables}
-            program={undefined}
-            intake={undefined}
-            timeSlots={timeSlots}
-            documentId="student-timetable"
-          />
-        </div>
+        <StudentTimetableDocument
+          timetables={timetables}
+          timeSlots={timeSlots}
+          studentName={studentName}
+          studentNumber={studentNumber}
+          programmeName={programmeName}
+          programme={programme}
+          intake={intake}
+        />
       </Modal>
     </div>
   );
