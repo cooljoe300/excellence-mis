@@ -50,6 +50,7 @@ export function StudentSelfForm({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<{ message: string; admissionNumber?: string } | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState(existingStudent?.program_id ?? '');
   const [selectedTermId, setSelectedTermId] = useState<string>('');
   const [currentStep, setCurrentStep] = useState(0);
@@ -182,10 +183,10 @@ export function StudentSelfForm({
 
   async function handleNext() {
     if (!validateCurrentStep()) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       // Save personal information when moving from personal to academics
       // But do NOT create the student record yet - defer until program is selected
@@ -194,9 +195,9 @@ export function StudentSelfForm({
           // Update existing student's personal info
           if (!formRef.current) return;
           const formData = new FormData(formRef.current);
-          
+
           const result = await updateMyStudentRecord(existingStudent.id, formData);
-          
+
           if (result?.error) {
             setError(result.error);
             setLoading(false);
@@ -216,16 +217,16 @@ export function StudentSelfForm({
         }
         // Move to the next step without creating the record yet
       }
-      
+
       // When moving from academics to fees, create/update student record and enroll units
       if (currentStepId === 'academics') {
         if (!formRef.current) return;
         const formData = new FormData(formRef.current);
-        
+
         // For existing students, update academic info only
         if (existingStudent?.id) {
           const academicResult = await updateAcademicInfo(existingStudent.id, formData);
-          
+
           if (academicResult?.error) {
             setError(academicResult.error);
             setLoading(false);
@@ -235,30 +236,35 @@ export function StudentSelfForm({
           // For new students, merge saved personal info with current form data
           // and create the student record now that program_id is available
           const mergedFormData = new FormData();
-          
+
           // Add saved personal info
           Object.entries(personalInfo).forEach(([key, value]) => {
             mergedFormData.append(key, value);
           });
-          
+
           // Add current form data (academic info)
           formData.forEach((value, key) => {
             mergedFormData.append(key, value);
           });
-          
+
+          // Add photo file if selected
+          if (selectedPhotoFile) {
+            mergedFormData.append('photo', selectedPhotoFile);
+          }
+
           const createResult = await createMyStudentRecord(mergedFormData);
-          
+
           if (createResult?.error) {
             setError(createResult.error);
             setLoading(false);
             return;
           }
-          
+
           if (createResult?.id) {
             setStudentCreated(true);
           }
         }
-        
+
         // Then handle unit enrollment (doesn't touch student record)
         if (selectedUnitIds.length > 0) {
           await enrollUnits();
@@ -271,12 +277,27 @@ export function StudentSelfForm({
           setEnrollmentCompleted(true);
         }
       }
-      
+
+      // When moving from ID Card to Review, upload the photo if one was selected
+      if (currentStepId === 'idcard' && selectedPhotoFile && existingStudent?.id) {
+        const formData = new FormData();
+        formData.append('photo', selectedPhotoFile);
+
+        const result = await updateMyStudentRecord(existingStudent.id, formData);
+        if (result?.error) {
+          setError(result.error);
+          setLoading(false);
+          return;
+        }
+        // Clear the selected file after successful upload
+        setSelectedPhotoFile(null);
+      }
+
       // Load fees data when entering fees step
       if (currentStepId === 'academics' && STEPS[currentStep + 1].id === 'fees') {
         await loadFeesData();
       }
-      
+
       setCompletedSteps(prev => new Set([...prev, currentStep]));
       if (currentStep < STEPS.length - 1) {
         setCurrentStep(currentStep + 1);
@@ -412,21 +433,26 @@ export function StudentSelfForm({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    
+
     // For existing students, just update details
     if (existingStudent?.id) {
       if (!formRef.current) return;
       const formData = new FormData(formRef.current);
       setLoading(true);
       setError(null);
-      
+
+      // Append the selected photo file if one was chosen
+      if (selectedPhotoFile) {
+        formData.append('photo', selectedPhotoFile);
+      }
+
       const result = await updateMyStudentRecord(existingStudent.id, formData);
       if (result?.error) {
         setError(result.error);
         setLoading(false);
         return;
       }
-      
+
       setSuccess({ message: 'Your details have been updated.' });
       setLoading(false);
       router.refresh();
@@ -529,6 +555,7 @@ export function StudentSelfForm({
               <PassportPhotoUpload
                 existingPhotoUrl={existingStudent?.photo_url}
                 onPreviewChange={setPhotoPreviewUrl}
+                onFileChange={setSelectedPhotoFile}
               />
               {existingStudent?.id && (
                 <Link

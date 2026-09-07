@@ -8,6 +8,7 @@ import {
   isRestrictedStudentStatus,
 } from '@/lib/student-deregistration-fees';
 import type { StudentStatus } from '@/lib/types';
+import { uploadStudentPassportPhoto } from '@/lib/student-photo';
 
 function generateTemporaryPassword(length = 12): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -16,6 +17,19 @@ function generateTemporaryPassword(length = 12): string {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return password;
+}
+
+async function applyPhotoFromForm(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  studentId: string,
+  formData: FormData
+) {
+  const photo = formData.get('photo');
+  if (!(photo instanceof File) || photo.size === 0) return { photoUrl: undefined as string | undefined };
+
+  const upload = await uploadStudentPassportPhoto(supabase, studentId, photo);
+  if (upload.error) return { error: upload.error };
+  return { photoUrl: upload.url };
 }
 
 export async function getStudents(search?: string) {
@@ -189,13 +203,28 @@ export async function createStudent(formData: FormData) {
   if (error) {
     // Provide user-friendly error for admission number conflicts
     if (error.message.includes('duplicate key') && error.message.includes('admission_number')) {
-      return { 
-        error: 'Could not generate a unique admission number. Please try again. The system will automatically find the next available number.' 
+      return {
+        error: 'Could not generate a unique admission number. Please try again. The system will automatically find the next available number.'
       };
     }
     return { error: error.message };
   }
+
+  // Handle passport photo upload if provided
+  const photoResult = await applyPhotoFromForm(supabase, data.id as string, formData);
+  if (photoResult.error) return { error: photoResult.error };
+
+  if (photoResult.photoUrl) {
+    const { error: photoUpdateError } = await supabase
+      .from('students')
+      .update({ photo_url: photoResult.photoUrl })
+      .eq('id', data.id);
+    if (photoUpdateError) return { error: photoUpdateError.message };
+  }
+
   revalidatePath('/dashboard/students');
+  revalidatePath(`/dashboard/students/${data.id}`);
+  revalidatePath(`/dashboard/students/${data.id}/id-card`);
   return {
     success: true,
     id: data.id,
@@ -229,34 +258,48 @@ export async function updateStudent(id: string, formData: FormData) {
     if ('error' in deregistration) return { error: deregistration.error };
   }
 
+  // Handle passport photo upload if provided
+  const photoResult = await applyPhotoFromForm(supabase, id, formData);
+  if (photoResult.error) return { error: photoResult.error };
+
+  // Build update object
+  const updateData: Record<string, any> = {
+    first_name: formData.get('first_name') as string,
+    last_name: formData.get('last_name') as string,
+    email: formData.get('email') as string,
+    phone: (formData.get('phone') as string) || null,
+    date_of_birth: (formData.get('date_of_birth') as string) || null,
+    gender: (formData.get('gender') as string) || null,
+    nationality: (formData.get('nationality') as string) || null,
+    address: (formData.get('address') as string) || null,
+    city: (formData.get('city') as string) || null,
+    country: (formData.get('country') as string) || 'Kenya',
+    emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
+    emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
+    program_id: (formData.get('program_id') as string) || null,
+    intake_id: (formData.get('intake_id') as string) || null,
+    status: newStatus,
+    notes: (formData.get('notes') as string) || null,
+  };
+
+  // Add photo URL if uploaded
+  if (photoResult.photoUrl) {
+    updateData.photo_url = photoResult.photoUrl;
+  }
+
   const { error } = await supabase
     .from('students')
-    .update({
-      first_name: formData.get('first_name') as string,
-      last_name: formData.get('last_name') as string,
-      email: formData.get('email') as string,
-      phone: (formData.get('phone') as string) || null,
-      date_of_birth: (formData.get('date_of_birth') as string) || null,
-      gender: (formData.get('gender') as string) || null,
-      nationality: (formData.get('nationality') as string) || null,
-      address: (formData.get('address') as string) || null,
-      city: (formData.get('city') as string) || null,
-      country: (formData.get('country') as string) || 'Kenya',
-      emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
-      emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-      program_id: (formData.get('program_id') as string) || null,
-      intake_id: (formData.get('intake_id') as string) || null,
-      status: newStatus,
-      notes: (formData.get('notes') as string) || null,
-    })
+    .update(updateData)
     .eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/dashboard/students');
   revalidatePath(`/dashboard/students/${id}`);
   revalidatePath(`/dashboard/students/${id}/fees`);
+  revalidatePath(`/dashboard/students/${id}/id-card`);
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
+  revalidatePath('/student/id-card');
   return { success: true };
 }
 

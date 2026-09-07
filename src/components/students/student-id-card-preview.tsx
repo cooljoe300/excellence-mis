@@ -51,9 +51,11 @@ export function StudentIdCardPreview({
 export function PassportPhotoUpload({
   existingPhotoUrl,
   onPreviewChange,
+  onFileChange,
 }: {
   existingPhotoUrl?: string | null;
   onPreviewChange: (url: string | null) => void;
+  onFileChange?: (file: File | null) => void;
 }) {
   const [localPreview, setLocalPreview] = useState<string | null>(null);
 
@@ -62,12 +64,14 @@ export function PassportPhotoUpload({
     if (!file) {
       setLocalPreview(null);
       onPreviewChange(null);
+      onFileChange?.(null);
       return;
     }
 
     const url = URL.createObjectURL(file);
     setLocalPreview(url);
     onPreviewChange(url);
+    onFileChange?.(file);
   }
 
   const displayUrl = localPreview ?? existingPhotoUrl ?? null;

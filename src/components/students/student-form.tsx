@@ -18,6 +18,7 @@ import {
 import type { Program, Student, Intake } from '@/lib/types';
 import { UserPlus, Info, Copy, Mail, Download, CheckCircle2, MessageCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { PassportPhotoUpload } from './student-id-card-preview';
 
 const statusOptions = [
   { value: 'active', label: 'Active' },
@@ -57,6 +58,7 @@ export function StudentForm({
     lastName: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(student?.photo_url ?? null);
 
   const [programId, setProgramId] = useState(student?.program_id ?? '');
   const [termId, setTermId] = useState<string | null>(null);
@@ -313,6 +315,12 @@ Excellence Online College`;
           <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={student?.date_of_birth ?? ''} />
           <Select name="gender" label="Gender" defaultValue={student?.gender ?? ''} options={genderOptions} />
           <Input name="nationality" label="Nationality" defaultValue={student?.nationality ?? 'Kenyan'} />
+          <div className="sm:col-span-2">
+            <PassportPhotoUpload
+              existingPhotoUrl={student?.photo_url}
+              onPreviewChange={setPhotoPreviewUrl}
+            />
+          </div>
         </CardContent>
       </Card>
 
