@@ -51,7 +51,7 @@ export default async function WeeklyTimetablePage() {
                     <td className="border border-slate-200 bg-slate-50 p-2 text-center font-medium text-slate-600">
                       {hour}
                     </td>
-                    {TIMETABLE_DAYS.map((day) => {}
+                    {TIMETABLE_DAYS.map((day) => {
                       const timetable = timetableGrid[day]?.[hour];
                       return (
                         <td key={`${day}-${hour}`} className="border border-slate-200 p-1 h-20 align-top">
