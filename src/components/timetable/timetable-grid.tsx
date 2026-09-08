@@ -202,7 +202,7 @@ export function TimetableGrid({
                       return (
                         <td
                           key={`${day}-${slot.id}`}
-                          className="h-24 min-w-[150px] cursor-pointer border-r border-slate-200 px-1 py-1 align-top hover:bg-slate-50"
+                          className="h-24 min-w-[150px] cursor-pointer border-r border-slate-200 px-1 py-1 align-top hover:bg-slate-50 box-border"
                           onClick={() => onCellClick(day, slotValue)}
                         >
                           {entries.length > 0 ? (
@@ -217,17 +217,17 @@ export function TimetableGrid({
                                 const differentProgramme = previousProgrammeId && currentProgrammeId !== previousProgrammeId;
                                 
                                 return (
-                                  <div key={entry.id} className="relative">
+                                  <div key={entry.id} className="relative box-border">
                                     {/* Programme separator line */}
                                     {differentProgramme && (
-                                      <div 
+                                      <div
                                         className="my-1 border-t border-slate-200"
                                         style={{ height: '1px' }}
                                       />
                                     )}
-                                    
+
                                     <article
-                                      className="relative rounded border border-slate-200 border-l-4 p-1.5 text-left"
+                                      className="relative rounded border border-slate-200 border-l-4 p-1.5 text-left box-border"
                                       style={{
                                         borderLeftColor: colourClasses.border,
                                         backgroundColor: colourClasses.background,

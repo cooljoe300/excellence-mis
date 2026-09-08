@@ -70,7 +70,7 @@ function StudentTimetableDocument({
   return (
     <div
       id="student-timetable-document"
-      className="print-document print-timetable-document bg-white text-slate-900"
+      className="print-document print-timetable-document bg-white text-slate-900 print-visible"
     >
       <div className="print-timetable-heading">
         <CollegeOfficialLetterhead documentTitle="Student Timetable" compact />
@@ -131,7 +131,7 @@ function StudentTimetableDocument({
                   return (
                     <td
                       key={`${day}-${slot.id}`}
-                      className="h-16 min-w-[120px] border-r border-slate-200 px-0.5 py-0.5 align-top"
+                      className="h-16 min-w-[120px] border-r border-slate-200 px-0.5 py-0.5 align-top box-border"
                     >
                       {entries.length > 0 ? (
                         <div className="space-y-1">
@@ -219,6 +219,13 @@ export function StudentTimetableGrid({
     console.log('Print ref element:', printRef.current);
     console.log('Print ref innerHTML length:', printRef.current.innerHTML.length);
     console.log('Print ref children count:', printRef.current.children.length);
+    console.log('Print ref clientWidth:', printRef.current.clientWidth);
+    console.log('Print ref clientHeight:', printRef.current.clientHeight);
+
+    // Verify the document content exists
+    const documentEl = printRef.current.querySelector('#student-timetable-document');
+    console.log('Student timetable document element:', documentEl);
+    console.log('Document content length:', documentEl?.innerHTML?.length || 0);
 
     const title = `Student Timetable - ${studentName} (${studentNumber})`;
     const originalTitle = document.title;
@@ -256,7 +263,8 @@ export function StudentTimetableGrid({
       <div
         ref={printRef}
         id="student-timetable-print-root"
-        className="hidden print:block"
+        className="hidden print:block print-timetable-root"
+        style={{ position: 'static', height: 'auto', overflow: 'visible' }}
       >
         <StudentTimetableDocument
           timetables={timetables}

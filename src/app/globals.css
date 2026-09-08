@@ -43,6 +43,11 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  box-sizing: border-box;
+}
+
+body * {
+  box-sizing: border-box;
 }
 
 *:focus-visible {
@@ -165,11 +170,38 @@ body {
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
+    position: static !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.print-timetable #student-timetable-print-root,
+  body.print-timetable #student-timetable-print-root * {
+    visibility: visible !important;
+    display: block !important;
   }
 
   body.print-timetable .print-timetable-document {
     width: 100%;
     color: #0f172a;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.print-timetable .print-visible {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.print-timetable table {
+    border-collapse: collapse !important;
+  }
+
+  body.print-timetable table td,
+  body.print-timetable table th {
+    border: 1px solid #e2e8f0 !important;
   }
 
   body.print-timetable .print-timetable-table {
