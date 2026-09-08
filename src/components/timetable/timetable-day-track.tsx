@@ -11,9 +11,9 @@ import {
   entriesForDay,
   formatTimeRange,
   getTimetableAxis,
-  hourMarks,
   layoutDayEntries,
   minuteOffset,
+  slotAxisSegments,
   trackMinHeight,
 } from '@/lib/timetable-utils';
 import { getProgrammeColourClasses, getSharedClassColourClasses } from '@/lib/programme-colours';
@@ -54,7 +54,7 @@ export function TimetableDayTrack({
   const dayEntries = entriesForDay(entries, day);
   const { placements, laneCount, minutes } = layoutDayEntries(dayEntries, slots);
   const axis = getTimetableAxis(slots);
-  const marks = hourMarks(axis);
+  const segments = slotAxisSegments(slots);
   const isPrint = variant === 'print';
   const laneMinHeight = trackMinHeight(variant);
 
@@ -67,11 +67,13 @@ export function TimetableDayTrack({
         className="pointer-events-none absolute inset-0 grid"
         style={{ gridTemplateColumns: `repeat(${minutes}, minmax(0, 1fr))` }}
       >
-        {marks.map((mark) => (
+        {segments.map((segment) => (
           <div
-            key={`hour-${mark.label}`}
-            className="box-border border-r border-slate-200"
-            style={{ gridColumn: `${mark.start + 1} / ${mark.end + 1}` }}
+            key={segment.id}
+            className={`box-border border-r border-slate-200 ${
+              segment.kind === 'gap' ? 'bg-slate-50' : ''
+            }`}
+            style={{ gridColumn: `${segment.start + 1} / ${segment.end + 1}` }}
           />
         ))}
         {onSlotClick &&
@@ -257,21 +259,21 @@ export function TimetableTimeAxis({
   compact?: boolean;
 }) {
   const axis = getTimetableAxis(slots);
-  const marks = hourMarks(axis);
+  const segments = slotAxisSegments(slots);
   return (
     <div
       className="grid w-full"
       style={{ gridTemplateColumns: `repeat(${axis.minutes}, minmax(0, 1fr))` }}
     >
-      {marks.map((mark) => (
+      {segments.map((segment) => (
         <div
-          key={mark.label}
+          key={segment.id}
           className={`box-border border-r border-slate-200 text-center font-semibold text-slate-700 ${
             compact ? 'px-0.5 py-1 text-[9px] text-slate-900' : 'px-1 py-2 text-xs'
-          }`}
-          style={{ gridColumn: `${mark.start + 1} / ${mark.end + 1}` }}
+          } ${segment.kind === 'gap' ? 'bg-slate-50 font-normal text-slate-400' : ''}`}
+          style={{ gridColumn: `${segment.start + 1} / ${segment.end + 1}` }}
         >
-          {mark.label}
+          {segment.label}
         </div>
       ))}
     </div>
