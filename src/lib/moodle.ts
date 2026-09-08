@@ -1,14 +1,20 @@
 interface MoodleUser {
   username: string;
-  password: string;
+  password?: string;
   firstname: string;
   lastname: string;
   email: string;
   idnumber: string;
   auth?: string;
+  id?: number;
 }
 
 interface MoodleCreateResult {
+  id: number;
+  username: string;
+}
+
+interface MoodleUpdateResult {
   id: number;
   username: string;
 }
@@ -26,7 +32,7 @@ export function generateTemporaryPassword(): string {
   return password;
 }
 
-export async function createMoodleUser(user: MoodleUser): Promise<MoodleCreateResult> {
+async function callMoodleApi(functionName: string, params: Record<string, string>): Promise<unknown> {
   const baseUrl = process.env.MOODLE_URL;
   const token = process.env.MOODLE_WS_TOKEN;
 
@@ -39,15 +45,9 @@ export async function createMoodleUser(user: MoodleUser): Promise<MoodleCreateRe
   const url = new URL('/webservice/rest/server.php', baseUrl);
   const body = new URLSearchParams({
     wstoken: token,
-    wsfunction: 'core_user_create_users',
+    wsfunction: functionName,
     moodlewsrestformat: 'json',
-    'users[0][username]': user.username,
-    'users[0][password]': user.password,
-    'users[0][firstname]': user.firstname,
-    'users[0][lastname]': user.lastname,
-    'users[0][email]': user.email,
-    'users[0][idnumber]': user.idnumber,
-    'users[0][auth]': user.auth ?? 'manual',
+    ...params,
   });
 
   const response = await fetch(url.toString(), {
@@ -62,9 +62,85 @@ export async function createMoodleUser(user: MoodleUser): Promise<MoodleCreateRe
     throw new Error(data.message ?? data.debuginfo ?? 'Moodle API error');
   }
 
+  return data;
+}
+
+export async function createMoodleUser(user: MoodleUser): Promise<MoodleCreateResult> {
+  const data = await callMoodleApi('core_user_create_users', {
+    'users[0][username]': user.username,
+    'users[0][password]': user.password!,
+    'users[0][firstname]': user.firstname,
+    'users[0][lastname]': user.lastname,
+    'users[0][email]': user.email,
+    'users[0][idnumber]': user.idnumber,
+    'users[0][auth]': user.auth ?? 'manual',
+  });
+
   if (Array.isArray(data) && data[0]?.id) {
     return { id: data[0].id, username: user.username };
   }
 
   throw new Error('Unexpected response from Moodle');
+}
+
+export async function updateMoodleUser(user: MoodleUser): Promise<MoodleUpdateResult> {
+  if (!user.id) {
+    throw new Error('User ID is required for update operation');
+  }
+
+  const data = await callMoodleApi('core_user_update_users', {
+    'users[0][id]': String(user.id),
+    'users[0][username]': user.username,
+    'users[0][firstname]': user.firstname,
+    'users[0][lastname]': user.lastname,
+    'users[0][email]': user.email,
+    'users[0][idnumber]': user.idnumber,
+  });
+
+  // Moodle returns true on success for update operations
+  if (data === true || data === null) {
+    return { id: user.id, username: user.username };
+  }
+
+  throw new Error('Unexpected response from Moodle');
+}
+
+export async function getMoodleUserById(id: number): Promise<MoodleUser | null> {
+  const data = await callMoodleApi('core_user_get_users', {
+    criteria[0][key]: 'id',
+    criteria[0][value]: String(id),
+  });
+
+  if (Array.isArray(data) && data.length > 0) {
+    return {
+      id: data[0].id,
+      username: data[0].username,
+      firstname: data[0].firstname,
+      lastname: data[0].lastname,
+      email: data[0].email,
+      idnumber: data[0].idnumber,
+    };
+  }
+
+  return null;
+}
+
+export async function getMoodleUserByUsername(username: string): Promise<MoodleUser | null> {
+  const data = await callMoodleApi('core_user_get_users', {
+    criteria[0][key]: 'username',
+    criteria[0][value]: username,
+  });
+
+  if (Array.isArray(data) && data.length > 0) {
+    return {
+      id: data[0].id,
+      username: data[0].username,
+      firstname: data[0].firstname,
+      lastname: data[0].lastname,
+      email: data[0].email,
+      idnumber: data[0].idnumber,
+    };
+  }
+
+  return null;
 }
