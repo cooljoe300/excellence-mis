@@ -6,12 +6,13 @@ import { MapPin, User } from 'lucide-react';
 import type { Timetable } from '@/lib/types';
 import {
   TIMETABLE_DAYS,
+  type DisplayTimeSlot,
   entriesForSlot,
   getDisplayTimeSlots,
   isPrimarySlotForEntry,
 } from '@/lib/timetable-utils';
 
-function entriesInSlot(timetables: Timetable[], day: string, slot: { start: string; end: string }) {
+function entriesInSlot(timetables: Timetable[], day: string, slot: DisplayTimeSlot) {
   return entriesForSlot(timetables, day, slot).filter((entry) => isPrimarySlotForEntry(entry, slot));
 }
 
