@@ -225,3 +225,59 @@ export async function updateStudentInLms(studentId: string) {
     return { error: message };
   }
 }
+
+export async function retryStudentLmsSync(studentId: string) {
+  const supabase = await createClient();
+
+  const { data: student, error } = await supabase
+    .from('students')
+    .select('*')
+    .eq('id', studentId)
+    .single();
+
+  if (error || !student) {
+    return { error: 'Student not found' };
+  }
+
+  // Check if we can retry (not already synced and has a previous error)
+  if (student.lms_sync_status === 'synced' && student.lms_user_id) {
+    return { error: 'Student is already synced to LMS' };
+  }
+
+  // Get the last failed log entry
+  const { data: lastLog } = await supabase
+    .from('moodle_sync_logs')
+    .select('*')
+    .eq('entity_id', studentId)
+    .eq('entity_type', 'student')
+    .eq('action', 'CREATE_USER')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!lastLog) {
+    return { error: 'No previous sync attempt found' };
+  }
+
+  // Check retry count
+  if (lastLog.retry_count >= (lastLog.max_retries || 3)) {
+    await supabase
+      .from('moodle_sync_logs')
+      .update({ status: 'FAILED' })
+      .eq('id', lastLog.id);
+
+    return { error: 'Maximum retry attempts exceeded' };
+  }
+
+  // Increment retry count and update status to RETRY
+  await supabase
+    .from('moodle_sync_logs')
+    .update({
+      status: 'RETRY',
+      retry_count: (lastLog.retry_count || 0) + 1,
+    })
+    .eq('id', lastLog.id);
+
+  // Re-attempt the import
+  return await importStudentToLms(studentId);
+}
