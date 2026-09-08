@@ -10,14 +10,10 @@ import {
   CollegeOfficialLetterhead,
   SCHOOL_NAME,
 } from '@/components/documents/document-letterhead';
-import {
-  TIMETABLE_DAYS,
-  TIMETABLE_DAY_LABELS,
-  getDisplayTimeSlots,
-} from '@/lib/timetable-utils';
+import { getDisplayTimeSlots } from '@/lib/timetable-utils';
 import { printTimetableDocument } from '@/lib/print-timetable';
 import { formatDate } from '@/lib/utils';
-import { TimetableDayTrack, TimetableSlotHeaders } from './timetable-day-track';
+import { TimetableWeekTable } from './timetable-day-track';
 
 interface TimetablePreviewProps {
   isOpen: boolean;
@@ -92,36 +88,13 @@ export function TimetablePrintDocument({
         </table>
       </div>
 
-      <table className="print-timetable-table mt-2 w-full table-fixed border-collapse text-[9px]">
-        <thead>
-          <tr>
-            <th className="w-[54px] border border-slate-500 bg-slate-100 px-1 py-1 text-left font-semibold">
-              Day
-            </th>
-            <TimetableSlotHeaders slots={displaySlots} compact />
-          </tr>
-        </thead>
-        <tbody>
-          {TIMETABLE_DAYS.map((day) => (
-            <tr key={day}>
-              <td className="print-timetable-cell border border-slate-400 px-1 py-1 font-semibold" title={day}>
-                {TIMETABLE_DAY_LABELS[day]}
-              </td>
-              <td
-                colSpan={displaySlots.length}
-                className="print-timetable-cell box-border border border-slate-400 p-0 align-top"
-              >
-                <TimetableDayTrack
-                  day={day}
-                  slots={displaySlots}
-                  entries={timetables}
-                  variant="print"
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TimetableWeekTable
+        slots={displaySlots}
+        entries={timetables}
+        variant="print"
+        compact
+        tableClassName="print-timetable-table mt-2 w-full table-fixed border-collapse text-[9px]"
+      />
 
       <p className="mt-2 text-center text-[8px] text-slate-500">
         {SCHOOL_NAME} · Official Class Timetable · {generatedLabel}

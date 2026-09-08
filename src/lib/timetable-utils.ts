@@ -20,19 +20,37 @@ export const TIMETABLE_DAY_LABELS: Record<(typeof TIMETABLE_DAYS)[number], strin
   Sunday: 'Sun',
 };
 
-const FALLBACK_SLOTS = [
-  { start: '08:00', end: '10:00' },
-  { start: '10:00', end: '12:00' },
-  { start: '12:00', end: '14:00' },
-  { start: '14:00', end: '16:00' },
-  { start: '16:00', end: '18:00' },
-  { start: '18:00', end: '20:00' },
-];
+/**
+ * Canonical timetable axis used by Admin, Student, and print views.
+ * Positioning is always computed from this grid — never from a separate student clock.
+ */
+export const TIMETABLE_GRID = {
+  startTime: '07:00',
+  endTime: '20:00',
+  slotDurationMinutes: 60,
+  dayTrackMinHeight: '5.75rem',
+  printTrackMinHeight: '4.25rem',
+  dayColumnWidth: '80px',
+  printDayColumnWidth: '54px',
+} as const;
+
+export type DisplayTimeSlot = {
+  id: string;
+  start: string;
+  end: string;
+  label: string;
+};
+
+export function minutesToClock(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = ((totalMinutes % 60) + 60) % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
 
 export function timeToMinutes(value: string | null | undefined): number {
   if (!value) return Number.NaN;
   const trimmed = value.trim();
-  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  const match = trimmed.match(/T(\d{1,2}):(\d{2})/) || trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (!match) return Number.NaN;
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
@@ -47,9 +65,7 @@ export function formatTimeRange(start: string | null | undefined, end: string | 
 export function formatClockTime(value: string | null | undefined): string {
   const minutes = timeToMinutes(value);
   if (Number.isNaN(minutes)) return value?.slice(0, 5) || '—';
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+  return minutesToClock(minutes);
 }
 
 export function toTimeInputValue(value: string | null | undefined): string {
@@ -80,12 +96,23 @@ export function weekdayLong(date = new Date()): string {
   return date.toLocaleDateString('en-US', { weekday: 'long' });
 }
 
-export type DisplayTimeSlot = {
-  id: string;
-  start: string;
-  end: string;
-  label: string;
-};
+export function defaultHourSlots(): DisplayTimeSlot[] {
+  const start = timeToMinutes(TIMETABLE_GRID.startTime);
+  const end = timeToMinutes(TIMETABLE_GRID.endTime);
+  const step = TIMETABLE_GRID.slotDurationMinutes;
+  const slots: DisplayTimeSlot[] = [];
+  for (let minute = start, index = 0; minute < end; minute += step, index += 1) {
+    const slotStart = minutesToClock(minute);
+    const slotEnd = minutesToClock(Math.min(minute + step, end));
+    slots.push({
+      id: `grid-${index}`,
+      start: slotStart,
+      end: slotEnd,
+      label: `${slotStart}–${slotEnd}`,
+    });
+  }
+  return slots;
+}
 
 export function getDisplayTimeSlots(timeSlots: TimeSlot[]): DisplayTimeSlot[] {
   const visible = (timeSlots || [])
@@ -101,14 +128,7 @@ export function getDisplayTimeSlots(timeSlots: TimeSlot[]): DisplayTimeSlot[] {
     .sort((a, b) => a.sort - b.sort)
     .map(({ sort: _sort, ...slot }) => slot);
 
-  if (visible.length > 0) return visible;
-
-  return FALLBACK_SLOTS.map((slot, index) => ({
-    id: `fallback-${index}`,
-    start: slot.start,
-    end: slot.end,
-    label: `${slot.start}–${slot.end}`,
-  }));
+  return visible.length > 0 ? visible : defaultHourSlots();
 }
 
 export function durationMinutes(start: string, end: string): number {
@@ -133,16 +153,70 @@ export function isPrimarySlotForEntry(entry: Timetable, slot: DisplayTimeSlot): 
   return start >= slotStart && start < slotEnd;
 }
 
-export function timelineRange(slots: DisplayTimeSlot[]): { start: number; end: number; minutes: number } {
-  if (!slots.length) {
-    const start = 8 * 60;
-    const end = 20 * 60;
-    return { start, end, minutes: end - start };
+export type TimetableAxis = {
+  start: number;
+  end: number;
+  minutes: number;
+};
+
+/**
+ * Shared time axis for every timetable surface. Starts at TIMETABLE_GRID.startTime
+ * and ends at TIMETABLE_GRID.endTime, expanding only if configured slots fall outside.
+ * Lesson entries never change the axis, so Admin and Student stay aligned.
+ */
+export function getTimetableAxis(slots: DisplayTimeSlot[] = []): TimetableAxis {
+  const gridStart = timeToMinutes(TIMETABLE_GRID.startTime);
+  const gridEnd = timeToMinutes(TIMETABLE_GRID.endTime);
+  let start = gridStart;
+  let end = gridEnd;
+
+  for (const slot of slots) {
+    const slotStart = timeToMinutes(slot.start);
+    const slotEnd = timeToMinutes(slot.end);
+    if (!Number.isNaN(slotStart)) start = Math.min(start, slotStart);
+    if (!Number.isNaN(slotEnd)) end = Math.max(end, slotEnd);
   }
-  const start = timeToMinutes(slots[0].start);
-  const end = timeToMinutes(slots[slots.length - 1].end);
-  const minutes = Number.isNaN(start) || Number.isNaN(end) || end <= start ? 60 : end - start;
-  return { start, end, minutes };
+
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+    return { start: gridStart, end: gridEnd, minutes: gridEnd - gridStart };
+  }
+  return { start, end, minutes: end - start };
+}
+
+export function timelineRange(slots: DisplayTimeSlot[]): TimetableAxis {
+  return getTimetableAxis(slots);
+}
+
+export function hourMarks(axis: TimetableAxis): Array<{ start: number; end: number; label: string }> {
+  const step = TIMETABLE_GRID.slotDurationMinutes;
+  const marks: Array<{ start: number; end: number; label: string }> = [];
+  for (let minute = axis.start; minute < axis.end; minute += step) {
+    const next = Math.min(minute + step, axis.end);
+    marks.push({
+      start: minute - axis.start,
+      end: next - axis.start,
+      label: minutesToClock(minute),
+    });
+  }
+  return marks;
+}
+
+export function trackMinHeight(variant: 'editor' | 'student' | 'print'): string {
+  return variant === 'print' ? TIMETABLE_GRID.printTrackMinHeight : TIMETABLE_GRID.dayTrackMinHeight;
+}
+
+/** 1-based inclusive CSS grid column for a clock time on the shared axis. */
+export function timeToGridColumnStart(time: string, axis: TimetableAxis): number {
+  return minuteOffset(time, axis.start, axis.end) + 1;
+}
+
+/** 1-based exclusive CSS grid column for a clock time on the shared axis. */
+export function timeToGridColumnEnd(time: string, axis: TimetableAxis): number {
+  return minuteOffset(time, axis.start, axis.end) + 1;
+}
+
+export function durationToGridSpan(startTime: string, endTime: string, axis: TimetableAxis): number {
+  return Math.max(1, minuteOffset(endTime, axis.start, axis.end) - minuteOffset(startTime, axis.start, axis.end));
 }
 
 export function slotDurationMinutes(slot: DisplayTimeSlot): number {

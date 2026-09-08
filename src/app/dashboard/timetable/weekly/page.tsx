@@ -2,10 +2,11 @@ import { PageHeader } from '@/components/ui/page-header';
 import { getTimetables } from '@/app/actions/timetable';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, User, BookOpen } from 'lucide-react';
+import { MapPin, User } from 'lucide-react';
+import { TIMETABLE_DAYS, getTimetableAxis, hourMarks, minutesToClock } from '@/lib/timetable-utils';
 
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const hours = ['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+const axis = getTimetableAxis();
+const hours = [...hourMarks(axis).map((mark) => mark.label), minutesToClock(axis.end)];
 
 export default async function WeeklyTimetablePage() {
   const timetables = await getTimetables();
@@ -37,7 +38,7 @@ export default async function WeeklyTimetablePage() {
                   <th className="border border-slate-200 bg-slate-50 p-2 text-left font-medium text-slate-700 w-16">
                     Time
                   </th>
-                  {days.map((day) => (
+                  {TIMETABLE_DAYS.map((day) => (
                     <th key={day} className="border border-slate-200 bg-slate-50 p-2 text-center font-medium text-slate-700 w-32">
                       {day}
                     </th>

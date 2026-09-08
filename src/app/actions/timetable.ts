@@ -251,7 +251,11 @@ export async function getTimeSlots() {
     console.error('Error fetching time slots:', error);
     return [];
   }
-  return (data || []) as TimeSlot[];
+  return ((data || []) as TimeSlot[]).map((slot) => ({
+    ...slot,
+    start_time: formatClockTime(slot.start_time),
+    end_time: formatClockTime(slot.end_time),
+  }));
 }
 
 export async function toggleTimeSlotVisibility(id: string, isVisible: boolean) {
@@ -280,7 +284,7 @@ export async function getTimetableFormData() {
       supabase.from('programs').select('*').order('name', { ascending: true }),
       supabase.from('courses').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').eq('can_teach', true).order('full_name', { ascending: true }),
-      supabase.from('time_slots').select('*').order('start_time', { ascending: true }),
+      getTimeSlots(),
       supabase.from('intakes').select('*, term:academic_terms(*)').order('start_date', { ascending: false }),
       supabase.from('rooms').select('*').order('name', { ascending: true }),
     ]);
@@ -296,7 +300,7 @@ export async function getTimetableFormData() {
       programs: (programs.data || []) as Program[],
       courses: (courses.data || []) as Course[],
       lecturers: (lecturers.data || []) as Profile[],
-      timeSlots: (timeSlots.data || []) as TimeSlot[],
+      timeSlots: timeSlots as TimeSlot[],
       intakes: intakeRows,
       rooms: (rooms.data || []) as Room[],
     };
@@ -983,13 +987,8 @@ export async function getStudentTimetable() {
       intake_name: student.intake?.name,
     });
 
-    // Get time slots
-    const { data: timeSlots } = await supabase
-      .from('time_slots')
-      .select('*')
-      .order('start_time', { ascending: true });
-
-    console.log('[STUDENT TIMETABLE] Time slots found:', timeSlots?.length || 0);
+    const timeSlots = await getTimeSlots();
+    console.log('[STUDENT TIMETABLE] Time slots found:', timeSlots.length);
 
     // Use the same approach as admin timetable for consistency
     // Get timetable entries based on student's programme (not just enrolled courses)
@@ -1086,7 +1085,7 @@ export async function getStudentTimetable() {
       return {
         student,
         timetables: hydratedTimetables,
-        timeSlots: timeSlots || [],
+        timeSlots,
         programme: student.program,
         intake: student.intake,
       };
@@ -1103,7 +1102,7 @@ export async function getStudentTimetable() {
 
     if (!enrollments || enrollments.length === 0) {
       console.log('[STUDENT TIMETABLE] No enrollments found');
-      return { student, timetables: [], timeSlots: timeSlots || [], programme: student.program, intake: student.intake };
+      return { student, timetables: [], timeSlots, programme: student.program, intake: student.intake };
     }
 
     const courseIds = enrollments.map((enrollment) => enrollment.course_id);
@@ -1119,7 +1118,7 @@ export async function getStudentTimetable() {
 
     if (error) {
       console.error('[STUDENT TIMETABLE] Error fetching timetable by courses:', error);
-      return { student, timetables: [], timeSlots: timeSlots || [], programme: student.program, intake: student.intake };
+      return { student, timetables: [], timeSlots, programme: student.program, intake: student.intake };
     }
 
     console.log('[STUDENT TIMETABLE] Timetables found by courses:', timetables?.length || 0);
@@ -1145,7 +1144,7 @@ export async function getStudentTimetable() {
     return {
       student,
       timetables: await hydrateTimetables(filteredTimetables),
-      timeSlots: timeSlots || [],
+      timeSlots,
       programme: student.program,
       intake: student.intake,
     };

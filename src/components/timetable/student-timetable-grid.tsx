@@ -7,14 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Printer, Download } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import type { Timetable, TimeSlot, Program, Intake } from '@/lib/types';
-import {
-  TIMETABLE_DAYS,
-  TIMETABLE_DAY_LABELS,
-  getDisplayTimeSlots,
-} from '@/lib/timetable-utils';
+import { getDisplayTimeSlots } from '@/lib/timetable-utils';
 import { printTimetableDocument } from '@/lib/print-timetable';
 import { CollegeOfficialLetterhead, SCHOOL_NAME } from '@/components/documents/document-letterhead';
-import { TimetableDayTrack, TimetableSlotHeaders } from './timetable-day-track';
+import { TimetableWeekTable } from './timetable-day-track';
 
 interface StudentTimetableGridProps {
   timetables: Timetable[];
@@ -81,36 +77,13 @@ function StudentTimetableDocument({
         </table>
       </div>
 
-      <table className="print-timetable-table mt-3 w-full table-fixed border-collapse text-[10px]">
-        <thead>
-          <tr className="border-b-2 border-slate-800 bg-slate-50">
-            <th className="w-[60px] border-r border-slate-800 bg-slate-50 px-1 py-1 text-left text-[9px] font-semibold text-slate-900">
-              Day
-            </th>
-            <TimetableSlotHeaders slots={displaySlots} compact />
-          </tr>
-        </thead>
-        <tbody>
-          {TIMETABLE_DAYS.map((day) => (
-            <tr key={day} className="border-b border-slate-200">
-              <td
-                className="print-timetable-cell w-[60px] border border-slate-200 px-1 py-1 text-[9px] font-semibold text-slate-900"
-                title={day}
-              >
-                {TIMETABLE_DAY_LABELS[day]}
-              </td>
-              <td colSpan={displaySlots.length} className="print-timetable-cell box-border border border-slate-200 p-0 align-top">
-                <TimetableDayTrack
-                  day={day}
-                  slots={displaySlots}
-                  entries={timetables}
-                  variant="print"
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <TimetableWeekTable
+        slots={displaySlots}
+        entries={timetables}
+        variant="print"
+        compact
+        tableClassName="print-timetable-table mt-3 w-full table-fixed border-collapse text-[10px]"
+      />
 
       <p className="mt-2 text-center text-[8px] text-slate-500">
         {SCHOOL_NAME} · Student Timetable · {studentName}
@@ -200,36 +173,11 @@ export function StudentTimetableGrid({
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] table-fixed border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="sticky left-0 z-10 w-[80px] min-w-[80px] max-w-[90px] border-r border-slate-200 bg-slate-50 px-2 py-2 text-left text-xs font-semibold text-slate-700">
-                    Day
-                  </th>
-                  <TimetableSlotHeaders slots={displaySlots} />
-                </tr>
-              </thead>
-              <tbody>
-                {TIMETABLE_DAYS.map((day) => (
-                  <tr key={day} className="border-b border-slate-100">
-                    <td
-                      className="sticky left-0 z-10 w-[80px] min-w-[80px] max-w-[90px] border-r border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-900"
-                      title={day}
-                    >
-                      {TIMETABLE_DAY_LABELS[day]}
-                    </td>
-                    <td colSpan={displaySlots.length} className="box-border p-0 align-top">
-                      <TimetableDayTrack
-                        day={day}
-                        slots={displaySlots}
-                        entries={timetables}
-                        variant="student"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <TimetableWeekTable
+              slots={displaySlots}
+              entries={timetables}
+              variant="student"
+            />
           </div>
         </CardContent>
       </Card>

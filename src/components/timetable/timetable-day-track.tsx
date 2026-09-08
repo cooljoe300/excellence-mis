@@ -5,12 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import type { Timetable } from '@/lib/types';
 import {
   type DisplayTimeSlot,
+  TIMETABLE_DAYS,
+  TIMETABLE_DAY_LABELS,
+  TIMETABLE_GRID,
   entriesForDay,
   formatTimeRange,
+  getTimetableAxis,
+  hourMarks,
   layoutDayEntries,
   minuteOffset,
-  slotDurationMinutes,
-  timelineRange,
+  trackMinHeight,
 } from '@/lib/timetable-utils';
 import { getProgrammeColourClasses, getSharedClassColourClasses } from '@/lib/programme-colours';
 
@@ -49,9 +53,10 @@ export function TimetableDayTrack({
 }: TimetableDayTrackProps) {
   const dayEntries = entriesForDay(entries, day);
   const { placements, laneCount, minutes } = layoutDayEntries(dayEntries, slots);
-  const range = timelineRange(slots);
+  const axis = getTimetableAxis(slots);
+  const marks = hourMarks(axis);
   const isPrint = variant === 'print';
-  const laneMinHeight = isPrint ? '4.25rem' : '5.75rem';
+  const laneMinHeight = trackMinHeight(variant);
 
   return (
     <div
@@ -62,32 +67,30 @@ export function TimetableDayTrack({
         className="pointer-events-none absolute inset-0 grid"
         style={{ gridTemplateColumns: `repeat(${minutes}, minmax(0, 1fr))` }}
       >
-        {slots.map((slot) => {
-          const start = minuteOffset(slot.start, range.start, range.end);
-          const end = minuteOffset(slot.end, range.start, range.end);
-          if (end <= start) return null;
-          const slotValue = `${slot.start}-${slot.end}`;
-          const slotStyle = { gridColumn: `${start + 1} / ${end + 1}` };
-          if (onSlotClick) {
+        {marks.map((mark) => (
+          <div
+            key={`hour-${mark.label}`}
+            className="box-border border-r border-slate-200"
+            style={{ gridColumn: `${mark.start + 1} / ${mark.end + 1}` }}
+          />
+        ))}
+        {onSlotClick &&
+          slots.map((slot) => {
+            const start = minuteOffset(slot.start, axis.start, axis.end);
+            const end = minuteOffset(slot.end, axis.start, axis.end);
+            if (end <= start) return null;
+            const slotValue = `${slot.start}-${slot.end}`;
             return (
               <button
                 key={slot.id}
                 type="button"
-                className="pointer-events-auto box-border cursor-pointer border-r border-slate-200 hover:bg-slate-50"
-                style={slotStyle}
+                className="pointer-events-auto box-border cursor-pointer hover:bg-slate-50"
+                style={{ gridColumn: `${start + 1} / ${end + 1}` }}
                 aria-label={`Add class on ${day} ${slot.label}`}
                 onClick={() => onSlotClick(day, slotValue)}
               />
             );
-          }
-          return (
-            <div
-              key={slot.id}
-              className="box-border border-r border-slate-200"
-              style={slotStyle}
-            />
-          );
-        })}
+          })}
       </div>
 
       <div
@@ -246,27 +249,98 @@ export function TimetableDayTrack({
   );
 }
 
-export function TimetableSlotHeaders({
+export function TimetableTimeAxis({
   slots,
   compact = false,
 }: {
   slots: DisplayTimeSlot[];
   compact?: boolean;
 }) {
-  const total = slots.reduce((sum, slot) => sum + slotDurationMinutes(slot), 0) || 1;
+  const axis = getTimetableAxis(slots);
+  const marks = hourMarks(axis);
   return (
-    <>
-      {slots.map((slot) => (
-        <th
-          key={slot.id}
-          className={`border-r border-slate-200 text-center font-semibold text-slate-700 ${
-            compact ? 'px-1 py-1 text-[9px] text-slate-900' : 'px-2 py-2 text-xs'
+    <div
+      className="grid w-full"
+      style={{ gridTemplateColumns: `repeat(${axis.minutes}, minmax(0, 1fr))` }}
+    >
+      {marks.map((mark) => (
+        <div
+          key={mark.label}
+          className={`box-border border-r border-slate-200 text-center font-semibold text-slate-700 ${
+            compact ? 'px-0.5 py-1 text-[9px] text-slate-900' : 'px-1 py-2 text-xs'
           }`}
-          style={{ width: `${(slotDurationMinutes(slot) / total) * 100}%` }}
+          style={{ gridColumn: `${mark.start + 1} / ${mark.end + 1}` }}
         >
-          {slot.label}
-        </th>
+          {mark.label}
+        </div>
       ))}
-    </>
+    </div>
+  );
+}
+
+export function TimetableSlotHeaders(props: { slots: DisplayTimeSlot[]; compact?: boolean }) {
+  return <TimetableTimeAxis {...props} />;
+}
+
+interface TimetableWeekTableProps {
+  slots: DisplayTimeSlot[];
+  entries: Timetable[];
+  variant: TrackVariant;
+  compact?: boolean;
+  tableClassName?: string;
+  onSlotClick?: (day: string, timeSlot: string) => void;
+  onEntryClick?: (day: string, timeSlot: string, entry: Timetable) => void;
+}
+
+export function TimetableWeekTable({
+  slots,
+  entries,
+  variant,
+  compact = false,
+  tableClassName = 'w-full min-w-[760px] table-fixed border-collapse',
+  onSlotClick,
+  onEntryClick,
+}: TimetableWeekTableProps) {
+  const isPrint = variant === 'print';
+  const dayWidth = isPrint ? TIMETABLE_GRID.printDayColumnWidth : TIMETABLE_GRID.dayColumnWidth;
+  const dayCellClass = compact
+    ? 'print-timetable-cell border border-slate-400 px-1 py-1 font-semibold'
+    : 'sticky left-0 z-10 border-r border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-900';
+  const dayHeadClass = compact
+    ? 'border border-slate-500 bg-slate-100 px-1 py-1 text-left font-semibold'
+    : 'sticky left-0 z-10 border-r border-slate-200 bg-slate-50 px-2 py-2 text-left text-xs font-semibold text-slate-700';
+
+  return (
+    <table className={tableClassName}>
+      <thead>
+        <tr className={compact ? undefined : 'border-b border-slate-200 bg-slate-50'}>
+          <th className={dayHeadClass} style={{ width: dayWidth, minWidth: dayWidth }}>
+            Day
+          </th>
+          <th className={`p-0 align-bottom ${compact ? 'border border-slate-500 bg-slate-100' : 'bg-slate-50'}`}>
+            <TimetableTimeAxis slots={slots} compact={compact} />
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {TIMETABLE_DAYS.map((day) => (
+          <tr key={day} className={compact ? undefined : 'border-b border-slate-100'}>
+            <td className={dayCellClass} style={{ width: dayWidth, minWidth: dayWidth }} title={day}>
+              {TIMETABLE_DAY_LABELS[day]}
+            </td>
+            <td className={`box-border p-0 align-top ${compact ? 'print-timetable-cell border border-slate-400' : ''}`}>
+              <TimetableDayTrack
+                day={day}
+                slots={slots}
+                entries={entries}
+                variant={variant}
+                onSlotClick={onSlotClick}
+                onEntryClick={onEntryClick}
+              />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

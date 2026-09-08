@@ -7,13 +7,9 @@ import { Select } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Plus, Printer } from 'lucide-react';
 import type { Timetable, Program, TimeSlot, Intake } from '@/lib/types';
-import {
-  TIMETABLE_DAYS,
-  TIMETABLE_DAY_LABELS,
-  getDisplayTimeSlots,
-} from '@/lib/timetable-utils';
+import { getDisplayTimeSlots } from '@/lib/timetable-utils';
 import { ProgrammeLegend } from './programme-legend';
-import { TimetableDayTrack, TimetableSlotHeaders } from './timetable-day-track';
+import { TimetableWeekTable } from './timetable-day-track';
 
 interface TimetableGridProps {
   timetables: Timetable[];
@@ -148,40 +144,15 @@ export function TimetableGrid({
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] table-fixed border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="sticky left-0 z-10 w-[80px] min-w-[80px] max-w-[90px] border-r border-slate-200 bg-slate-50 px-2 py-2 text-left text-xs font-semibold text-slate-700">
-                    Day
-                  </th>
-                  <TimetableSlotHeaders slots={displaySlots} />
-                </tr>
-              </thead>
-              <tbody>
-                {TIMETABLE_DAYS.map((day) => (
-                  <tr key={day} className="border-b border-slate-100">
-                    <td
-                      className="sticky left-0 z-10 w-[80px] min-w-[80px] max-w-[90px] border-r border-slate-200 bg-white px-2 py-2 text-xs font-semibold text-slate-900"
-                      title={day}
-                    >
-                      {TIMETABLE_DAY_LABELS[day]}
-                    </td>
-                    <td colSpan={displaySlots.length} className="box-border p-0 align-top">
-                      <TimetableDayTrack
-                        day={day}
-                        slots={displaySlots}
-                        entries={filteredTimetables}
-                        variant="editor"
-                        onSlotClick={(selectedDay, timeSlot) => onCellClick(selectedDay, timeSlot)}
-                        onEntryClick={(selectedDay, timeSlot, entry) =>
-                          onCellClick(selectedDay, timeSlot, entry)
-                        }
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <TimetableWeekTable
+              slots={displaySlots}
+              entries={filteredTimetables}
+              variant="editor"
+              onSlotClick={(selectedDay, timeSlot) => onCellClick(selectedDay, timeSlot)}
+              onEntryClick={(selectedDay, timeSlot, entry) =>
+                onCellClick(selectedDay, timeSlot, entry)
+              }
+            />
           </div>
         </CardContent>
       </Card>
