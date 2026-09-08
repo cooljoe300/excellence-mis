@@ -1,26 +1,23 @@
 import { PageHeader } from '@/components/ui/page-header';
-import { getTimetables } from '@/app/actions/timetable';
+import { getTimetables, getTimeSlots } from '@/app/actions/timetable';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, User } from 'lucide-react';
-import { TIMETABLE_DAYS, getTimetableAxis, hourMarks, minutesToClock } from '@/lib/timetable-utils';
+import type { Timetable } from '@/lib/types';
+import {
+  TIMETABLE_DAYS,
+  entriesForSlot,
+  getDisplayTimeSlots,
+  isPrimarySlotForEntry,
+} from '@/lib/timetable-utils';
 
-const axis = getTimetableAxis();
-const hours = [...hourMarks(axis).map((mark) => mark.label), minutesToClock(axis.end)];
+function entriesInSlot(timetables: Timetable[], day: string, slot: { start: string; end: string }) {
+  return entriesForSlot(timetables, day, slot).filter((entry) => isPrimarySlotForEntry(entry, slot));
+}
 
 export default async function WeeklyTimetablePage() {
-  const timetables = await getTimetables();
-
-  // Group timetables by day and time
-  const timetableGrid: Record<string, Record<string, any>> = {};
-  
-  timetables.forEach((tt) => {
-    if (!timetableGrid[tt.day]) {
-      timetableGrid[tt.day] = {};
-    }
-    const hour = tt.start_time.substring(0, 5);
-    timetableGrid[tt.day][hour] = tt;
-  });
+  const [timetables, timeSlots] = await Promise.all([getTimetables(), getTimeSlots()]);
+  const slots = getDisplayTimeSlots(timeSlots);
 
   return (
     <div>
@@ -35,7 +32,7 @@ export default async function WeeklyTimetablePage() {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr>
-                  <th className="border border-slate-200 bg-slate-50 p-2 text-left font-medium text-slate-700 w-16">
+                  <th className="border border-slate-200 bg-slate-50 p-2 text-left font-medium text-slate-700 w-28">
                     Time
                   </th>
                   {TIMETABLE_DAYS.map((day) => (
@@ -46,37 +43,44 @@ export default async function WeeklyTimetablePage() {
                 </tr>
               </thead>
               <tbody>
-                {hours.map((hour) => (
-                  <tr key={hour}>
+                {slots.map((slot) => (
+                  <tr key={slot.id}>
                     <td className="border border-slate-200 bg-slate-50 p-2 text-center font-medium text-slate-600">
-                      {hour}
+                      {slot.label}
                     </td>
                     {TIMETABLE_DAYS.map((day) => {
-                      const timetable = timetableGrid[day]?.[hour];
+                      const entries = entriesInSlot(timetables, day, slot);
                       return (
-                        <td key={`${day}-${hour}`} className="border border-slate-200 p-1 h-20 align-top">
-                          {timetable ? (
-                            <div className="h-full rounded bg-blue-50 border border-blue-200 p-1.5 flex flex-col justify-between">
-                              <div className="font-medium text-blue-900 text-[10px] leading-tight">
-                                {timetable.course?.code}
-                              </div>
-                              <div className="text-[9px] text-blue-700 truncate">
-                                {timetable.course?.name}
-                              </div>
-                              <div className="flex items-center gap-1 text-[9px] text-blue-600">
-                                <User className="h-2.5 w-2.5" />
-                                {timetable.lecturer?.full_name?.split(' ')[0]}
-                              </div>
-                              <div className="flex items-center gap-1 text-[9px] text-blue-600">
-                                <MapPin className="h-2.5 w-2.5" />
-                                {timetable.room?.name}
-                              </div>
-                              <Badge status={timetable.status} className="text-[8px] px-1 py-0">
-                                {timetable.status}
-                              </Badge>
+                        <td key={`${day}-${slot.id}`} className="border border-slate-200 p-1 h-20 align-top">
+                          {entries.length > 0 ? (
+                            <div className="flex h-full flex-col gap-1">
+                              {entries.map((timetable) => (
+                                <div
+                                  key={timetable.id}
+                                  className="flex min-h-0 flex-1 flex-col justify-between rounded border border-blue-200 bg-blue-50 p-1.5"
+                                >
+                                  <div className="font-medium text-blue-900 text-[10px] leading-tight">
+                                    {timetable.course?.code}
+                                  </div>
+                                  <div className="truncate text-[9px] text-blue-700">
+                                    {timetable.course?.name}
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[9px] text-blue-600">
+                                    <User className="h-2.5 w-2.5" />
+                                    {timetable.lecturer?.full_name?.split(' ')[0]}
+                                  </div>
+                                  <div className="flex items-center gap-1 text-[9px] text-blue-600">
+                                    <MapPin className="h-2.5 w-2.5" />
+                                    {timetable.room?.name}
+                                  </div>
+                                  <Badge status={timetable.status} className="px-1 py-0 text-[8px]">
+                                    {timetable.status}
+                                  </Badge>
+                                </div>
+                              ))}
                             </div>
                           ) : (
-                            <div className="h-full bg-slate-50 rounded" />
+                            <div className="h-full rounded bg-slate-50" />
                           )}
                         </td>
                       );
