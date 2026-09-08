@@ -136,5 +136,7 @@ export function isPrimarySlotForEntry(entry: Timetable, slot: DisplayTimeSlot): 
 export function cardHeightForDuration(start: string, end: string): number {
   const minutes = durationMinutes(start, end);
   const blocks = Math.max(1, minutes / 60);
-  return Math.round(Math.min(220, Math.max(88, blocks * 72)));
+  // Base height per hour (72px) minus padding/border space for clean stacking
+  // This ensures consecutive events (e.g., 11:00-13:00 followed by 13:00-16:00) sit flush
+  return Math.round(Math.min(220, Math.max(88, blocks * 68)));
 }

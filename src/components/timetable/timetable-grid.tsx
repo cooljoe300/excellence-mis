@@ -206,7 +206,7 @@ export function TimetableGrid({
                           onClick={() => onCellClick(day, slotValue)}
                         >
                           {entries.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               {entries.map((entry, index) => {
                                 const primary = isPrimarySlotForEntry(entry, slot);
                                 const colourClasses = getEntryColourClasses(entry);
@@ -215,13 +215,13 @@ export function TimetableGrid({
                                 const previousProgrammeId = previousEntry?.program_id || previousEntry?.programme_assignments?.[0]?.programme_id;
                                 const currentProgrammeId = entry.program_id || entry.programme_assignments?.[0]?.programme_id;
                                 const differentProgramme = previousProgrammeId && currentProgrammeId !== previousProgrammeId;
-                                
+
                                 return (
                                   <div key={entry.id} className="relative box-border">
                                     {/* Programme separator line */}
                                     {differentProgramme && (
                                       <div
-                                        className="my-1 border-t border-slate-200"
+                                        className="mb-1 border-t border-slate-200"
                                         style={{ height: '1px' }}
                                       />
                                     )}

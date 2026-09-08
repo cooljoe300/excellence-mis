@@ -343,10 +343,10 @@ export function StudentTimetableGrid({
                       return (
                         <td
                           key={`${day}-${slot.id}`}
-                          className="h-24 min-w-[150px] border-r border-slate-200 px-1 py-1 align-top"
+                          className="h-24 min-w-[150px] border-r border-slate-200 px-1 py-1 align-top box-border"
                         >
                           {entries.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               {entries.map((entry) => {
                                 const primary = isPrimarySlotForEntry(entry, slot);
                                 const colourClasses = getEntryColourClasses(entry);
@@ -355,7 +355,7 @@ export function StudentTimetableGrid({
                                 return (
                                   <article
                                     key={entry.id}
-                                    className="relative rounded border border-slate-200 border-l-4 p-1.5 text-left"
+                                    className="relative rounded border border-slate-200 border-l-4 p-1.5 text-left box-border"
                                     style={{
                                       borderLeftColor: colourClasses.border,
                                       backgroundColor: colourClasses.background,

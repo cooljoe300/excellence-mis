@@ -342,7 +342,11 @@ export function TimetablePreview({
         </div>
       </Modal>
       {createPortal(
-        <div id="timetable-print-root">
+        <div
+          id="timetable-print-root"
+          className="hidden print:block"
+          style={{ position: 'static', height: 'auto', overflow: 'visible' }}
+        >
           <TimetablePrintDocument {...documentProps} documentId="official-class-timetable" />
         </div>,
         document.body

@@ -46,7 +46,9 @@ body {
   box-sizing: border-box;
 }
 
-body * {
+body *,
+body *::before,
+body *::after {
   box-sizing: border-box;
 }
 
@@ -173,9 +175,11 @@ body * {
     position: static !important;
     height: auto !important;
     overflow: visible !important;
+    top: 0 !important;
+    left: 0 !important;
   }
 
-  body.print-timetable #student-timetable-print-root,
+  body.print-timetable #timetable-print-root *,
   body.print-timetable #student-timetable-print-root * {
     visibility: visible !important;
     display: block !important;
@@ -186,6 +190,7 @@ body * {
     color: #0f172a;
     height: auto !important;
     overflow: visible !important;
+    display: block !important;
   }
 
   body.print-timetable .print-visible {
@@ -197,11 +202,25 @@ body * {
 
   body.print-timetable table {
     border-collapse: collapse !important;
+    display: table !important;
   }
 
   body.print-timetable table td,
   body.print-timetable table th {
     border: 1px solid #e2e8f0 !important;
+    display: table-cell !important;
+  }
+
+  body.print-timetable table thead {
+    display: table-header-group !important;
+  }
+
+  body.print-timetable table tbody {
+    display: table-row-group !important;
+  }
+
+  body.print-timetable table tr {
+    display: table-row !important;
   }
 
   body.print-timetable .print-timetable-table {
