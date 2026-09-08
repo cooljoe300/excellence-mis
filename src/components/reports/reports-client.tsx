@@ -1,472 +1,266 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { StatCard } from '@/components/dashboard/stat-card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PrintDocumentButton } from '@/components/documents/print-document-button';
 import { ReportPrintDocument } from '@/components/reports/report-print-document';
+import { ReportFilterPanel } from '@/components/reports/report-filter-panel';
+import { ReportResultsTable } from '@/components/reports/report-results-table';
+import { StudentReportQuickView } from '@/components/reports/student-report-quick-view';
 import { downloadCsv, reportFilename } from '@/lib/reports/csv';
-import { getFeeBalance } from '@/lib/utils';
-import {
-  buildAttendanceCsv,
-  buildActiveStudentsCsv,
-  buildCoursesCsv,
-  buildDataQualityStudentsWithoutEmailCsv,
-  buildDataQualityStudentsWithoutIntakeCsv,
-  buildDataQualityStudentsWithoutPhoneCsv,
-  buildDataQualityStudentsWithoutProgramsCsv,
-  buildEnrollmentsCsv,
-  buildExecutiveSummaryCsv,
-  buildFeeCollectionByDateCsv,
-  buildFeeCollectionByMethodCsv,
-  buildFeeCollectionByProgramCsv,
-  buildFeeLedgerCsv,
-  buildFeeSummaryCsv,
-  buildFullyPaidStudentsCsv,
-  buildGraduatedStudentsCsv,
-  buildIncompleteProfilesCsv,
-  buildInactiveStudentsCsv,
-  buildIntakeSummaryCsv,
-  buildOutstandingFeesCsv,
-  buildPartiallyPaidStudentsCsv,
-  buildProgramEnrollmentSummaryCsv,
-  buildProgramsCsv,
-  buildStudentContactListCsv,
-  buildStudentRegisterCsv,
-  buildStudentsByProgramCsv,
-  buildStudentsByStatusCsv,
-  buildWithdrawnStudentsCsv,
-  buildZeroPaymentStudentsCsv,
-} from '@/lib/reports/serializers';
 import {
   DEFAULT_REPORT_FILTERS,
+  REPORT_CATEGORIES,
   REPORT_OPTIONS,
   buildReportTable,
-  filterAttendance,
-  filterCourses,
-  filterEnrollments,
-  filterFees,
-  filterStudents,
-  getTermOptions,
   type ReportFilters,
   type ReportKey,
-  type ReportOption,
 } from '@/lib/reports/build-report-table';
+import { getFeeBalance } from '@/lib/utils';
 import type { ReportsBundle } from '@/app/actions/reports';
-import type { Student } from '@/lib/types';
-import { Download, Search, FileText, DollarSign, GraduationCap, AlertCircle, Users } from 'lucide-react';
+import {
+  Banknote,
+  BookOpen,
+  ClipboardList,
+  Download,
+  FileText,
+  RefreshCw,
+  Search,
+  Users,
+} from 'lucide-react';
 
-function buildFilteredCsv(key: ReportKey, data: ReportsBundle, filters: ReportFilters) {
-  const students = filterStudents(data.students, filters);
-  const fees = filterFees(data.fees, filters);
-  const courses = filterCourses(data.courses, filters);
-  const enrollments = filterEnrollments(data.enrollments, filters);
-  const attendance = filterAttendance(data.attendance, filters);
+const CATEGORY_ICONS = {
+  'Student Reports': Users,
+  'Academic Reports': BookOpen,
+  'Finance Reports': Banknote,
+  'Administrative Reports': ClipboardList,
+};
 
-  const byStatus = students.reduce(
-    (acc, s) => {
-      acc[s.status] = (acc[s.status] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  const byProgram = students.reduce(
-    (acc, s) => {
-      const name = (s.program as { name?: string } | null)?.name ?? 'Unassigned';
-      acc[name] = (acc[name] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  const feeSummary = fees.reduce(
-    (acc, fee) => {
-      acc[fee.status] = (acc[fee.status] ?? 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
-  const filteredPrograms = data.programs.filter((p) => {
-    if (filters.programId && p.id !== filters.programId) return false;
-    return true;
-  });
-
+function reportCount(key: ReportKey, data: ReportsBundle) {
   switch (key) {
-    case 'executive-summary':
-      return buildExecutiveSummaryCsv(data.stats, data.generatedAt);
-    case 'students-by-status':
-      return buildStudentsByStatusCsv(byStatus, data.generatedAt);
-    case 'students-by-program':
-      return buildStudentsByProgramCsv(byProgram, data.generatedAt);
     case 'student-register':
-      return buildStudentRegisterCsv(students, data.generatedAt);
-    case 'active-students':
-      return buildActiveStudentsCsv(students.filter((s) => s.status === 'active'), data.generatedAt);
-    case 'inactive-students':
-      return buildInactiveStudentsCsv(students.filter((s) => s.status === 'inactive'), data.generatedAt);
-    case 'graduated-students':
-      return buildGraduatedStudentsCsv(students.filter((s) => s.status === 'graduated'), data.generatedAt);
-    case 'withdrawn-students':
-      return buildWithdrawnStudentsCsv(students.filter((s) => s.status === 'withdrawn'), data.generatedAt);
     case 'student-contact-list':
-      return buildStudentContactListCsv(students, data.generatedAt);
-    case 'incomplete-profiles': {
-      const incompleteStudents = students.filter((s) => !s.phone || !s.email || !s.program_id || !s.intake_id);
-      const issues = incompleteStudents.map((s) => {
-        const missing: string[] = [];
-        if (!s.phone) missing.push('Phone');
-        if (!s.email) missing.push('Email');
-        if (!s.program_id) missing.push('Program');
-        if (!s.intake_id) missing.push('Intake');
-        return missing.join(', ');
-      });
-      return buildIncompleteProfilesCsv(incompleteStudents, issues, data.generatedAt);
-    }
-    case 'fee-summary':
-      return buildFeeSummaryCsv(data.stats, feeSummary, data.generatedAt);
-    case 'fee-ledger':
-      return buildFeeLedgerCsv(fees, data.generatedAt);
-    case 'outstanding-fees':
-      return buildOutstandingFeesCsv(fees.filter((f) => getFeeBalance(f) > 0), data.generatedAt);
-    case 'zero-payment-students':
-      return buildZeroPaymentStudentsCsv(fees.filter((f) => f.amount_paid === 0), data.generatedAt);
-    case 'partially-paid-students':
-      return buildPartiallyPaidStudentsCsv(fees.filter((f) => f.amount_paid > 0 && getFeeBalance(f) > 0), data.generatedAt);
-    case 'fully-paid-students':
-      return buildFullyPaidStudentsCsv(fees.filter((f) => getFeeBalance(f) === 0), data.generatedAt);
-    case 'fee-collection-by-date': {
-      const paidFees = fees.filter((f) => f.status === 'paid' || f.status === 'partial');
-      const byDate = paidFees.reduce((acc, fee) => {
-        const date = fee.created_at?.slice(0, 10) || 'Unknown';
-        if (!acc[date]) acc[date] = { count: 0, total: 0 };
-        acc[date].count += 1;
-        acc[date].total += Number(fee.amount_paid);
-        return acc;
-      }, {} as Record<string, { count: number; total: number }>);
-      return buildFeeCollectionByDateCsv(byDate, data.generatedAt);
-    }
-    case 'fee-collection-by-program': {
-      const paidFees = fees.filter((f) => f.status === 'paid' || f.status === 'partial');
-      const byProgram = paidFees.reduce((acc, fee) => {
-        const student = fee.student as Student | undefined;
-        const programName = (student?.program as { name?: string } | null)?.name ?? 'Unassigned';
-        if (!acc[programName]) acc[programName] = { expected: 0, paid: 0, count: 0 };
-        acc[programName].expected += Number(fee.amount);
-        acc[programName].paid += Number(fee.amount_paid);
-        acc[programName].count += 1;
-        return acc;
-      }, {} as Record<string, { expected: number; paid: number; count: number }>);
-      return buildFeeCollectionByProgramCsv(byProgram, data.generatedAt);
-    }
-    case 'fee-collection-by-method': {
-      const paidFees = fees.filter((f) => f.status === 'paid' || f.status === 'partial');
-      const byMethod = paidFees.reduce((acc, fee) => {
-        const method = fee.payment_method || 'Unknown';
-        if (!acc[method]) acc[method] = { count: 0, total: 0 };
-        acc[method].count += 1;
-        acc[method].total += Number(fee.amount_paid);
-        return acc;
-      }, {} as Record<string, { count: number; total: number }>);
-      return buildFeeCollectionByMethodCsv(byMethod, data.generatedAt);
-    }
-    case 'programs':
-      return buildProgramsCsv(filteredPrograms, data.generatedAt);
-    case 'courses':
-      return buildCoursesCsv(courses, data.generatedAt);
+    case 'students-by-status':
+    case 'students-by-program':
+    case 'students-by-intake':
+      return data.students.length;
+    case 'active-students':
+      return data.students.filter((s) => s.status === 'active').length;
+    case 'inactive-students':
+      return data.students.filter((s) => s.status === 'inactive').length;
+    case 'graduated-students':
+      return data.students.filter((s) => s.status === 'graduated').length;
+    case 'withdrawn-students':
+      return data.students.filter((s) => s.status === 'withdrawn').length;
     case 'enrollments':
-      return buildEnrollmentsCsv(enrollments, data.generatedAt);
+    case 'unit-enrollments':
+    case 'student-academic-records':
+      return data.enrollments.length;
     case 'attendance':
-      return buildAttendanceCsv(attendance, data.generatedAt);
-    case 'intake-summary': {
-      const byIntake = students.reduce((acc, student) => {
-        const intake = (student.intake as { name?: string } | null)?.name ?? 'Unassigned';
-        if (!acc[intake]) acc[intake] = { count: 0 };
-        acc[intake].count += 1;
-        return acc;
-      }, {} as Record<string, { count: number }>);
-      return buildIntakeSummaryCsv(byIntake, data.generatedAt);
-    }
-    case 'program-enrollment-summary': {
-      const byProgram = students.reduce((acc, student) => {
-        const programName = (student.program as { name?: string } | null)?.name ?? 'Unassigned';
-        if (!acc[programName]) acc[programName] = { active: 0, total: 0 };
-        acc[programName].total += 1;
-        if (student.status === 'active') acc[programName].active += 1;
-        return acc;
-      }, {} as Record<string, { active: number; total: number }>);
-      return buildProgramEnrollmentSummaryCsv(byProgram, data.generatedAt);
-    }
-    case 'data-quality-students-without-programs':
-      return buildDataQualityStudentsWithoutProgramsCsv(students.filter((s) => !s.program_id), data.generatedAt);
-    case 'data-quality-students-without-intake':
-      return buildDataQualityStudentsWithoutIntakeCsv(students.filter((s) => !s.intake_id), data.generatedAt);
-    case 'data-quality-students-without-phone':
-      return buildDataQualityStudentsWithoutPhoneCsv(students.filter((s) => !s.phone), data.generatedAt);
-    case 'data-quality-students-without-email':
-      return buildDataQualityStudentsWithoutEmailCsv(students.filter((s) => !s.email), data.generatedAt);
+      return data.attendance.length;
+    case 'fee-ledger':
+    case 'fee-summary':
+      return data.fees.length;
+    case 'outstanding-fees':
+    case 'students-with-balances':
+      return data.fees.filter((fee) => getFeeBalance(fee) > 0).length;
+    case 'fully-paid-students':
+      return data.fees.filter((fee) => getFeeBalance(fee) === 0).length;
+    case 'programs':
+      return data.programs.length;
+    case 'courses':
+      return data.courses.length;
+    default:
+      return data.students.length;
   }
 }
 
-const STUDENT_REPORTS: ReportKey[] = [
-  'students-by-status',
-  'students-by-program',
-  'student-register',
-  'active-students',
-  'inactive-students',
-  'graduated-students',
-  'withdrawn-students',
-  'student-contact-list',
-  'incomplete-profiles',
-];
-
-const FEE_REPORTS: ReportKey[] = [
-  'fee-summary',
-  'fee-ledger',
-  'outstanding-fees',
-  'zero-payment-students',
-  'partially-paid-students',
-  'fully-paid-students',
-  'fee-collection-by-date',
-  'fee-collection-by-program',
-  'fee-collection-by-method',
-];
-
-const ACADEMIC_REPORTS: ReportKey[] = [
-  'programs',
-  'courses',
-  'enrollments',
-  'intake-summary',
-  'program-enrollment-summary',
-  'attendance',
-];
-
-const DATA_QUALITY_REPORTS: ReportKey[] = [
-  'data-quality-students-without-programs',
-  'data-quality-students-without-intake',
-  'data-quality-students-without-phone',
-  'data-quality-students-without-email',
-];
-
-const CATEGORY_ICONS: Record<string, React.ReactNode> = {
-  Management: <FileText className="h-5 w-5" />,
-  Students: <Users className="h-5 w-5" />,
-  Finance: <DollarSign className="h-5 w-5" />,
-  Academic: <GraduationCap className="h-5 w-5" />,
-  'Data Quality': <AlertCircle className="h-5 w-5" />,
-};
+function exportTableCsv(key: ReportKey, table: ReturnType<typeof buildReportTable>) {
+  downloadCsv(reportFilename(key), [
+    [`Excellence Online College — ${table.title}`],
+    ['Generated', new Date().toISOString()],
+    ...(table.appliedFilters?.length ? [['Filters', table.appliedFilters.join('; ')]] : []),
+    [],
+    table.headers,
+    ...table.rows,
+  ]);
+}
 
 export function ReportsClient({ data }: { data: ReportsBundle }) {
+  const router = useRouter();
   const [reportKey, setReportKey] = useState<ReportKey>('student-register');
+  const [draftFilters, setDraftFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
-  const termOptions = useMemo(() => getTermOptions(data), [data]);
   const table = useMemo(() => buildReportTable(reportKey, data, filters), [reportKey, data, filters]);
+  const viewingStudent = data.students.find((student) => student.id === viewingId) ?? null;
 
-  const programOptions = [
-    { value: '', label: 'All programs' },
-    ...data.programs.map((p) => ({ value: p.id, label: p.name })),
-  ];
+  useEffect(() => {
+    document.body.classList.add('print-reports');
+    if (table.landscape) document.body.classList.add('print-reports-landscape');
+    else document.body.classList.remove('print-reports-landscape');
+    return () => {
+      document.body.classList.remove('print-reports', 'print-reports-landscape');
+    };
+  }, [table.landscape]);
 
-  const statusOptions = [
-    { value: '', label: 'All statuses' },
-    ...['active', 'inactive', 'graduated', 'suspended', 'withdrawn', 'pending', 'paid', 'partial', 'overdue'].map(
-      (s) => ({ value: s, label: s })
-    ),
-  ];
+  const catalog = useMemo(() => {
+    const query = catalogQuery.trim().toLowerCase();
+    return REPORT_CATEGORIES.map((category) => ({
+      category,
+      reports: REPORT_OPTIONS.filter((option) => {
+        if (option.category !== category) return false;
+        if (!query) return true;
+        return `${option.label} ${option.description} ${option.category}`.toLowerCase().includes(query);
+      }),
+    })).filter((group) => group.reports.length > 0);
+  }, [catalogQuery]);
 
-  const termSelectOptions = [
-    { value: '', label: 'All semesters' },
-    ...termOptions.map((t) => ({ value: t, label: t })),
-  ];
-
-  // Group reports by category
-  const reportsByCategory = useMemo(() => {
-    const grouped: Record<string, ReportOption[]> = {};
-    REPORT_OPTIONS.forEach((report) => {
-      if (!grouped[report.category]) {
-        grouped[report.category] = [];
-      }
-      grouped[report.category].push(report);
-    });
-    return grouped;
-  }, []);
-
-  // Filter reports by search query
-  const filteredReportsByCategory = useMemo(() => {
-    if (!searchQuery.trim()) return reportsByCategory;
-    const query = searchQuery.toLowerCase();
-    const filtered: Record<string, ReportOption[]> = {};
-    Object.entries(reportsByCategory).forEach(([category, reports]) => {
-      const matching = reports.filter((r) => 
-        r.label.toLowerCase().includes(query) || 
-        r.category.toLowerCase().includes(query)
-      );
-      if (matching.length > 0) {
-        filtered[category] = matching;
-      }
-    });
-    return filtered;
-  }, [reportsByCategory, searchQuery]);
-
-  function updateFilter<K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+  function applyFilters() {
+    setFilters(draftFilters);
   }
 
-  function handleCsvDownload() {
-    downloadCsv(reportFilename(reportKey), buildFilteredCsv(reportKey, data, filters));
+  function clearFilters() {
+    setDraftFilters(DEFAULT_REPORT_FILTERS);
+    setFilters(DEFAULT_REPORT_FILTERS);
   }
-
-  const showProgramFilter = !['executive-summary', 'students-by-status'].includes(reportKey);
-  const showStatusFilter = reportKey !== 'executive-summary' && reportKey !== 'programs';
-  const showTermFilter = FEE_REPORTS.includes(reportKey) || reportKey === 'enrollments';
-  const showDateFilter = FEE_REPORTS.includes(reportKey) || reportKey === 'attendance';
-  const showSearch =
-    reportKey !== 'executive-summary' &&
-    reportKey !== 'students-by-status' &&
-    reportKey !== 'students-by-program' &&
-    reportKey !== 'fee-summary' &&
-    !reportKey.startsWith('data-quality-');
 
   return (
     <div className="space-y-6">
-      {/* Search and Categories */}
-      <div className="no-print rounded-xl border border-slate-200 bg-white p-6">
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              placeholder="Search reports..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+      <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            placeholder="Search reports..."
+            value={catalogQuery}
+            onChange={(event) => setCatalogQuery(event.target.value)}
+            className="pl-10"
+          />
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={() => document.getElementById('report-results')?.scrollIntoView({ behavior: 'smooth' })}>
+            <FileText className="h-4 w-4" />
+            Generate Report
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => exportTableCsv(reportKey, table)}>
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          <PrintDocumentButton label="Print" documentTitle={table.title} />
+          <Button type="button" variant="secondary" onClick={() => router.refresh()}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
+      </div>
 
-        {/* Report Categories */}
-        <div className="space-y-6">
-          {Object.entries(filteredReportsByCategory).map(([category, reports]) => (
-            <div key={category}>
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                {CATEGORY_ICONS[category]}
-                {category}
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {reports.map((report) => (
-                  <button
-                    key={report.key}
-                    onClick={() => setReportKey(report.key)}
-                    className={`rounded-lg border p-4 text-left transition-colors hover:bg-slate-50 ${
-                      reportKey === report.key
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
-                        : 'border-slate-200 bg-white'
-                    }`}
-                  >
-                    <p className="text-sm font-medium text-slate-900">{report.label}</p>
-                  </button>
-                ))}
+      <div className="no-print space-y-8">
+        {catalog.map((group) => {
+          const Icon = CATEGORY_ICONS[group.category];
+          return (
+            <section key={group.category}>
+              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600">
+                <Icon className="h-4 w-4 text-primary" />
+                {group.category}
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {group.reports.map((report) => {
+                  const selected = report.key === reportKey;
+                  return (
+                    <article
+                      key={report.key}
+                      className={`rounded-xl border bg-white p-4 shadow-sm transition ${
+                        selected ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-semibold text-slate-900">{report.label}</h3>
+                          <p className="mt-1 text-sm text-slate-500">{report.description}</p>
+                        </div>
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                          {reportCount(report.key, data)}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            setReportKey(report.key);
+                            document.getElementById('report-results')?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                        >
+                          View Report
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setReportKey(report.key);
+                            exportTableCsv(report.key, buildReportTable(report.key, data, filters));
+                          }}
+                        >
+                          Export
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-            </div>
-          ))}
-        </div>
+            </section>
+          );
+        })}
       </div>
 
-      {/* Filters Toolbar */}
-      <div className="no-print rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {showProgramFilter && (
-              <Select
-                label="Program"
-                value={filters.programId}
-                onChange={(e) => updateFilter('programId', e.target.value)}
-                options={programOptions}
-              />
-            )}
+      <div id="report-results" className="space-y-4">
+        <ReportFilterPanel
+          data={data}
+          reportKey={reportKey}
+          draft={draftFilters}
+          onDraftChange={setDraftFilters}
+          onApply={applyFilters}
+          onClear={clearFilters}
+        />
 
-            {showStatusFilter && (
-              <Select
-                label="Status"
-                value={filters.status}
-                onChange={(e) => updateFilter('status', e.target.value)}
-                options={
-                  STUDENT_REPORTS.includes(reportKey)
-                    ? statusOptions.filter((o) =>
-                        ['', 'active', 'inactive', 'graduated', 'suspended', 'withdrawn'].includes(o.value)
-                      )
-                    : FEE_REPORTS.includes(reportKey)
-                      ? statusOptions.filter((o) =>
-                          ['', 'pending', 'paid', 'partial', 'overdue', 'waived'].includes(o.value)
-                        )
-                      : reportKey === 'enrollments'
-                        ? statusOptions.filter((o) =>
-                            ['', 'pending', 'active', 'completed', 'dropped'].includes(o.value)
-                          )
-                        : reportKey === 'attendance'
-                          ? statusOptions.filter((o) =>
-                              ['', 'present', 'absent', 'late', 'excused'].includes(o.value)
-                            )
-                          : statusOptions
-                }
-              />
-            )}
-
-            {showTermFilter && (
-              <Select
-                label="Semester"
-                value={filters.termName}
-                onChange={(e) => updateFilter('termName', e.target.value)}
-                options={termSelectOptions}
-              />
-            )}
-
-            {showDateFilter && (
-              <>
-                <Input
-                  label="From date"
-                  type="date"
-                  value={filters.dateFrom}
-                  onChange={(e) => updateFilter('dateFrom', e.target.value)}
-                />
-                <Input
-                  label="To date"
-                  type="date"
-                  value={filters.dateTo}
-                  onChange={(e) => updateFilter('dateTo', e.target.value)}
-                />
-              </>
-            )}
-
-            {showSearch && (
-              <Input
-                label="Search"
-                placeholder="Name, admission no., course..."
-                value={filters.search}
-                onChange={(e) => updateFilter('search', e.target.value)}
-                className="sm:col-span-2"
-              />
-            )}
+        {table.stats && table.stats.length > 0 && (
+          <div className="no-print grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {table.stats.map((stat) => (
+              <StatCard key={stat.label} title={stat.label} value={stat.value} icon={FileText} />
+            ))}
           </div>
+        )}
 
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => setFilters(DEFAULT_REPORT_FILTERS)}>
-              Clear filters
-            </Button>
-            <Button type="button" variant="secondary" onClick={handleCsvDownload}>
+        <div className="no-print flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">{table.title}</h2>
+            <p className="text-sm text-slate-500">{table.summary}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="secondary" onClick={() => exportTableCsv(reportKey, table)}>
               <Download className="h-4 w-4" />
-              CSV
+              Excel / CSV
             </Button>
-            <PrintDocumentButton />
+            <PrintDocumentButton label="Print / PDF" documentTitle={table.title} className="hidden sm:inline-flex" />
           </div>
+        </div>
+
+        <div className="no-print">
+          <ReportResultsTable key={`${reportKey}-${table.rows.length}-${table.summary}`} table={table} onViewStudent={setViewingId} onClearFilters={clearFilters} />
+        </div>
+
+        <div className="report-print-container">
+          <ReportPrintDocument table={table} />
         </div>
       </div>
 
-      {/* Printable report */}
-      <ReportPrintDocument table={table} />
+      <StudentReportQuickView student={viewingStudent} onClose={() => setViewingId(null)} />
     </div>
   );
 }

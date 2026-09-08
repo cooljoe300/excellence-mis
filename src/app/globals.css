@@ -94,7 +94,8 @@ body *::after {
 }
 
 @media screen {
-  .timetable-print-container {
+  .timetable-print-container,
+  .report-print-container {
     position: absolute;
     left: -10000px;
     top: 0;
@@ -112,6 +113,33 @@ body *::after {
   @page {
     size: A4;
     margin: 1.2cm;
+  }
+
+  body.print-reports-landscape {
+    width: 100%;
+  }
+
+  @page landscape-report {
+    size: A4 landscape;
+    margin: 1cm;
+  }
+
+  body.print-reports-landscape .print-report-document {
+    page: landscape-report;
+  }
+
+  body.print-reports .print-report-document table thead {
+    display: table-header-group;
+  }
+
+  body.print-reports .print-report-document tr {
+    break-inside: avoid;
+  }
+
+  body.print-reports aside,
+  body.print-reports nav,
+  body.print-reports .no-print {
+    display: none !important;
   }
 
   aside,
@@ -172,6 +200,13 @@ body *::after {
 
   body.print-timetable > *:not(.timetable-print-container) {
     display: none !important;
+  }
+
+  body.print-reports .report-print-container {
+    position: static !important;
+    left: auto !important;
+    width: 100% !important;
+    pointer-events: auto !important;
   }
 
   .timetable-print-container {
