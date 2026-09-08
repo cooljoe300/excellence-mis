@@ -133,10 +133,99 @@ export function isPrimarySlotForEntry(entry: Timetable, slot: DisplayTimeSlot): 
   return start >= slotStart && start < slotEnd;
 }
 
-export function cardHeightForDuration(start: string, end: string): number {
-  const minutes = durationMinutes(start, end);
-  const blocks = Math.max(1, minutes / 60);
-  // Base height per hour (72px) minus padding/border space for clean stacking
-  // This ensures consecutive events (e.g., 11:00-13:00 followed by 13:00-16:00) sit flush
-  return Math.round(Math.min(220, Math.max(88, blocks * 68)));
+export function timelineRange(slots: DisplayTimeSlot[]): { start: number; end: number; minutes: number } {
+  if (!slots.length) {
+    const start = 8 * 60;
+    const end = 20 * 60;
+    return { start, end, minutes: end - start };
+  }
+  const start = timeToMinutes(slots[0].start);
+  const end = timeToMinutes(slots[slots.length - 1].end);
+  const minutes = Number.isNaN(start) || Number.isNaN(end) || end <= start ? 60 : end - start;
+  return { start, end, minutes };
+}
+
+export function slotDurationMinutes(slot: DisplayTimeSlot): number {
+  const start = timeToMinutes(slot.start);
+  const end = timeToMinutes(slot.end);
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return 1;
+  return end - start;
+}
+
+/** 0-based minute offset from the timeline start, clamped to the visible range. */
+export function minuteOffset(time: string, rangeStart: number, rangeEnd: number): number {
+  const minutes = timeToMinutes(time);
+  if (Number.isNaN(minutes)) return 0;
+  return Math.min(rangeEnd, Math.max(rangeStart, minutes)) - rangeStart;
+}
+
+export type PositionedTimetableEntry<T extends { start_time: string; end_time: string }> = {
+  item: T;
+  lane: number;
+  /** 1-based inclusive CSS grid column start */
+  gridColumnStart: number;
+  /** 1-based exclusive CSS grid column end */
+  gridColumnEnd: number;
+  abutsNextInLane: boolean;
+};
+
+/**
+ * Place events on a 1-minute CSS grid so consecutive lessons sharing an end/start
+ * (e.g. 11:00–13:00 then 13:00–16:00) occupy adjacent tracks and share a grid line.
+ * Intervals are half-open: [start, end).
+ */
+export function layoutDayEntries<T extends { start_time: string; end_time: string }>(
+  entries: T[],
+  slots: DisplayTimeSlot[]
+): { placements: PositionedTimetableEntry<T>[]; laneCount: number; minutes: number } {
+  const { start: rangeStart, end: rangeEnd, minutes } = timelineRange(slots);
+  const sorted = [...entries].sort((a, b) => {
+    const startDiff = timeToMinutes(a.start_time) - timeToMinutes(b.start_time);
+    if (startDiff !== 0) return startDiff;
+    return timeToMinutes(a.end_time) - timeToMinutes(b.end_time);
+  });
+
+  const laneEnds: number[] = [];
+  const raw: Array<{ item: T; lane: number; startOff: number; endOff: number }> = [];
+
+  for (const item of sorted) {
+    const startOff = minuteOffset(item.start_time, rangeStart, rangeEnd);
+    const endOff = minuteOffset(item.end_time, rangeStart, rangeEnd);
+    if (endOff <= startOff) continue;
+
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= startOff);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(endOff);
+    } else {
+      laneEnds[lane] = endOff;
+    }
+    raw.push({ item, lane, startOff, endOff });
+  }
+
+  const placements: PositionedTimetableEntry<T>[] = raw.map((placement) => {
+    const abutsNextInLane = raw.some(
+      (other) =>
+        other.lane === placement.lane &&
+        other.startOff === placement.endOff &&
+        other.item !== placement.item
+    );
+    return {
+      item: placement.item,
+      lane: placement.lane,
+      gridColumnStart: placement.startOff + 1,
+      gridColumnEnd: placement.endOff + 1,
+      abutsNextInLane,
+    };
+  });
+
+  return {
+    placements,
+    laneCount: Math.max(1, laneEnds.length),
+    minutes,
+  };
+}
+
+export function entriesForDay(entries: Timetable[], day: string): Timetable[] {
+  return entries.filter((entry) => normalizeDay(entry.day) === day);
 }

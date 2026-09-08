@@ -93,14 +93,25 @@ body *::after {
   animation: toast-in 0.3s ease-out;
 }
 
-#timetable-print-root {
-  display: none;
+@media screen {
+  .timetable-print-container {
+    position: absolute;
+    left: -10000px;
+    top: 0;
+    width: 297mm;
+    pointer-events: none;
+  }
+}
+
+.timetable-day-track,
+.timetable-event {
+  box-sizing: border-box;
 }
 
 @media print {
   @page {
-    margin: 1.2cm;
     size: A4;
+    margin: 1.2cm;
   }
 
   aside,
@@ -149,78 +160,54 @@ body *::after {
     -webkit-print-color-adjust: exact;
   }
 
-  body:has(#official-class-timetable) {
-    background: white !important;
-  }
-
   body.print-timetable {
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
     color: #0f172a !important;
     font-family: "Segoe UI", Calibri, Arial, sans-serif !important;
   }
 
-  body.print-timetable > *:not(#timetable-print-root):not(#student-timetable-print-root) {
+  body.print-timetable > *:not(.timetable-print-container) {
     display: none !important;
   }
 
-  body.print-timetable #timetable-print-root,
-  body.print-timetable #student-timetable-print-root {
+  .timetable-print-container {
     display: block !important;
+    visibility: visible !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: white !important;
-    position: static !important;
-    height: auto !important;
-    overflow: visible !important;
-    top: 0 !important;
-    left: 0 !important;
+    pointer-events: auto !important;
   }
 
-  body.print-timetable #timetable-print-root *,
-  body.print-timetable #student-timetable-print-root * {
-    visibility: visible !important;
-    display: block !important;
+  .timetable-print-container * {
+    visibility: visible;
   }
 
   body.print-timetable .print-timetable-document {
-    width: 100%;
-    color: #0f172a;
-    height: auto !important;
-    overflow: visible !important;
-    display: block !important;
-  }
-
-  body.print-timetable .print-visible {
     display: block !important;
     visibility: visible !important;
+    width: 100% !important;
+    color: #0f172a;
     height: auto !important;
+    max-height: none !important;
     overflow: visible !important;
+    position: static !important;
   }
 
   body.print-timetable table {
-    border-collapse: collapse !important;
-    display: table !important;
-  }
-
-  body.print-timetable table td,
-  body.print-timetable table th {
-    border: 1px solid #e2e8f0 !important;
-    display: table-cell !important;
-  }
-
-  body.print-timetable table thead {
-    display: table-header-group !important;
-  }
-
-  body.print-timetable table tbody {
-    display: table-row-group !important;
-  }
-
-  body.print-timetable table tr {
-    display: table-row !important;
+    border-collapse: collapse;
+    width: 100%;
   }
 
   body.print-timetable .print-timetable-table {
@@ -248,13 +235,16 @@ body *::after {
     page-break-after: avoid;
   }
 
-  @page timetable-landscape {
-    size: A4 landscape;
-    margin: 10mm;
+  body.print-timetable .timetable-day-track {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    position: relative !important;
   }
 
-  #official-class-timetable {
-    page: timetable-landscape;
+  #official-class-timetable,
+  #student-timetable-document {
+    width: 100%;
   }
 
   @page id-card {
