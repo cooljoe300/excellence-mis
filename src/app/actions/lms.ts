@@ -281,3 +281,143 @@ export async function retryStudentLmsSync(studentId: string) {
   // Re-attempt the import
   return await importStudentToLms(studentId);
 }
+
+export async function bulkSyncStudentsToLms(options?: {
+  programmeId?: string;
+  intakeId?: string;
+  status?: 'active' | 'inactive' | 'all';
+  skipSynced?: boolean;
+}) {
+  const supabase = await createClient();
+
+  // Build query for students to sync
+  let query = supabase
+    .from('students')
+    .select('id, admission_number, student_number, first_name, last_name, email, lms_sync_status, lms_user_id, program:programs(name, code), intake:intakes(name)');
+
+  // Filter by programme if specified
+  if (options?.programmeId) {
+    query = query.eq('program_id', options.programmeId);
+  }
+
+  // Filter by intake if specified
+  if (options?.intakeId) {
+    query = query.eq('intake_id', options.intakeId);
+  }
+
+  // Filter by status if specified
+  if (options?.status && options.status !== 'all') {
+    query = query.eq('status', options.status);
+  }
+
+  // Skip already synced students if requested
+  if (options?.skipSynced) {
+    query = query.or('lms_sync_status.is.null,lms_sync_status.neq.synced');
+  }
+
+  const { data: students, error } = await query;
+
+  if (error) {
+    return { error: error.message, results: [] };
+  }
+
+  if (!students || students.length === 0) {
+    return { results: [], message: 'No students found matching criteria' };
+  }
+
+  // Generate a temporary ID for the bulk sync log
+  const bulkSyncId = `bulk-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+
+  // Log the bulk sync operation
+  await logSyncOperation('student', bulkSyncId, 'BULK_SYNC', 'PENDING', undefined, { options, studentCount: students.length }, undefined);
+
+  const results = [];
+  let successCount = 0;
+  let failureCount = 0;
+  let skippedCount = 0;
+
+  for (const student of students) {
+    const admissionNumber = student.admission_number ?? student.student_number;
+
+    // Skip if already synced
+    if (student.lms_sync_status === 'synced' && student.lms_user_id) {
+      skippedCount++;
+      results.push({
+        studentId: student.id,
+        admissionNumber,
+        name: `${student.first_name} ${student.last_name}`,
+        status: 'skipped',
+        message: 'Already synced to LMS',
+      });
+      continue;
+    }
+
+    // Skip if missing required fields
+    if (!student.first_name || !student.last_name || !student.email || !admissionNumber) {
+      failureCount++;
+      results.push({
+        studentId: student.id,
+        admissionNumber,
+        name: `${student.first_name} ${student.last_name}`,
+        status: 'failed',
+        message: 'Missing required fields (name, email, or admission number)',
+      });
+      continue;
+    }
+
+    // Attempt to sync
+    const result = await importStudentToLms(student.id);
+
+    if (result.success) {
+      successCount++;
+      results.push({
+        studentId: student.id,
+        admissionNumber,
+        name: `${student.first_name} ${student.last_name}`,
+        status: 'success',
+        username: result.username,
+      });
+    } else {
+      failureCount++;
+      results.push({
+        studentId: student.id,
+        admissionNumber,
+        name: `${student.first_name} ${student.last_name}`,
+        status: 'failed',
+        message: result.error,
+      });
+    }
+  }
+
+  // Update bulk sync log with final status
+  const finalStatus = failureCount === 0 ? 'SUCCESS' : 'PARTIAL';
+  await supabase
+    .from('moodle_sync_logs')
+    .update({
+      status: finalStatus,
+      response_data: {
+        total: students.length,
+        success: successCount,
+        failed: failureCount,
+        skipped: skippedCount,
+      },
+      completed_at: new Date().toISOString(),
+    })
+    .eq('entity_id', bulkSyncId)
+    .eq('action', 'BULK_SYNC')
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  revalidatePath('/dashboard/lms');
+  revalidatePath('/dashboard/students');
+
+  return {
+    results,
+    summary: {
+      total: students.length,
+      success: successCount,
+      failed: failureCount,
+      skipped: skippedCount,
+    },
+  };
+}
