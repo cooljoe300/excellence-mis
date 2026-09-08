@@ -38,6 +38,15 @@ function uniqueIds(values: Array<string | null | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
+function asList<T>(data: unknown): T[] {
+  return (Array.isArray(data) ? data : []) as unknown as T[];
+}
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
+
 function mergeStudent(base: Student | undefined, overlay: Student | undefined): Student | undefined {
   if (!overlay && !base) return undefined;
   if (!overlay) return base;
@@ -64,7 +73,11 @@ async function loadReportStudents() {
     throw new Error('Unable to load student records.');
   }
 
-  const students = (data || []) as Student[];
+  const students = asList<Student>(data).map((student) => ({
+    ...student,
+    program: firstRelation(student.program),
+    intake: firstRelation(student.intake),
+  }));
   const profileIds = uniqueIds(students.map((student) => student.profile_id));
   if (profileIds.length === 0) return students;
 
@@ -128,17 +141,17 @@ export async function getReportsBundle(): Promise<ReportsBundle> {
 
     const studentsById = new Map(students.map((student) => [student.id, student]));
 
-    const fees = ((feesResult.data || []) as FeePayment[]).map((fee) => ({
+    const fees = asList<FeePayment>(feesResult.data).map((fee) => ({
       ...fee,
       student: mergeStudent(fee.student, studentsById.get(fee.student_id)),
     }));
 
-    const enrollments = ((enrollmentsResult.data || []) as Enrollment[]).map((enrollment) => ({
+    const enrollments = asList<Enrollment>(enrollmentsResult.data).map((enrollment) => ({
       ...enrollment,
       student: mergeStudent(enrollment.student, studentsById.get(enrollment.student_id)),
     }));
 
-    const attendance = ((attendanceResult.data || []) as Attendance[]).map((record) => {
+    const attendance = asList<Attendance>(attendanceResult.data).map((record) => {
       const enrollment = record.enrollment;
       if (!enrollment) return record;
       return {
