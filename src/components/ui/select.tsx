@@ -144,6 +144,48 @@ const SelectSeparator = React.forwardRef<
 ));
 SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 
+// Legacy Select component for backwards compatibility with existing code
+interface LegacySelectProps {
+  id?: string;
+  name?: string;
+  options: { value: string; label: string }[];
+  value?: string;
+  defaultValue?: string;
+  required?: boolean;
+  disabled?: boolean;
+  className?: string;
+  onChange?: (value: string) => void;
+}
+
+const LegacySelect = React.forwardRef<HTMLSelectElement, LegacySelectProps>(
+  ({ id, name, options, value, defaultValue, required, disabled, className, onChange }, ref) => {
+    return (
+      <select
+        id={id}
+        name={name}
+        value={value}
+        defaultValue={defaultValue}
+        required={required}
+        disabled={disabled}
+        onChange={(e) => onChange?.(e.target.value)}
+        className={cn(
+          'flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+          className
+        )}
+        ref={ref}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+);
+
+LegacySelect.displayName = 'LegacySelect';
+
 export {
   Select,
   SelectGroup,
@@ -155,4 +197,5 @@ export {
   SelectSeparator,
   SelectScrollUpButton,
   SelectScrollDownButton,
+  LegacySelect as default,
 };
