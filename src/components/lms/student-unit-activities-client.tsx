@@ -187,7 +187,7 @@ export function StudentUnitActivitiesClient({
             <Button
               key={f}
               size="sm"
-              variant={filter === f ? 'default' : 'secondary'}
+              variant={filter === f ? 'primary' : 'secondary'}
               onClick={() => setFilter(f as any)}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
