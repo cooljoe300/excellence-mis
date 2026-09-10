@@ -12,14 +12,15 @@ const ROOM_TYPES = ['lecture_hall', 'computer_lab', 'laboratory', 'seminar_room'
 export default async function EditRoomPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createClient();
   
   const { data: room, error } = await supabase
     .from('rooms')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (error || !room) {
@@ -35,6 +36,7 @@ export default async function EditRoomPage({
     const capacity = formData.get('capacity') as string;
     const type = formData.get('type') as string;
     const status = formData.get('status') as string;
+    const roomId = formData.get('id') as string;
 
     const { error } = await supabase
       .from('rooms')
@@ -45,7 +47,7 @@ export default async function EditRoomPage({
         type,
         status,
       })
-      .eq('id', params.id);
+      .eq('id', roomId);
 
     if (error) {
       throw new Error(error.message);
@@ -67,6 +69,7 @@ export default async function EditRoomPage({
         </CardHeader>
         <CardContent>
           <form action={updateRoom} className="space-y-6">
+            <input type="hidden" name="id" value={id} />
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium text-slate-700">
                 Room Name

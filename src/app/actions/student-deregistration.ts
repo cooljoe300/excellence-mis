@@ -249,7 +249,7 @@ export async function approveDeregistrationRequest(requestId: string, reviewNote
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.' };
 
   const { data: request, error } = await supabase
@@ -351,7 +351,7 @@ export async function rejectDeregistrationRequest(requestId: string, reviewNotes
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.' };
 
   const notes = reviewNotes?.trim();

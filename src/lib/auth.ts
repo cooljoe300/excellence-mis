@@ -1,5 +1,14 @@
-import type { User } from '@supabase/supabase-js';
 import type { UserRole } from '@/lib/types';
+
+// Supabase v2 User type
+export interface SupabaseUser {
+  id: string;
+  email?: string;
+  user_metadata: Record<string, unknown>;
+  aud: string;
+  created_at: string;
+  updated_at?: string;
+}
 
 export function getRoleFromMetadata(metadata: Record<string, unknown> | undefined): UserRole | null {
   const metaRole = metadata?.role;
@@ -9,7 +18,7 @@ export function getRoleFromMetadata(metadata: Record<string, unknown> | undefine
   return null;
 }
 
-export function getRoleFromUser(user: User): UserRole | null {
+export function getRoleFromUser(user: SupabaseUser): UserRole | null {
   return getRoleFromMetadata(user.user_metadata);
 }
 
@@ -18,7 +27,7 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return null;
 
   const metaRole = getRoleFromUser(user);

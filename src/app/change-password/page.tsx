@@ -47,14 +47,14 @@ export default function ChangePasswordPage() {
       const supabase = createClient();
 
       // Verify current password by attempting to sign in
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await (supabase.auth as any).getUser();
       if (!user) {
         setError('You must be logged in to change your password.');
         setLoading(false);
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await (supabase.auth as any).signInWithPassword({
         email: user.email!,
         password: currentPassword,
       });
@@ -66,7 +66,7 @@ export default function ChangePasswordPage() {
       }
 
       // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
+      const { error: updateError } = await (supabase.auth as any).updateUser({
         password: newPassword,
       });
 

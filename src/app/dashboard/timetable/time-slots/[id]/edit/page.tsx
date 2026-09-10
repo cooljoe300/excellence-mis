@@ -11,14 +11,15 @@ import Link from 'next/link';
 export default async function EditTimeSlotPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   const supabase = await createClient();
   
   const { data: timeSlot, error } = await supabase
     .from('time_slots')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (error || !timeSlot) {
@@ -34,12 +35,13 @@ export default async function EditTimeSlotPage({
     const startTime = formData.get('start_time') as string;
     const endTime = formData.get('end_time') as string;
     const isActive = formData.get('is_active') === 'true';
+    const slotId = formData.get('id') as string;
 
     // Get current is_visible value to preserve it
     const { data: currentSlot, error: fetchError } = await supabase
       .from('time_slots')
       .select('is_visible')
-      .eq('id', params.id)
+      .eq('id', slotId)
       .single();
 
     if (fetchError) {
@@ -56,7 +58,7 @@ export default async function EditTimeSlotPage({
         is_active: isActive,
         is_visible: currentSlot?.is_visible !== false,
       })
-      .eq('id', params.id);
+      .eq('id', slotId);
 
     if (error) {
       console.error('Error updating time slot:', error);
@@ -81,6 +83,7 @@ export default async function EditTimeSlotPage({
         </CardHeader>
         <CardContent>
           <form action={updateTimeSlot} className="space-y-6">
+            <input type="hidden" name="id" value={id} />
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium text-slate-700">
                 Name

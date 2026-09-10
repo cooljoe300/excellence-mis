@@ -103,10 +103,10 @@ export async function createStudent(formData: FormData) {
   }
 
   // Check if auth user already exists with this email
-  const { data: existingUser, error: userCheckError } = await adminSupabase.auth.admin.listUsers();
+  const { data: existingUser, error: userCheckError } = await ((adminSupabase as any).auth.admin).listUsers();
   let existingAuthUser = null;
   if (!userCheckError && existingUser) {
-    existingAuthUser = existingUser.users.find(u => u.email === email);
+    existingAuthUser = existingUser.users.find((u: { email?: string }) => u.email === email);
   }
 
   let authUserId = existingAuthUser?.id;
@@ -115,7 +115,7 @@ export async function createStudent(formData: FormData) {
   // Create auth account if it doesn't exist
   if (!existingAuthUser) {
     temporaryPassword = generateTemporaryPassword();
-    const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
+    const { data: authData, error: authError } = await ((adminSupabase as any).auth.admin).createUser({
       email,
       password: temporaryPassword,
       email_confirm: true,
@@ -143,7 +143,7 @@ export async function createStudent(formData: FormData) {
 
     if (profileError) {
       // Rollback auth user creation if profile creation fails
-      await adminSupabase.auth.admin.deleteUser(authUserId);
+      await ((adminSupabase as any).auth.admin).deleteUser(authUserId);
       return { error: `Failed to create profile: ${profileError.message}` };
     }
   } else {
@@ -165,7 +165,7 @@ export async function createStudent(formData: FormData) {
     // Also update auth user metadata
     const currentMeta = (existingAuthUser.user_metadata ?? {}) as Record<string, unknown>;
     if (currentMeta.role !== 'student') {
-      await adminSupabase.auth.admin.updateUserById(existingAuthUser.id, {
+      await ((adminSupabase as any).auth.admin).updateUserById(existingAuthUser.id, {
         user_metadata: {
           ...currentMeta,
           role: 'student',
@@ -379,7 +379,7 @@ export async function generateStudentLoginDetails(studentId: string) {
   const temporaryPassword = generateTemporaryPassword();
 
   // Update auth user password
-  const { error: authError } = await admin.auth.admin.updateUserById(student.profile_id, {
+  const { error: authError } = await ((admin as any).auth.admin).updateUserById(student.profile_id, {
     password: temporaryPassword,
   });
 

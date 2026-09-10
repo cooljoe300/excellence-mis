@@ -22,15 +22,15 @@ export async function changePassword(formData: {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { error: 'You must be logged in to change your password.' };
   }
 
-  // Verify current password
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: user.email!,
+  // Verify current password by re-authenticating
+  const { error: signInError } = await (supabase.auth as any).signInWithPassword({
+    email: user.email || '',
     password: currentPassword,
   });
 
@@ -39,7 +39,7 @@ export async function changePassword(formData: {
   }
 
   // Update password using admin client for better security
-  const { error: updateError } = await admin.auth.admin.updateUserById(user.id, {
+  const { error: updateError } = await ((admin as any).auth.admin).updateUserById(user.id, {
     password: newPassword,
   });
 

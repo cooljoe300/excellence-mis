@@ -50,7 +50,7 @@ export async function createLearningActivity(formData: FormData) {
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -104,7 +104,7 @@ export async function updateLearningActivity(activityId: string, formData: FormD
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -157,7 +157,7 @@ export async function deleteLearningActivity(activityId: string) {
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -181,7 +181,7 @@ export async function getStudentLearningActivities() {
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return [];
@@ -241,7 +241,7 @@ export async function getStudentLearningActivitiesByCourse(courseId: string) {
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return [];
@@ -357,7 +357,7 @@ export async function createOnlineLesson(formData: FormData) {
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -446,7 +446,7 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -526,7 +526,7 @@ export async function deleteOnlineLesson(lessonId: string) {
   
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };

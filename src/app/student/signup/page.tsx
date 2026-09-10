@@ -58,7 +58,7 @@ export default function StudentSignupPage() {
       }
 
       // Create the auth account
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await (supabase.auth as any).signUp({
         email: email.toLowerCase().trim(),
         password,
         options: {

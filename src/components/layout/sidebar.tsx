@@ -95,7 +95,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
 
   async function handleLogout() {
     const supabase = createClient();
-    await supabase.auth.signOut();
+    await (supabase.auth as any).signOut();
     router.push('/login');
     router.refresh();
   }

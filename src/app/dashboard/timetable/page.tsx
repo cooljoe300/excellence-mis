@@ -23,7 +23,7 @@ export default async function TimetableDashboardPage() {
   const formData = await getTimetableFormData();
   const lecturers = await getLecturers();
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
   
   // Get user role from profiles
   let userRole = null;

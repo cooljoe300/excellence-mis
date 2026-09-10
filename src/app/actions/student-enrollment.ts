@@ -36,7 +36,7 @@ export async function getMyUnitEnrollmentData() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return null;
 
   let student;
@@ -130,7 +130,7 @@ export async function enrollMyUnits(courseIds: string[]) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.' };
 
   let student;
@@ -289,7 +289,7 @@ export async function getMyEnrollmentsWithFees() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return null;
 
   const { data: student } = await supabase

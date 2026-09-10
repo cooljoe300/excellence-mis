@@ -30,7 +30,7 @@ export async function getMyStudentRecord() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) {
     console.log('[getMyStudentRecord] No authenticated user found');
     return null;
@@ -92,7 +92,7 @@ export async function getStudentRegisterPageData() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return null;
 
   const [profileRes, programsRes, studentByProfileRes, academicTermsRes] = await Promise.all([
@@ -155,7 +155,7 @@ export async function createMyStudentRecord(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.' };
 
   // Ensure the user has the student role in their profile
@@ -370,7 +370,7 @@ export async function updateMyStudentRecord(studentId: string, formData: FormDat
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.' };
 
   const photoResult = await applyPhotoFromForm(supabase, studentId, formData);
@@ -446,7 +446,7 @@ export async function updateAcademicInfo(studentId: string, formData: FormData) 
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.' };
 
   // Build update object with only academic fields

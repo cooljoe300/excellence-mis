@@ -48,7 +48,7 @@ async function requireSuperadmin() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.', userId: null as string | null };
 
   const { data: profile, error } = await supabase
@@ -66,7 +66,7 @@ async function requireAdmin() {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   if (!user) return { error: 'You must be signed in.', userId: null as string | null };
 
   const { data: profile, error } = await supabase
@@ -142,10 +142,10 @@ export async function createUser(formData: {
   const admin = createAdminClient();
 
   // Check if email already exists in auth.users
-  const { data: existingAuthUser, error: authCheckError } = await admin.auth.admin.listUsers();
+  const { data: existingAuthUser, error: authCheckError } = await ((admin as any).auth.admin).listUsers();
   if (!authCheckError && existingAuthUser.users) {
     const authUserExists = existingAuthUser.users.some(
-      (u) => u.email === email.toLowerCase().trim()
+      (u: { email?: string }) => u.email === email.toLowerCase().trim()
     );
     if (authUserExists) {
       return { error: 'A user with this email already exists in the authentication system. Please edit the existing user instead.' };
@@ -164,7 +164,7 @@ export async function createUser(formData: {
   }
 
   // Create auth user
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+  const { data: authData, error: authError } = await ((admin as any).auth.admin).createUser({
     email: email.toLowerCase().trim(),
     password: temporaryPassword,
     email_confirm: true,
@@ -227,7 +227,7 @@ export async function createUser(formData: {
   if (profileError) {
     console.error('Profile operation error:', profileError);
     // Rollback auth user creation if profile operation fails
-    await admin.auth.admin.deleteUser(authData.user.id);
+    await ((admin as any).auth.admin).deleteUser(authData.user.id);
     return { error: `Failed to create profile: ${profileError.message}` };
   }
 
@@ -260,8 +260,8 @@ export async function updateUserRole(userId: string, role: string, reason?: stri
   }
 
   // Prevent removing the last administrator
-  const admin = createAdminClient();
-  const userRes = await admin.auth.admin.getUserById(userId);
+  const adminClient = createAdminClient();
+  const userRes = await ((adminClient as any).auth.admin).getUserById(userId);
   if (userRes.error || !userRes.data.user) {
     return { error: userRes.error?.message ?? 'User account not found in auth.' };
   }
@@ -285,7 +285,7 @@ export async function updateUserRole(userId: string, role: string, reason?: stri
   }
 
   const currentMeta = (userRes.data.user.user_metadata ?? {}) as Record<string, unknown>;
-  const metadataResult = await admin.auth.admin.updateUserById(userId, {
+  const metadataResult = await ((adminClient as any).auth.admin).updateUserById(userId, {
     user_metadata: {
       ...currentMeta,
       role,
@@ -328,11 +328,11 @@ export async function resetUserPassword(userId: string, temporaryPassword: strin
     return { error: 'Password must be at least 6 characters.' };
   }
 
-  const admin = createAdminClient();
+  const adminClient = createAdminClient();
   const supabase = await createClient();
 
   // Update auth user password
-  const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+  const { error: authError } = await ((adminClient as any).auth.admin).updateUserById(userId, {
     password: temporaryPassword,
   });
 
@@ -382,7 +382,7 @@ export async function deleteUser(userId: string) {
   }
 
   const supabase = await createClient();
-  const admin = createAdminClient();
+  const adminClient = createAdminClient();
 
   // Get user info
   const { data: user, error: userError } = await supabase
@@ -429,10 +429,10 @@ export async function deleteUser(userId: string) {
     if (updateError) return { error: updateError.message };
 
     // Also update auth user metadata and disable the account
-    const authUserResult = await admin.auth.admin.getUserById(userId);
+    const authUserResult = await ((adminClient as any).auth.admin).getUserById(userId);
     if (authUserResult.data?.user) {
       const currentMeta = (authUserResult.data.user.user_metadata ?? {}) as Record<string, unknown>;
-      await admin.auth.admin.updateUserById(userId, {
+      await ((adminClient as any).auth.admin).updateUserById(userId, {
         user_metadata: {
           ...currentMeta,
           role: 'inactive',
@@ -456,7 +456,7 @@ export async function deleteUser(userId: string) {
   if (deleteError) return { error: deleteError.message };
 
   // Delete auth user
-  const { error: authDeleteError } = await admin.auth.admin.deleteUser(userId);
+  const { error: authDeleteError } = await ((adminClient as any).auth.admin).deleteUser(userId);
   if (authDeleteError) {
     console.error('Failed to delete auth user:', authDeleteError);
     // Continue anyway - profile is deleted

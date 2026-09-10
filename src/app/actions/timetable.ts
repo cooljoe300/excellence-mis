@@ -513,7 +513,7 @@ export async function checkTimetableConflict(formData: FormData) {
 
 export async function createTimetable(formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
   
   if (!user) {
     return { error: 'You must be logged in to create a timetable entry.' };
@@ -677,7 +677,7 @@ export async function createTimetable(formData: FormData) {
 
 export async function updateTimetable(id: string, formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { error: 'Unauthorized' };
@@ -855,7 +855,7 @@ export async function updateTimetable(id: string, formData: FormData) {
 
 export async function deleteTimetable(id: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { error: 'Unauthorized' };
@@ -877,7 +877,7 @@ export async function deleteTimetable(id: string) {
 
 export async function publishTimetable(id: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { error: 'Unauthorized' };
@@ -934,7 +934,7 @@ export async function publishTimetable(id: string) {
 
 export async function unpublishTimetable(id: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { error: 'Unauthorized' };
@@ -959,7 +959,7 @@ export async function unpublishTimetable(id: string) {
 
 export async function getStudentTimetable() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
 
   if (!user) {
     return { student: null, timetables: [], timeSlots: [], programme: null, intake: null };
@@ -1156,7 +1156,7 @@ export async function getStudentTimetable() {
 
 export async function getLecturerTimetable() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
   
   if (!user) {
     return { lecturer: null, timetables: [] as Timetable[], totalHours: 0 };
@@ -1242,7 +1242,7 @@ export async function exportTimetableToCSV() {
 
 export async function importTimetableFromCSV(csvContent: string) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
   
   if (!user) {
     return { error: 'You must be logged in to import timetables.' };
@@ -1355,7 +1355,7 @@ export async function getLecturers() {
 
 export async function updateLecturer(lecturerId: string, formData: FormData) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
   
   if (!user) {
     return { error: 'You must be logged in to update lecturer information.' };
@@ -1392,7 +1392,7 @@ export async function updateLecturer(lecturerId: string, formData: FormData) {
 
 export async function toggleLecturerCanTeach(lecturerId: string, canTeach: boolean) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
   
   if (!user) {
     return { error: 'You must be logged in to update lecturer permissions.' };

@@ -21,7 +21,7 @@ export default function UserRolesPage() {
       const supabase = createClient();
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await (supabase.auth as any).getUser();
       
       if (!user) {
         redirect('/login');

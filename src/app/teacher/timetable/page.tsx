@@ -19,7 +19,7 @@ import {
 
 export default async function LecturerTimetablePage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await (supabase.auth as any).getUser();
   
   if (!user) {
     redirect('/login');

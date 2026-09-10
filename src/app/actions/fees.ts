@@ -287,7 +287,7 @@ export async function rejectFeePaymentSubmission(submissionId: string, rejection
     .update({
       status: 'rejected',
       reviewed_at: new Date().toISOString(),
-      reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+      reviewed_by: (await (supabase.auth as any).getUser()).data.user?.id,
     })
     .eq('id', submissionId);
 
@@ -409,7 +409,7 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
   
   if (!user) return { error: 'You must be signed in.' };
 

@@ -81,10 +81,11 @@ export function StudentUnitActivitiesClient({
         // Skip recorded classes for countdown
         if (lesson.class_type === 'recorded') return;
         
-        if (lesson.calculatedStatus === 'upcoming') {
+        if (lesson.calculatedStatus === 'upcoming' && lesson.scheduled_date && lesson.start_time) {
           const now = new Date();
           const scheduledDate = new Date(lesson.scheduled_date);
-          const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
+          const timeParts = lesson.start_time.split(':');
+          const [startHours, startMinutes] = [parseInt(timeParts[0]), parseInt(timeParts[1])];
           
           const startTime = new Date(scheduledDate);
           startTime.setHours(startHours, startMinutes, 0, 0);

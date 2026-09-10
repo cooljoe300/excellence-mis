@@ -24,7 +24,7 @@ export async function recordAttendance(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await (supabase.auth as any).getUser();
 
   const { error } = await supabase.from('attendance').upsert(
     {

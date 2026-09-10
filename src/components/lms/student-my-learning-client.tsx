@@ -87,7 +87,8 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     return lesson.class_type !== 'recorded' && calculateLessonStatus(lesson) === 'completed';
   }).length;
 
-  function formatDate(dateStr: string) {
+  function formatDate(dateStr: string | null) {
+    if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -95,7 +96,8 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     });
   }
 
-  function formatTime(timeStr: string) {
+  function formatTime(timeStr: string | null) {
+    if (!timeStr) return '';
     const [hours, minutes] = timeStr.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
