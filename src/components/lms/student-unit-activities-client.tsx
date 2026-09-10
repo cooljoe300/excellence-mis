@@ -41,7 +41,7 @@ export function StudentUnitActivitiesClient({
         title={`${course.code} - ${course.name}`}
         description={`${student.first_name} ${student.last_name} • Learning Activities`}
         action={
-          <Link href="/student/(portal)/lms/my-learning">
+          <Link href="/student/lms/my-learning">
             <Button variant="secondary" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to My Learning
@@ -65,7 +65,7 @@ export function StudentUnitActivitiesClient({
           {activities.map((activity) => (
             <Link
               key={activity.id}
-              href={`/student/(portal)/lms/activities/${activity.id}`}
+              href={`/student/lms/activities/${activity.id}`}
               className="block"
             >
               <div className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 hover:shadow-sm transition-all">

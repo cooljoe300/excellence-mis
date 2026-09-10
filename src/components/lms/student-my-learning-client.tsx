@@ -74,7 +74,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                 </Badge>
               </div>
 
-              <Link href={`/student/(portal)/lms/my-learning/units/${course.id}`}>
+              <Link href={`/student/lms/my-learning/units/${course.id}`}>
                 <Button size="sm" variant="secondary">
                   <Video className="h-4 w-4 mr-2" />
                   View Activities

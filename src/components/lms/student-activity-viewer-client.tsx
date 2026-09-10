@@ -44,7 +44,7 @@ export function StudentActivityViewerClient({
         
         if (!hasAccess) {
           toastError('You do not have access to this learning activity');
-          window.location.href = '/student/(portal)/lms/my-learning';
+          window.location.href = '/student/lms/my-learning';
         }
       } catch (error) {
         console.error('Error verifying enrollment:', error);
