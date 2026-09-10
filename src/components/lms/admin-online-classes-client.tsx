@@ -11,9 +11,8 @@ import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson } from '@/app/actions/lms';
 import { getCourses } from '@/app/actions/courses';
-import { calculateLessonStatus } from '@/lib/lms-utils';
 import type { Course, OnlineLesson } from '@/lib/types';
-import { Plus, Edit, Trash2, Video, Clock, Calendar, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Video, Play, Loader2, Lock, Copy, Calendar } from 'lucide-react';
 
 export function AdminOnlineClassesClient() {
   const { success, error: toastError } = useToast();
@@ -23,16 +22,16 @@ export function AdminOnlineClassesClient() {
   const [showForm, setShowForm] = useState(false);
   const [editingLesson, setEditingLesson] = useState<OnlineLesson | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OnlineLesson | null>(null);
+  const [previewLesson, setPreviewLesson] = useState<OnlineLesson | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formData, setFormData] = useState({
     course_id: '',
     title: '',
     topic: '',
     description: '',
-    scheduled_date: '',
-    start_time: '',
-    end_time: '',
-    zoom_url: '',
+    recording_url: '',
+    passcode: '',
+    class_type: 'recorded' as 'live' | 'recorded',
     is_published: true,
   });
 
@@ -73,33 +72,32 @@ export function AdminOnlineClassesClient() {
     formDataObj.append('title', formData.title);
     formDataObj.append('topic', formData.topic);
     formDataObj.append('description', formData.description);
-    formDataObj.append('scheduled_date', formData.scheduled_date);
-    formDataObj.append('start_time', formData.start_time);
-    formDataObj.append('end_time', formData.end_time);
-    formDataObj.append('zoom_url', formData.zoom_url);
+    formDataObj.append('recording_url', formData.recording_url);
+    formDataObj.append('passcode', formData.passcode);
+    formDataObj.append('class_type', formData.class_type);
     formDataObj.append('is_published', formData.is_published.toString());
 
     try {
       if (editingLesson) {
         const result = await updateOnlineLesson(editingLesson.id, formDataObj);
         if (result.success) {
-          success('Online class updated successfully');
+          success('Recorded class updated successfully');
           setShowForm(false);
           setEditingLesson(null);
           resetForm();
           loadLessons();
         } else {
-          toastError(result.error || 'Failed to update online class');
+          toastError(result.error || 'Failed to update recorded class');
         }
       } else {
         const result = await createOnlineLesson(formDataObj);
         if (result.success) {
-          success('Online class published successfully');
+          success('Recorded class published successfully');
           setShowForm(false);
           resetForm();
           loadLessons();
         } else {
-          toastError(result.error || 'Failed to publish online class');
+          toastError(result.error || 'Failed to publish recorded class');
         }
       }
     } catch (error) {
@@ -116,11 +114,11 @@ export function AdminOnlineClassesClient() {
     try {
       const result = await deleteOnlineLesson(deleteTarget.id);
       if (result.success) {
-        success('Online class deleted successfully');
+        success('Recorded class deleted successfully');
         setDeleteTarget(null);
         loadLessons();
       } else {
-        toastError(result.error || 'Failed to delete online class');
+        toastError(result.error || 'Failed to delete recorded class');
       }
     } catch (error) {
       console.error('Error deleting lesson:', error);
@@ -135,10 +133,9 @@ export function AdminOnlineClassesClient() {
       title: lesson.title,
       topic: lesson.topic || '',
       description: lesson.description || '',
-      scheduled_date: lesson.scheduled_date,
-      start_time: lesson.start_time,
-      end_time: lesson.end_time,
-      zoom_url: lesson.zoom_url,
+      recording_url: lesson.recording_url || '',
+      passcode: lesson.passcode || '',
+      class_type: lesson.class_type || 'recorded',
       is_published: lesson.is_published,
     });
     setShowForm(true);
@@ -150,15 +147,15 @@ export function AdminOnlineClassesClient() {
       title: '',
       topic: '',
       description: '',
-      scheduled_date: '',
-      start_time: '',
-      end_time: '',
-      zoom_url: '',
+      recording_url: '',
+      passcode: '',
+      class_type: 'recorded',
       is_published: true,
     });
   }
 
-  function formatDate(dateStr: string) {
+  function formatDate(dateStr: string | null) {
+    if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -166,16 +163,13 @@ export function AdminOnlineClassesClient() {
     });
   }
 
-  function formatTime(timeStr: string) {
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    success('Passcode copied to clipboard');
   }
 
   const totalClasses = lessons.length;
-  const upcomingClasses = lessons.filter(l => calculateLessonStatus(l) === 'upcoming').length;
+  const recordedClasses = lessons.filter(l => l.class_type === 'recorded').length;
   const publishedClasses = lessons.filter(l => l.is_published).length;
 
   return (
@@ -183,12 +177,12 @@ export function AdminOnlineClassesClient() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Online Classes</h1>
-          <p className="text-slate-600 mt-1">Post and manage Zoom classes for enrolled students.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Recorded Classes</h1>
+          <p className="text-slate-600 mt-1">Add and manage recorded lessons for your students.</p>
         </div>
         <Button onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Zoom Class
+          Add Recorded Class
         </Button>
       </div>
 
@@ -199,8 +193,8 @@ export function AdminOnlineClassesClient() {
           <div className="text-2xl font-bold text-slate-900 mt-1">{totalClasses}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600">Upcoming</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{upcomingClasses}</div>
+          <div className="text-sm text-slate-600">Recorded</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{recordedClasses}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="text-sm text-slate-600">Published</div>
@@ -216,11 +210,11 @@ export function AdminOnlineClassesClient() {
       ) : lessons.length === 0 ? (
         <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
           <Video className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-900 mb-2">No online classes yet</h3>
-          <p className="text-slate-600 mb-4">Get started by adding your first Zoom class.</p>
+          <h3 className="text-lg font-medium text-slate-900 mb-2">No recorded classes yet</h3>
+          <p className="text-slate-600 mb-4">Get started by adding your first recorded class.</p>
           <Button onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Zoom Class
+            Add Recorded Class
           </Button>
         </div>
       ) : (
@@ -230,15 +224,14 @@ export function AdminOnlineClassesClient() {
               <TableRow>
                 <TableHead>Unit</TableHead>
                 <TableHead>Class</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Time</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Date Added</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lessons.map((lesson) => {
-                const status = calculateLessonStatus(lesson);
                 const course = courses.find(c => c.id === lesson.course_id);
                 return (
                   <TableRow key={lesson.id}>
@@ -254,28 +247,18 @@ export function AdminOnlineClassesClient() {
                       </div>
                     </TableCell>
                     <TableCell>
+                      <Badge variant={lesson.class_type === 'recorded' ? 'secondary' : 'default'}>
+                        {lesson.class_type === 'recorded' ? 'RECORDED' : 'LIVE'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-slate-400" />
-                        {formatDate(lesson.scheduled_date)}
+                        {formatDate(lesson.created_at)}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-slate-400" />
-                        {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {status === 'live' && (
-                          <Badge variant="destructive">LIVE NOW</Badge>
-                        )}
-                        {status === 'upcoming' && (
-                          <Badge variant="default">UPCOMING</Badge>
-                        )}
-                        {status === 'completed' && (
-                          <Badge variant="secondary">COMPLETED</Badge>
-                        )}
                         {!lesson.is_published && (
                           <Badge variant="outline">DRAFT</Badge>
                         )}
@@ -283,6 +266,13 @@ export function AdminOnlineClassesClient() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPreviewLesson(lesson)}
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -311,7 +301,7 @@ export function AdminOnlineClassesClient() {
       <Modal
         open={showForm}
         onClose={() => { setShowForm(false); setEditingLesson(null); resetForm(); }}
-        title={editingLesson ? 'Edit Zoom Class' : 'Add Zoom Class'}
+        title={editingLesson ? 'Edit Recorded Class' : 'Add Recorded Class'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -343,7 +333,7 @@ export function AdminOnlineClassesClient() {
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="e.g., Quantitative Analysis — Regression Analysis"
+              placeholder="e.g., Introduction to Financial Accounting – Lesson 1"
             />
           </div>
 
@@ -355,62 +345,7 @@ export function AdminOnlineClassesClient() {
               id="topic"
               value={formData.topic}
               onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-              placeholder="e.g., Regression Analysis"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="scheduled_date" className="block text-sm font-medium text-slate-700 mb-1">
-                Date <span className="text-red-600">*</span>
-              </label>
-              <Input
-                id="scheduled_date"
-                type="date"
-                required
-                value={formData.scheduled_date}
-                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label htmlFor="start_time" className="block text-sm font-medium text-slate-700 mb-1">
-                  Start <span className="text-red-600">*</span>
-                </label>
-                <Input
-                  id="start_time"
-                  type="time"
-                  required
-                  value={formData.start_time}
-                  onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                />
-              </div>
-              <div>
-                <label htmlFor="end_time" className="block text-sm font-medium text-slate-700 mb-1">
-                  End <span className="text-red-600">*</span>
-                </label>
-                <Input
-                  id="end_time"
-                  type="time"
-                  required
-                  value={formData.end_time}
-                  onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="zoom_url" className="block text-sm font-medium text-slate-700 mb-1">
-              Zoom Join URL <span className="text-red-600">*</span>
-            </label>
-            <Input
-              id="zoom_url"
-              type="url"
-              required
-              value={formData.zoom_url}
-              onChange={(e) => setFormData({ ...formData, zoom_url: e.target.value })}
-              placeholder="https://zoom.us/j/123456789"
+              placeholder="e.g., Introduction to Double Entry Accounting"
             />
           </div>
 
@@ -422,9 +357,48 @@ export function AdminOnlineClassesClient() {
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Optional description of the class content..."
+              placeholder="This recorded lesson covers the basic principles of double-entry accounting."
               rows={3}
             />
+          </div>
+
+          <div>
+            <label htmlFor="recording_url" className="block text-sm font-medium text-slate-700 mb-1">
+              Recorded Class URL <span className="text-red-600">*</span>
+            </label>
+            <Input
+              id="recording_url"
+              type="url"
+              required
+              value={formData.recording_url}
+              onChange={(e) => setFormData({ ...formData, recording_url: e.target.value })}
+              placeholder="Paste Zoom recording link here"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="class_type" className="block text-sm font-medium text-slate-700 mb-1">
+              Class Type
+            </label>
+            <div className="flex items-center gap-2">
+              <Video className="h-5 w-5 text-slate-400" />
+              <span className="text-sm text-slate-600">Recorded Class</span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Students will click to watch the recorded class.</p>
+            <input type="hidden" name="class_type" value={formData.class_type} />
+          </div>
+
+          <div>
+            <label htmlFor="passcode" className="block text-sm font-medium text-slate-700 mb-1">
+              Passcode
+            </label>
+            <Input
+              id="passcode"
+              value={formData.passcode}
+              onChange={(e) => setFormData({ ...formData, passcode: e.target.value })}
+              placeholder="Enter recording passcode if required"
+            />
+            <p className="text-xs text-slate-500 mt-1">Leave blank if the recording does not require a passcode.</p>
           </div>
 
           <div className="flex items-center gap-2">
@@ -436,7 +410,7 @@ export function AdminOnlineClassesClient() {
               className="rounded border-slate-300 text-slate-900 focus:ring-slate-950"
             />
             <label htmlFor="is_published" className="text-sm text-slate-700">
-              Publish this class (visible to students)
+              Publish to students
             </label>
           </div>
 
@@ -456,20 +430,93 @@ export function AdminOnlineClassesClient() {
                   Saving...
                 </>
               ) : (
-                editingLesson ? 'Update Class' : 'Publish Class'
+                editingLesson ? 'Update Class' : 'Save Recorded Class'
               )}
             </Button>
           </div>
         </form>
       </Modal>
 
+      {/* Preview Modal */}
+      {previewLesson && (
+        <Modal
+          open={!!previewLesson}
+          onClose={() => setPreviewLesson(null)}
+          title="Class Preview"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700">Unit</label>
+              <p className="text-slate-900 mt-1">
+                {courses.find(c => c.id === previewLesson.course_id)?.code} - {courses.find(c => c.id === previewLesson.course_id)?.name}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700">Class Title</label>
+              <p className="text-slate-900 mt-1">{previewLesson.title}</p>
+            </div>
+            {previewLesson.topic && (
+              <div>
+                <label className="text-sm font-medium text-slate-700">Topic</label>
+                <p className="text-slate-900 mt-1">{previewLesson.topic}</p>
+              </div>
+            )}
+            {previewLesson.description && (
+              <div>
+                <label className="text-sm font-medium text-slate-700">Description</label>
+                <p className="text-slate-900 mt-1">{previewLesson.description}</p>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Badge variant={previewLesson.class_type === 'recorded' ? 'secondary' : 'default'}>
+                {previewLesson.class_type === 'recorded' ? 'RECORDED CLASS' : 'LIVE CLASS'}
+              </Badge>
+            </div>
+            {previewLesson.passcode && (
+              <div className="bg-slate-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-slate-600" />
+                    <span className="text-sm font-medium text-slate-700">Recording Passcode</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(previewLesson.passcode)}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-slate-900 font-mono">{previewLesson.passcode}</p>
+              </div>
+            )}
+            <div className="pt-4 border-t border-slate-200">
+              <Button
+                onClick={() => {
+                  if (previewLesson.recording_url) {
+                    window.open(previewLesson.recording_url, '_blank', 'noopener,noreferrer');
+                  } else if (previewLesson.zoom_url) {
+                    window.open(previewLesson.zoom_url, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+                className="w-full"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                {previewLesson.class_type === 'recorded' ? 'Watch Recording' : 'Join Class'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Delete Confirmation */}
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Delete Online Class"
-        description="Are you sure you want to delete this online class? This action cannot be undone."
+        title="Delete Recorded Class"
+        description="Are you sure you want to delete this recorded class? This action cannot be undone."
         confirmLabel="Delete"
         cancelLabel="Cancel"
       />

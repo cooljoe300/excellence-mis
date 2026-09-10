@@ -367,29 +367,50 @@ export async function createOnlineLesson(formData: FormData) {
   const title = formData.get('title') as string;
   const topic = formData.get('topic') as string | null;
   const description = formData.get('description') as string | null;
-  const scheduledDate = formData.get('scheduled_date') as string;
-  const startTime = formData.get('start_time') as string;
-  const endTime = formData.get('end_time') as string;
-  const zoomUrl = formData.get('zoom_url') as string;
+  const scheduledDate = formData.get('scheduled_date') as string | null;
+  const startTime = formData.get('start_time') as string | null;
+  const endTime = formData.get('end_time') as string | null;
+  const zoomUrl = formData.get('zoom_url') as string | null;
+  const recordingUrl = formData.get('recording_url') as string | null;
+  const passcode = formData.get('passcode') as string | null;
+  const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
 
-  // Validate required fields
-  if (!courseId || !title || !scheduledDate || !startTime || !endTime || !zoomUrl) {
-    return { success: false, error: 'All required fields must be provided' };
+  // For recorded classes, recording_url is required
+  if (classType === 'recorded' && !recordingUrl) {
+    return { success: false, error: 'Recording URL is required for recorded classes' };
   }
 
-  // Validate Zoom URL
-  try {
-    const url = new URL(zoomUrl);
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      return { success: false, error: 'Zoom URL must use http:// or https://' };
+  // For live classes, scheduling is required
+  if (classType === 'live' && (!scheduledDate || !startTime || !endTime || !zoomUrl)) {
+    return { success: false, error: 'Scheduled date, time, and Zoom URL are required for live classes' };
+  }
+
+  // Validate URLs if provided
+  if (zoomUrl) {
+    try {
+      const url = new URL(zoomUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return { success: false, error: 'Zoom URL must use http:// or https://' };
+      }
+    } catch {
+      return { success: false, error: 'Invalid Zoom URL format' };
     }
-  } catch {
-    return { success: false, error: 'Invalid Zoom URL format' };
   }
 
-  // Validate times
-  if (startTime >= endTime) {
+  if (recordingUrl) {
+    try {
+      const url = new URL(recordingUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return { success: false, error: 'Recording URL must use http:// or https://' };
+      }
+    } catch {
+      return { success: false, error: 'Invalid recording URL format' };
+    }
+  }
+
+  // Validate times for live classes
+  if (startTime && endTime && startTime >= endTime) {
     return { success: false, error: 'End time must be after start time' };
   }
 
@@ -404,6 +425,9 @@ export async function createOnlineLesson(formData: FormData) {
       start_time: startTime,
       end_time: endTime,
       zoom_url: zoomUrl,
+      recording_url: recordingUrl,
+      passcode,
+      class_type: classType || 'live',
       is_published: isPublished,
     })
     .select()
@@ -432,24 +456,40 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   const title = formData.get('title') as string;
   const topic = formData.get('topic') as string | null;
   const description = formData.get('description') as string | null;
-  const scheduledDate = formData.get('scheduled_date') as string;
-  const startTime = formData.get('start_time') as string;
-  const endTime = formData.get('end_time') as string;
-  const zoomUrl = formData.get('zoom_url') as string;
+  const scheduledDate = formData.get('scheduled_date') as string | null;
+  const startTime = formData.get('start_time') as string | null;
+  const endTime = formData.get('end_time') as string | null;
+  const zoomUrl = formData.get('zoom_url') as string | null;
+  const recordingUrl = formData.get('recording_url') as string | null;
+  const passcode = formData.get('passcode') as string | null;
+  const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
 
-  // Validate Zoom URL
-  try {
-    const url = new URL(zoomUrl);
-    if (!['http:', 'https:'].includes(url.protocol)) {
-      return { success: false, error: 'Zoom URL must use http:// or https://' };
+  // Validate URLs if provided
+  if (zoomUrl) {
+    try {
+      const url = new URL(zoomUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return { success: false, error: 'Zoom URL must use http:// or https://' };
+      }
+    } catch {
+      return { success: false, error: 'Invalid Zoom URL format' };
     }
-  } catch {
-    return { success: false, error: 'Invalid Zoom URL format' };
   }
 
-  // Validate times
-  if (startTime >= endTime) {
+  if (recordingUrl) {
+    try {
+      const url = new URL(recordingUrl);
+      if (!['http:', 'https:'].includes(url.protocol)) {
+        return { success: false, error: 'Recording URL must use http:// or https://' };
+      }
+    } catch {
+      return { success: false, error: 'Invalid recording URL format' };
+    }
+  }
+
+  // Validate times for live classes
+  if (startTime && endTime && startTime >= endTime) {
     return { success: false, error: 'End time must be after start time' };
   }
 
@@ -464,6 +504,9 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
       start_time: startTime,
       end_time: endTime,
       zoom_url: zoomUrl,
+      recording_url: recordingUrl,
+      passcode,
+      class_type: classType,
       is_published: isPublished,
     })
     .eq('id', lessonId)

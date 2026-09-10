@@ -77,12 +77,14 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
   
   // Calculate statistics
   const enrolledUnits = Object.keys(activitiesByCourse).length;
+  const totalClasses = onlineLessons.length;
+  const recordedClasses = onlineLessons.filter(lesson => lesson.class_type === 'recorded').length;
   const upcomingLessons = onlineLessons.filter(lesson => {
-    return calculateLessonStatus(lesson) === 'upcoming';
+    return lesson.class_type !== 'recorded' && calculateLessonStatus(lesson) === 'upcoming';
   }).length;
   
   const completedLessons = onlineLessons.filter(lesson => {
-    return calculateLessonStatus(lesson) === 'completed';
+    return lesson.class_type !== 'recorded' && calculateLessonStatus(lesson) === 'completed';
   }).length;
 
   function formatDate(dateStr: string) {
@@ -102,7 +104,10 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
   }
 
   function handleJoinClass(lesson: OnlineLesson) {
-    window.open(lesson.zoom_url, '_blank', 'noopener,noreferrer');
+    const url = lesson.class_type === 'recorded' ? lesson.recording_url : lesson.zoom_url;
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   }
 
   if (loading) {
@@ -133,21 +138,21 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Video className="h-4 w-4" />
-            Total Classes
+            Recorded Classes
           </div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{onlineLessons.length}</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{recordedClasses}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Clock className="h-4 w-4" />
-            Upcoming
+            Upcoming Live
           </div>
           <div className="text-2xl font-bold text-slate-900 mt-1">{upcomingLessons}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <CheckCircle className="h-4 w-4" />
-            Completed
+            Completed Live
           </div>
           <div className="text-2xl font-bold text-slate-900 mt-1">{completedLessons}</div>
         </div>
@@ -240,19 +245,23 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                 </div>
                 <div className="divide-y divide-slate-200">
                   {filteredLessons.map((lesson) => {
-                    const status = calculateLessonStatus(lesson);
+                    const isRecorded = lesson.class_type === 'recorded';
+                    const status = isRecorded ? 'recorded' : calculateLessonStatus(lesson);
                     return (
                       <div key={lesson.id} className="p-4 hover:bg-slate-50 transition-colors">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              {status === 'live' && (
+                              {isRecorded && (
+                                <Badge variant="secondary">RECORDED CLASS</Badge>
+                              )}
+                              {!isRecorded && status === 'live' && (
                                 <Badge variant="destructive">LIVE NOW</Badge>
                               )}
-                              {status === 'upcoming' && (
+                              {!isRecorded && status === 'upcoming' && (
                                 <Badge variant="default">UPCOMING</Badge>
                               )}
-                              {status === 'completed' && (
+                              {!isRecorded && status === 'completed' && (
                                 <Badge variant="secondary">COMPLETED</Badge>
                               )}
                             </div>
@@ -260,19 +269,29 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                             {lesson.topic && (
                               <p className="text-sm text-slate-600 mt-1">{lesson.topic}</p>
                             )}
-                            <div className="flex items-center gap-4 mt-2 text-sm text-slate-600">
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-4 w-4" />
-                                {formatDate(lesson.scheduled_date)}
+                            {!isRecorded && lesson.scheduled_date && (
+                              <div className="flex items-center gap-4 mt-2 text-sm text-slate-600">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-4 w-4" />
+                                  {formatDate(lesson.scheduled_date)}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
-                              </div>
-                            </div>
+                            )}
                           </div>
                           <div className="ml-4">
-                            {status === 'live' ? (
+                            {isRecorded ? (
+                              <Button
+                                onClick={() => handleJoinClass(lesson)}
+                                variant="secondary"
+                              >
+                                <Video className="h-4 w-4 mr-2" />
+                                Watch Recording
+                              </Button>
+                            ) : status === 'live' ? (
                               <Button
                                 onClick={() => handleJoinClass(lesson)}
                                 className="bg-red-600 hover:bg-red-700"

@@ -21,7 +21,7 @@ export function StudentUnitActivitiesClient({
   const [onlineLessons, setOnlineLessons] = useState<OnlineLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'live' | 'completed'>('all');
+  const [filter, setFilter] = useState<'all' | 'recorded' | 'upcoming' | 'live' | 'completed'>('all');
   const [previewLesson, setPreviewLesson] = useState<OnlineLesson | null>(null);
   const [countdowns, setCountdowns] = useState<Record<string, string>>({});
 
@@ -47,9 +47,11 @@ export function StudentUnitActivitiesClient({
 
   // Filter lessons based on search and status
   const filteredLessons = onlineLessons.filter(lesson => {
-    const status = calculateLessonStatus(lesson);
+    const isRecorded = lesson.class_type === 'recorded';
+    const status = isRecorded ? 'recorded' : calculateLessonStatus(lesson);
     
     // Status filter
+    if (filter === 'recorded' && !isRecorded) return false;
     if (filter === 'upcoming' && status !== 'upcoming') return false;
     if (filter === 'live' && status !== 'live') return false;
     if (filter === 'completed' && status !== 'completed') return false;
@@ -67,7 +69,7 @@ export function StudentUnitActivitiesClient({
   // Dynamic status calculation for rendering
   const lessonsWithStatus = filteredLessons.map(lesson => ({
     ...lesson,
-    calculatedStatus: calculateLessonStatus(lesson)
+    calculatedStatus: lesson.class_type === 'recorded' ? 'recorded' : calculateLessonStatus(lesson)
   }));
 
   // Update countdowns every second
@@ -76,6 +78,9 @@ export function StudentUnitActivitiesClient({
       const newCountdowns: Record<string, string> = {};
       
       lessonsWithStatus.forEach(lesson => {
+        // Skip recorded classes for countdown
+        if (lesson.class_type === 'recorded') return;
+        
         if (lesson.calculatedStatus === 'upcoming') {
           const now = new Date();
           const scheduledDate = new Date(lesson.scheduled_date);
@@ -110,7 +115,8 @@ export function StudentUnitActivitiesClient({
     return () => clearInterval(interval);
   }, [lessonsWithStatus]);
 
-  function formatDate(dateStr: string) {
+  function formatDate(dateStr: string | null) {
+    if (!dateStr) return '';
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -118,7 +124,8 @@ export function StudentUnitActivitiesClient({
     });
   }
 
-  function formatTime(timeStr: string) {
+  function formatTime(timeStr: string | null) {
+    if (!timeStr) return '';
     const [hours, minutes] = timeStr.split(':');
     const hour = parseInt(hours);
     const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -127,7 +134,10 @@ export function StudentUnitActivitiesClient({
   }
 
   function handleJoinClass(lesson: OnlineLesson) {
-    window.open(lesson.zoom_url, '_blank', 'noopener,noreferrer');
+    const url = lesson.class_type === 'recorded' ? lesson.recording_url : lesson.zoom_url;
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   }
 
   if (loading) {
@@ -174,6 +184,13 @@ export function StudentUnitActivitiesClient({
             All
           </Button>
           <Button
+            variant={filter === 'recorded' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setFilter('recorded')}
+          >
+            Recorded
+          </Button>
+          <Button
             variant={filter === 'upcoming' ? 'primary' : 'secondary'}
             size="sm"
             onClick={() => setFilter('upcoming')}
@@ -211,21 +228,25 @@ export function StudentUnitActivitiesClient({
           <div className="space-y-4">
             {lessonsWithStatus.map((lesson) => {
               const status = lesson.calculatedStatus;
+              const isRecorded = lesson.class_type === 'recorded';
               return (
                 <div key={lesson.id} className="bg-white rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        {status === 'live' && (
+                        {isRecorded && (
+                          <Badge variant="secondary">RECORDED CLASS</Badge>
+                        )}
+                        {!isRecorded && status === 'live' && (
                           <Badge variant="destructive">LIVE NOW</Badge>
                         )}
-                        {status === 'upcoming' && (
+                        {!isRecorded && status === 'upcoming' && (
                           <Badge variant="default">UPCOMING</Badge>
                         )}
-                        {status === 'completed' && (
+                        {!isRecorded && status === 'completed' && (
                           <Badge variant="secondary">COMPLETED</Badge>
                         )}
-                        {status === 'upcoming' && countdowns[lesson.id] && (
+                        {!isRecorded && status === 'upcoming' && countdowns[lesson.id] && (
                           <div className="flex items-center gap-1 text-sm text-slate-600">
                             <Timer className="h-4 w-4" />
                             {countdowns[lesson.id]}
@@ -239,19 +260,29 @@ export function StudentUnitActivitiesClient({
                       {lesson.description && (
                         <p className="text-sm text-slate-600 mt-2">{lesson.description}</p>
                       )}
-                      <div className="flex items-center gap-4 mt-3 text-sm text-slate-600">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4" />
-                          {formatDate(lesson.scheduled_date)}
+                      {!isRecorded && lesson.scheduled_date && (
+                        <div className="flex items-center gap-4 mt-3 text-sm text-slate-600">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="h-4 w-4" />
+                            {formatDate(lesson.scheduled_date)}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
-                        </div>
-                      </div>
+                      )}
                     </div>
                     <div className="ml-4 flex gap-2">
-                      {status === 'live' ? (
+                      {isRecorded ? (
+                        <Button
+                          onClick={() => handleJoinClass(lesson)}
+                          variant="secondary"
+                        >
+                          <Video className="h-4 w-4 mr-2" />
+                          Watch Recording
+                        </Button>
+                      ) : status === 'live' ? (
                         <Button
                           onClick={() => handleJoinClass(lesson)}
                           className="bg-red-600 hover:bg-red-700"
@@ -260,7 +291,7 @@ export function StudentUnitActivitiesClient({
                         </Button>
                       ) : status === 'upcoming' ? (
                         <Button
-                          variant="outline"
+                          variant="secondary"
                           onClick={() => setPreviewLesson(lesson)}
                         >
                           Preview
@@ -344,17 +375,43 @@ export function StudentUnitActivitiesClient({
                   )}
                 </div>
                 
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Date</label>
-                  <p className="text-slate-900 mt-1">{formatDate(previewLesson.scheduled_date)}</p>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium text-slate-700">Time</label>
-                  <p className="text-slate-900 mt-1">
-                    {formatTime(previewLesson.start_time)} – {formatTime(previewLesson.end_time)}
-                  </p>
-                </div>
+                {previewLesson.class_type === 'recorded' ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">RECORDED CLASS</Badge>
+                    </div>
+                    {previewLesson.passcode && (
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-slate-700">Recording Passcode</span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(previewLesson.passcode);
+                            }}
+                            className="text-sm text-slate-600 hover:text-slate-900"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-slate-900 font-mono">{previewLesson.passcode}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Date</label>
+                      <p className="text-slate-900 mt-1">{formatDate(previewLesson.scheduled_date)}</p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-slate-700">Time</label>
+                      <p className="text-slate-900 mt-1">
+                        {formatTime(previewLesson.start_time)} – {formatTime(previewLesson.end_time)}
+                      </p>
+                    </div>
+                  </>
+                )}
                 
                 {previewLesson.description && (
                   <div>
@@ -364,12 +421,14 @@ export function StudentUnitActivitiesClient({
                 )}
                 
                 <div className="pt-4 border-t border-slate-200">
-                  <p className="text-sm font-medium text-slate-700 mb-2">ZOOM ONLINE CLASS</p>
+                  <p className="text-sm font-medium text-slate-700 mb-2">
+                    {previewLesson.class_type === 'recorded' ? 'RECORDED CLASS' : 'ZOOM ONLINE CLASS'}
+                  </p>
                   <Button
                     onClick={() => handleJoinClass(previewLesson)}
                     className="w-full"
                   >
-                    Join Class
+                    {previewLesson.class_type === 'recorded' ? 'Watch Recording' : 'Join Class'}
                   </Button>
                 </div>
               </div>
