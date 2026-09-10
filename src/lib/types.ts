@@ -11,6 +11,9 @@ export type TimetableStatus = 'draft' | 'active' | 'archived';
 export type TeachingMode = 'physical' | 'online' | 'hybrid';
 export type RoomType = 'lecture_hall' | 'computer_lab' | 'laboratory' | 'seminar_room' | 'boardroom';
 export type RegistrationSource = 'staff_registered' | 'self_registered';
+export type LmsActivityStatus = 'active' | 'inactive';
+export type LmsActivityProvider = 'zoom' | 'microsoft_teams' | 'google_meet' | 'moodle' | 'external_link';
+export type LmsLaunchMode = 'iframe' | 'zoom_sdk' | 'same_tab';
 
 export interface Profile {
   id: string;
@@ -300,4 +303,23 @@ export interface TimetableAuditLog {
   performed_by: string | null;
   reason: string | null;
   created_at: string;
+}
+
+export interface LmsLearningActivity {
+  id: string;
+  course_id: string;
+  name: string;
+  external_url: string;
+  description: string | null;
+  display_description: boolean;
+  provider: LmsActivityProvider;
+  launch_mode: LmsLaunchMode;
+  status: LmsActivityStatus;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+  course?: Course;
+  creator?: Profile;
+  updater?: Profile;
 }

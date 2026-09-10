@@ -17,7 +17,6 @@ import {
   Settings,
   Shield,
   LogOut,
-  ExternalLink,
   X,
   UserMinus,
   IdCard,
@@ -27,6 +26,7 @@ import {
   Award,
   Calendar,
   FileText,
+  Library,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -49,6 +49,7 @@ const allNavItems = [
   { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['superadmin', 'admin'] as UserRole[] },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
+  { href: '/dashboard/lms/programmes', label: 'LMS Programmes', icon: Library, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student'] as UserRole[], section: null },
   { href: '/student/register', label: 'My Details', icon: User, roles: ['student'] as UserRole[], section: 'Personal' },
   { href: '/student/enroll', label: 'Register Units', icon: BookOpen, roles: ['student'] as UserRole[], section: 'Academic' },
@@ -59,6 +60,7 @@ const allNavItems = [
   { href: '/student/fees', label: 'Fee Statement', icon: CreditCard, roles: ['student'] as UserRole[], section: 'Finance' },
   { href: '/student/id-card', label: 'My ID Card', icon: IdCard, roles: ['student'] as UserRole[], section: 'Services' },
   { href: '/student/admission-letter', label: 'Admission Letter', icon: FileText, roles: ['student'] as UserRole[], section: 'Services' },
+  { href: '/student/lms/my-learning', label: 'My Learning', icon: Library, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/teacher', label: 'Dashboard', icon: LayoutDashboard, roles: ['teacher'] as UserRole[], section: null },
   { href: '/teacher/timetable', label: 'My Timetable', icon: Calendar, roles: ['teacher'] as UserRole[], section: null },
 ];
@@ -224,15 +226,6 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
       </nav>
 
       <div className="border-t border-slate-700 p-4 space-y-2">
-        <a
-          href="https://lms.excellenceonlinecollege.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-        >
-          <ExternalLink className="h-4 w-4" />
-          Open LMS
-        </a>
         <div className="flex items-center justify-between rounded-lg bg-slate-800/80 px-3 py-2.5">
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{userName}</p>
