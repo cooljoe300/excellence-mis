@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/lib/system-settings';
 import { submitMyFeePayment } from '@/app/actions/student-fees';

@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { DEFAULT_REPORT_FILTERS, type ReportFilters, type ReportKey } from '@/lib/reports/build-report-table';
 import type { ReportsBundle } from '@/app/actions/reports';
 import { ChevronDown } from 'lucide-react';

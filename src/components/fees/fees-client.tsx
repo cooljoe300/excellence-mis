@@ -7,7 +7,7 @@ import { PageHeader, DataTable } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';

@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
 import { createProgram, updateProgram } from '@/app/actions/programs';

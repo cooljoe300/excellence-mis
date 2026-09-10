@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import type { Program, Intake } from '@/lib/types';
 

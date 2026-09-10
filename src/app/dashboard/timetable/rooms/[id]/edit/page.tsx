@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/server';
 import type { Room } from '@/lib/types';
 

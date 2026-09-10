@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Alert } from '@/components/ui/alert';
 import { createUser } from '@/app/actions/user-roles';
 import type { UserRole } from '@/lib/types';

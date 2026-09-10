@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Edit, Eye, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 import type { Profile } from '@/lib/types';

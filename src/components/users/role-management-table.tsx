@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';

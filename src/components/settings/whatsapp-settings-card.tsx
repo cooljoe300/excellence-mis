@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
 import { whatsappService } from '@/lib/whatsapp-service';

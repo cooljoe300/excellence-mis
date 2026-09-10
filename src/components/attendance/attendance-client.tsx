@@ -6,7 +6,7 @@ import { PageHeader, DataTable, EmptyState } from '@/components/ui/page-header';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Alert } from '@/components/ui/alert';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';

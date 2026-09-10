@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
+import Select from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Plus, Printer } from 'lucide-react';
 import type { Timetable, Program, TimeSlot, Intake } from '@/lib/types';
