@@ -14,6 +14,8 @@ export type RegistrationSource = 'staff_registered' | 'self_registered';
 export type LmsActivityStatus = 'active' | 'inactive';
 export type LmsActivityProvider = 'zoom' | 'microsoft_teams' | 'google_meet' | 'moodle' | 'external_link';
 export type LmsLaunchMode = 'iframe' | 'zoom_sdk' | 'same_tab';
+export type OnlineLessonType = 'live_class' | 'recorded_class';
+export type OnlineLessonStatus = 'scheduled' | 'live' | 'completed' | 'cancelled';
 
 export interface Profile {
   id: string;
@@ -320,6 +322,36 @@ export interface LmsLearningActivity {
   created_by: string | null;
   updated_by: string | null;
   course?: Course;
+  creator?: Profile;
+  updater?: Profile;
+}
+
+export interface OnlineLesson {
+  id: string;
+  course_id: string;
+  title: string;
+  topic: string | null;
+  description: string | null;
+  lecturer_id: string | null;
+  lecturer_name: string | null;
+  zoom_join_url: string;
+  zoom_meeting_id: string | null;
+  zoom_passcode: string | null;
+  scheduled_date: string;
+  start_time: string;
+  end_time: string;
+  duration_minutes: number | null;
+  recording_url: string | null;
+  thumbnail_url: string | null;
+  class_type: OnlineLessonType;
+  status: OnlineLessonStatus;
+  is_published: boolean;
+  created_by: string | null;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+  course?: Course;
+  lecturer?: Profile;
   creator?: Profile;
   updater?: Profile;
 }

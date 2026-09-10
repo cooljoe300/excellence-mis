@@ -27,6 +27,7 @@ import {
   Calendar,
   FileText,
   Library,
+  Video,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -50,6 +51,7 @@ const allNavItems = [
   { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['superadmin', 'admin'] as UserRole[] },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/lms/programmes', label: 'LMS Programmes', icon: Library, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/lms/online-classes', label: 'Online Classes', icon: Video, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student'] as UserRole[], section: null },
   { href: '/student/register', label: 'My Details', icon: User, roles: ['student'] as UserRole[], section: 'Personal' },
   { href: '/student/enroll', label: 'Register Units', icon: BookOpen, roles: ['student'] as UserRole[], section: 'Academic' },
