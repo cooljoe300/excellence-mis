@@ -301,7 +301,7 @@ export function StudentUnitActivitiesClient({
                   </div>
                   <div className="ml-4">
                     <Link href={`/student/lms/activities/${activity.id}`}>
-                      <Button variant="outline" size="sm">
+                      <Button variant="secondary" size="sm">
                         Open
                         <ExternalLink className="h-4 w-4 ml-2" />
                       </Button>

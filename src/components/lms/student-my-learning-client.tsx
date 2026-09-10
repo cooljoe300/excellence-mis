@@ -280,7 +280,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                                 Join Live Class
                               </Button>
                             ) : status === 'upcoming' ? (
-                              <Button variant="outline">
+                              <Button variant="secondary">
                                 Preview
                               </Button>
                             ) : (
