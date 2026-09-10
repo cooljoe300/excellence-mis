@@ -309,7 +309,7 @@ export function AdminOnlineClassesClient() {
 
       {/* Add/Edit Modal */}
       <Modal
-        isOpen={showForm}
+        open={showForm}
         onClose={() => { setShowForm(false); setEditingLesson(null); resetForm(); }}
         title={editingLesson ? 'Edit Zoom Class' : 'Add Zoom Class'}
       >
@@ -465,7 +465,7 @@ export function AdminOnlineClassesClient() {
 
       {/* Delete Confirmation */}
       <ConfirmDialog
-        isOpen={!!deleteTarget}
+        open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Online Class"
