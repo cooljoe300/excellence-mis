@@ -240,7 +240,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                 </div>
                 <div className="divide-y divide-slate-200">
                   {filteredLessons.map((lesson) => {
-                    const status = calculateStatus(lesson);
+                    const status = calculateLessonStatus(lesson);
                     return (
                       <div key={lesson.id} className="p-4 hover:bg-slate-50 transition-colors">
                         <div className="flex items-start justify-between">
