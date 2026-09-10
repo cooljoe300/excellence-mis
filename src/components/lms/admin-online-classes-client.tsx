@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson } from '@/app/actions/lms';
 import { getCourses } from '@/app/actions/courses';
+import { calculateLessonStatus } from '@/lib/lms-utils';
 import type { Course, OnlineLesson } from '@/lib/types';
 import { Plus, Edit, Trash2, Video, Clock, Calendar, Loader2 } from 'lucide-react';
 
@@ -173,25 +174,8 @@ export function AdminOnlineClassesClient() {
     return `${hour12}:${minutes} ${ampm}`;
   }
 
-  function calculateStatus(lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' {
-    const now = new Date();
-    const scheduledDate = new Date(lesson.scheduled_date);
-    const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
-    const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
-    
-    const startTime = new Date(scheduledDate);
-    startTime.setHours(startHours, startMinutes, 0, 0);
-    
-    const endTime = new Date(scheduledDate);
-    endTime.setHours(endHours, endMinutes, 0, 0);
-    
-    if (now < startTime) return 'upcoming';
-    if (now >= startTime && now <= endTime) return 'live';
-    return 'completed';
-  }
-
   const totalClasses = lessons.length;
-  const upcomingClasses = lessons.filter(l => calculateStatus(l) === 'upcoming').length;
+  const upcomingClasses = lessons.filter(l => calculateLessonStatus(l) === 'upcoming').length;
   const publishedClasses = lessons.filter(l => l.is_published).length;
 
   return (
@@ -254,7 +238,7 @@ export function AdminOnlineClassesClient() {
             </TableHeader>
             <TableBody>
               {lessons.map((lesson) => {
-                const status = calculateStatus(lesson);
+                const status = calculateLessonStatus(lesson);
                 const course = courses.find(c => c.id === lesson.course_id);
                 return (
                   <TableRow key={lesson.id}>

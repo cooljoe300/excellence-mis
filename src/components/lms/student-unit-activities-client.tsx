@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getStudentLearningActivitiesByCourse, getStudentOnlineLessonsByCourse } from '@/app/actions/lms';
+import { calculateLessonStatus } from '@/lib/lms-utils';
 import type { Student, Course, LmsLearningActivity, OnlineLesson } from '@/lib/types';
 import { ArrowLeft, Video, ExternalLink, Loader2, Calendar, Clock, Search, Timer } from 'lucide-react';
 
@@ -44,27 +45,9 @@ export function StudentUnitActivitiesClient({
     loadData();
   }, [student.id, course.id]);
 
-  // Calculate lesson status dynamically
-  const getLessonStatus = useCallback((lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' => {
-    const now = new Date();
-    const scheduledDate = new Date(lesson.scheduled_date);
-    const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
-    const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
-    
-    const startTime = new Date(scheduledDate);
-    startTime.setHours(startHours, startMinutes, 0, 0);
-    
-    const endTime = new Date(scheduledDate);
-    endTime.setHours(endHours, endMinutes, 0, 0);
-    
-    if (now < startTime) return 'upcoming';
-    if (now >= startTime && now <= endTime) return 'live';
-    return 'completed';
-  }, []);
-
   // Filter lessons based on search and status
   const filteredLessons = onlineLessons.filter(lesson => {
-    const status = getLessonStatus(lesson);
+    const status = calculateLessonStatus(lesson);
     
     // Status filter
     if (filter === 'upcoming' && status !== 'upcoming') return false;
@@ -84,7 +67,7 @@ export function StudentUnitActivitiesClient({
   // Dynamic status calculation for rendering
   const lessonsWithStatus = filteredLessons.map(lesson => ({
     ...lesson,
-    calculatedStatus: getLessonStatus(lesson)
+    calculatedStatus: calculateLessonStatus(lesson)
   }));
 
   // Update countdowns every second

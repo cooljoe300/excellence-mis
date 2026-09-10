@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getStudentLearningActivities, getStudentOnlineLessons } from '@/app/actions/lms';
 import { getCourses } from '@/app/actions/courses';
+import { calculateLessonStatus } from '@/lib/lms-utils';
 import type { Student, LmsLearningActivity, OnlineLesson } from '@/lib/types';
 import { BookOpen, Video, Loader2, Search, Calendar, Clock, Users, CheckCircle, ArrowRight } from 'lucide-react';
 
@@ -32,19 +33,8 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
       setCourses(coursesData);
       
       // Find current live lesson
-      const now = new Date();
       const live = lessonsData.find(lesson => {
-        const scheduledDate = new Date(lesson.scheduled_date);
-        const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
-        const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
-        
-        const startTime = new Date(scheduledDate);
-        startTime.setHours(startHours, startMinutes, 0, 0);
-        
-        const endTime = new Date(scheduledDate);
-        endTime.setHours(endHours, endMinutes, 0, 0);
-        
-        return now >= startTime && now <= endTime;
+        return calculateLessonStatus(lesson) === 'live';
       });
       
       setLiveLesson(live || null);
@@ -88,37 +78,12 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
   // Calculate statistics
   const enrolledUnits = Object.keys(activitiesByCourse).length;
   const upcomingLessons = onlineLessons.filter(lesson => {
-    const scheduledDate = new Date(lesson.scheduled_date);
-    const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
-    const startTime = new Date(scheduledDate);
-    startTime.setHours(startHours, startMinutes, 0, 0);
-    return new Date() < startTime;
+    return calculateLessonStatus(lesson) === 'upcoming';
   }).length;
   
   const completedLessons = onlineLessons.filter(lesson => {
-    const scheduledDate = new Date(lesson.scheduled_date);
-    const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
-    const endTime = new Date(scheduledDate);
-    endTime.setHours(endHours, endMinutes, 0, 0);
-    return new Date() > endTime;
+    return calculateLessonStatus(lesson) === 'completed';
   }).length;
-
-  function calculateStatus(lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' {
-    const now = new Date();
-    const scheduledDate = new Date(lesson.scheduled_date);
-    const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
-    const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
-    
-    const startTime = new Date(scheduledDate);
-    startTime.setHours(startHours, startMinutes, 0, 0);
-    
-    const endTime = new Date(scheduledDate);
-    endTime.setHours(endHours, endMinutes, 0, 0);
-    
-    if (now < startTime) return 'upcoming';
-    if (now >= startTime && now <= endTime) return 'live';
-    return 'completed';
-  }
 
   function formatDate(dateStr: string) {
     return new Date(dateStr).toLocaleDateString('en-GB', {

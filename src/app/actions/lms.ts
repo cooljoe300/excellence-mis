@@ -502,28 +502,6 @@ export async function deleteOnlineLesson(lessonId: string) {
   return { success: true };
 }
 
-// Calculate class status dynamically based on current time
-export function calculateLessonStatus(lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' {
-  const now = new Date();
-  const scheduledDate = new Date(lesson.scheduled_date);
-  const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
-  const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
-  
-  const startTime = new Date(scheduledDate);
-  startTime.setHours(startHours, startMinutes, 0, 0);
-  
-  const endTime = new Date(scheduledDate);
-  endTime.setHours(endHours, endMinutes, 0, 0);
-  
-  if (now < startTime) {
-    return 'upcoming';
-  } else if (now >= startTime && now <= endTime) {
-    return 'live';
-  } else {
-    return 'completed';
-  }
-}
-
 // Student actions - get lessons for enrolled courses only
 export async function getStudentOnlineLessons(studentId: string) {
   const supabase = await createClient();
