@@ -156,10 +156,11 @@ interface LegacySelectProps {
   className?: string;
   onChange?: (value: string) => void;
   completed?: boolean;
+  error?: string;
 }
 
 const LegacySelect = React.forwardRef<HTMLSelectElement, LegacySelectProps>(
-  ({ id, name, label, options, value, defaultValue, required, disabled, className, onChange, completed }, ref) => {
+  ({ id, name, label, options, value, defaultValue, required, disabled, className, onChange, completed, error }, ref) => {
     const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     return (
       <div className="space-y-1">
@@ -186,6 +187,7 @@ const LegacySelect = React.forwardRef<HTMLSelectElement, LegacySelectProps>(
           onChange={(e) => onChange?.(e.target.value)}
           className={cn(
             'flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+            error && 'border-red-300 focus:border-red-500 focus:ring-red-500/20',
             completed && !disabled && 'border-emerald-200 bg-emerald-50/50',
             disabled && 'bg-slate-50 text-slate-600 cursor-not-allowed',
             className
@@ -198,6 +200,7 @@ const LegacySelect = React.forwardRef<HTMLSelectElement, LegacySelectProps>(
             </option>
           ))}
         </select>
+        {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
     );
   }
