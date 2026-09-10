@@ -5,11 +5,10 @@ import * as SelectPrimitive from '@radix-ui/react-select';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const Select = SelectPrimitive.Root;
-
-const SelectGroup = SelectPrimitive.Group;
-
-const SelectValue = SelectPrimitive.Value;
+// Radix UI Select components (renamed to avoid conflict with LegacySelect)
+const RadixSelect = SelectPrimitive.Root;
+const RadixSelectGroup = SelectPrimitive.Group;
+const RadixSelectValue = SelectPrimitive.Value;
 
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
@@ -187,9 +186,9 @@ const LegacySelect = React.forwardRef<HTMLSelectElement, LegacySelectProps>(
 LegacySelect.displayName = 'LegacySelect';
 
 export {
-  Select,
-  SelectGroup,
-  SelectValue,
+  RadixSelect as Select,
+  RadixSelectGroup as SelectGroup,
+  RadixSelectValue as SelectValue,
   SelectTrigger,
   SelectContent,
   SelectLabel,
