@@ -470,8 +470,8 @@ export function AdminOnlineClassesClient() {
         onConfirm={handleDelete}
         title="Delete Online Class"
         description="Are you sure you want to delete this online class? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
       />
     </div>
   );
