@@ -193,7 +193,7 @@ export function TimetableCellModal({
             required
             disabled={selectedProgramIds.length === 0}
             value={selectedCourseId}
-            onChange={(event) => setSelectedCourseId(event.target.value)}
+            onChange={(value) => setSelectedCourseId(value)}
             options={
               selectedProgramIds.length > 0
                 ? [
@@ -215,7 +215,7 @@ export function TimetableCellModal({
             name="lecturer_id"
             label="Lecturer"
             value={selectedLecturerId}
-            onChange={(event) => setSelectedLecturerId(event.target.value)}
+            onChange={(value) => setSelectedLecturerId(value)}
             options={[
               { value: '', label: 'Lecturer Not Assigned / To Be Confirmed' },
               ...lecturers.map((lecturer) => ({ value: lecturer.id, label: lecturer.full_name })),
@@ -234,7 +234,7 @@ export function TimetableCellModal({
             name="room_id"
             label="Room"
             value={selectedRoomId}
-            onChange={(event) => setSelectedRoomId(event.target.value)}
+            onChange={(value) => setSelectedRoomId(value)}
             options={[
               { value: '', label: rooms.length ? 'Online / no room' : 'No rooms configured' },
               ...rooms.map((room) => ({
@@ -253,7 +253,7 @@ export function TimetableCellModal({
             label="Day"
             required
             value={selectedDay}
-            onChange={(event) => setSelectedDay(event.target.value)}
+            onChange={(value) => setSelectedDay(value)}
             options={TIMETABLE_DAYS.map((item) => ({ value: item, label: item }))}
           />
           <Select
@@ -261,7 +261,7 @@ export function TimetableCellModal({
             name="time_slot_id"
             label="Configured time slot"
             value={selectedSlotId}
-            onChange={(event) => applyTimeSlot(event.target.value)}
+            onChange={(value) => applyTimeSlot(value)}
             options={[
               { value: '', label: 'Choose a configured slot or set custom times' },
               ...timeSlots.map((slot) => ({
@@ -308,7 +308,7 @@ export function TimetableCellModal({
             label="Status"
             required
             value={selectedStatus}
-            onChange={(event) => setSelectedStatus(event.target.value)}
+            onChange={(value) => setSelectedStatus(value)}
             options={[
               { value: 'draft', label: 'Draft' },
               { value: 'active', label: 'Active' },

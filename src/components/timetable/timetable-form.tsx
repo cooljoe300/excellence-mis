@@ -44,8 +44,8 @@ export function TimetableForm({
   const [selectedStatus, setSelectedStatus] = useState<string>('draft');
   const [academicYear, setAcademicYear] = useState<string>('');
 
-  function handleTimeSlotChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const slotId = e.target.value;
+  function handleTimeSlotChange(value: string) {
+    const slotId = value;
     setSelectedTimeSlotId(slotId);
     
     const selectedSlot = timeSlots.find(slot => slot.id === slotId);
@@ -110,7 +110,7 @@ export function TimetableForm({
           name="intake_id"
           options={[{ value: '', label: 'Select intake' }, ...intakes.map(i => ({ value: i.id, label: i.name }))]}
           value={selectedIntakeId}
-          onChange={(e) => setSelectedIntakeId(e.target.value)}
+          onChange={(value) => setSelectedIntakeId(value)}
           required
         />
       </div>
@@ -139,8 +139,8 @@ export function TimetableForm({
           name="program_id"
           options={[{ value: '', label: 'Select programme' }, ...programs.map(p => ({ value: p.id, label: `${p.code} - ${p.name}` }))]}
           value={selectedProgramId}
-          onChange={(e) => {
-            setSelectedProgramId(e.target.value);
+          onChange={(value) => {
+            setSelectedProgramId(value);
             setSelectedCourseId(''); // Clear unit when programme changes
           }}
           required
@@ -160,7 +160,7 @@ export function TimetableForm({
               : [{ value: '', label: 'Select a programme first' }]
           }
           value={selectedCourseId}
-          onChange={(e) => setSelectedCourseId(e.target.value)}
+          onChange={(value) => setSelectedCourseId(value)}
           disabled={!selectedProgramId}
           required
         />
@@ -175,7 +175,7 @@ export function TimetableForm({
           name="lecturer_id"
           options={[{ value: '', label: 'Select lecturer' }, ...lecturers.map(l => ({ value: l.id, label: l.full_name }))]}
           value={selectedLecturerId}
-          onChange={(e) => setSelectedLecturerId(e.target.value)}
+          onChange={(value) => setSelectedLecturerId(value)}
           required
         />
       </div>
@@ -195,7 +195,7 @@ export function TimetableForm({
             })),
           ]}
           value={selectedRoomId}
-          onChange={(e) => setSelectedRoomId(e.target.value)}
+          onChange={(value) => setSelectedRoomId(value)}
         />
       </div>
 
@@ -274,7 +274,7 @@ export function TimetableForm({
           name="status"
           value={selectedStatus}
           options={statuses.map(s => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
-          onChange={(e) => setSelectedStatus(e.target.value)}
+          onChange={(value) => setSelectedStatus(value)}
         />
       </div>
 

@@ -59,7 +59,7 @@ export function LecturerWorkload({ lecturers, onGetWorkload }: LecturerWorkloadP
               ...lecturers.map((l) => ({ value: l.id, label: l.full_name })),
             ]}
             value={selectedLecturerId}
-            onChange={(e) => handleLecturerChange(e.target.value)}
+            onChange={(value) => handleLecturerChange(value)}
           />
         </div>
 

@@ -138,7 +138,7 @@ export function WhatsAppSettingsCard({ initialSettings }: WhatsAppSettingsCardPr
         <Select
           label="Status"
           value={settings.enabled ? 'true' : 'false'}
-          onChange={(e) => setSettings({ ...settings, enabled: e.target.value === 'true' })}
+          onChange={(value) => setSettings({ ...settings, enabled: value === 'true' })}
           options={[
             { value: 'true', label: 'Enabled' },
             { value: 'false', label: 'Disabled' },
@@ -148,7 +148,7 @@ export function WhatsAppSettingsCard({ initialSettings }: WhatsAppSettingsCardPr
         <Select
           label="WhatsApp Provider"
           value={settings.provider}
-          onChange={(e) => setSettings({ ...settings, provider: e.target.value })}
+          onChange={(value) => setSettings({ ...settings, provider: value })}
           options={[
             { value: 'twilio', label: 'Twilio' },
             { value: 'messagebird', label: 'MessageBird' },

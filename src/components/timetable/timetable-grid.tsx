@@ -71,7 +71,7 @@ export function TimetableGrid({
                   ...intakes.map((intake) => ({ value: intake.id, label: intake.name })),
                 ]}
                 value={selectedIntake}
-                onChange={(event) => setSelectedIntake(event.target.value)}
+                onChange={(value) => setSelectedIntake(value)}
                 aria-label="Filter by intake"
               />
               <Select
@@ -84,7 +84,7 @@ export function TimetableGrid({
                   })),
                 ]}
                 value={selectedProgram}
-                onChange={(event) => setSelectedProgram(event.target.value)}
+                onChange={(value) => setSelectedProgram(value)}
                 aria-label="Filter by programme"
               />
               <Select
@@ -95,7 +95,7 @@ export function TimetableGrid({
                   { value: 'active', label: 'Active' },
                 ]}
                 value={selectedStatus}
-                onChange={(event) => setSelectedStatus(event.target.value)}
+                onChange={(value) => setSelectedStatus(value)}
                 aria-label="Filter by status"
               />
               <Input

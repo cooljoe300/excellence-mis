@@ -72,7 +72,7 @@ export function ReportFilterPanel({
             <Select
               label="Programme"
               value={draft.programId}
-              onChange={(event) => update('programId', event.target.value)}
+              onChange={(value) => update('programId', value)}
               options={[
                 { value: '', label: 'All programmes' },
                 ...data.programs.map((program) => ({ value: program.id, label: program.name })),
@@ -83,7 +83,7 @@ export function ReportFilterPanel({
             <Select
               label="Intake"
               value={draft.intakeId}
-              onChange={(event) => update('intakeId', event.target.value)}
+              onChange={(value) => update('intakeId', value)}
               options={[
                 { value: '', label: 'All intakes' },
                 ...data.intakes.map((intake) => ({ value: intake.id, label: intake.name })),
@@ -94,7 +94,7 @@ export function ReportFilterPanel({
             <Select
               label="Student / Record Status"
               value={draft.status}
-              onChange={(event) => update('status', event.target.value)}
+              onChange={(value) => update('status', value)}
               options={statusOptions}
             />
           )}
@@ -102,7 +102,7 @@ export function ReportFilterPanel({
             <Select
               label="Gender"
               value={draft.gender}
-              onChange={(event) => update('gender', event.target.value)}
+              onChange={(value) => update('gender', value)}
               options={[
                 { value: '', label: 'All' },
                 { value: 'male', label: 'Male' },
@@ -115,7 +115,7 @@ export function ReportFilterPanel({
             <Select
               label="Payment Status"
               value={draft.paymentStatus}
-              onChange={(event) => update('paymentStatus', event.target.value)}
+              onChange={(value) => update('paymentStatus', value)}
               options={[{ value: '', label: 'All payment statuses' }, ...PAYMENT_STATUS.map((value) => ({ value, label: value }))]}
             />
           )}

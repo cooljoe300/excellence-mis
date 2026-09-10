@@ -648,7 +648,7 @@ export function StudentSelfForm({
                   id="program_id"
                   defaultValue={existingStudent?.program_id ?? ''}
                   options={programOptions}
-                  onChange={(e) => setSelectedProgramId(e.target.value)}
+                  onChange={(value) => setSelectedProgramId(value)}
                   required
                   disabled={!!existingStudent?.program_id}
                   completed={!!existingStudent?.program_id}
@@ -664,7 +664,7 @@ export function StudentSelfForm({
                   name="term_id"
                   id="term_id"
                   value={selectedTermId}
-                  onChange={(e) => setSelectedTermId(e.target.value)}
+                  onChange={(value) => setSelectedTermId(value)}
                   options={termOptions}
                   required
                   completed={!!selectedTermId}

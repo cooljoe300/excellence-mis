@@ -308,7 +308,7 @@ You will be required to change your temporary password during your first login.`
                 <Select
                   label="Role"
                   value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                  onChange={(value) => setFormData({ ...formData, role: value as UserRole })}
                   options={getRoleOptions()}
                 />
 

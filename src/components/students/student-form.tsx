@@ -374,7 +374,7 @@ Excellence Online College`;
               name="program_id"
               id="program_id"
               value={programId}
-              onChange={(e) => setProgramId(e.target.value)}
+              onChange={(value) => setProgramId(value)}
               options={programOptions}
               required={!student}
             />

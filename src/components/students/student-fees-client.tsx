@@ -659,7 +659,7 @@ function PayFeeModal({
             <Select
               label="Payment method"
               value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
+              onChange={(value) => setPaymentMethod(value)}
               options={[
                 { value: 'mpesa', label: 'M-Pesa' },
                 { value: 'bank', label: 'Bank transfer' },

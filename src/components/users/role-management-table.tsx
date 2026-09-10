@@ -225,8 +225,8 @@ export function RoleManagementTable({
                       <div className="flex-1">
                         <Select
                           value={draftRole}
-                          onChange={(e) =>
-                            setRoleDrafts((prev) => ({ ...prev, [user.id]: e.target.value as UserRole }))
+                          onChange={(value) =>
+                            setRoleDrafts((prev) => ({ ...prev, [user.id]: value as UserRole }))
                           }
                           options={roleOptions}
                         />
