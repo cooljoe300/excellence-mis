@@ -289,7 +289,7 @@ export async function getStudentLearningActivitiesByCourse(courseId: string) {
   return activities as LmsLearningActivity[];
 }
 
-// ONLINE LESSONS ACTIONS
+// ONLINE LESSONS ACTIONS - Simplified for Zoom class publishing
 
 export async function getOnlineLessonsByCourse(courseId: string) {
   const supabase = await createClient();
@@ -298,10 +298,7 @@ export async function getOnlineLessonsByCourse(courseId: string) {
     .from('online_lessons')
     .select(`
       *,
-      course:courses(*),
-      lecturer:profiles(id, full_name, email),
-      creator:profiles(id, full_name, email),
-      updater:profiles(id, full_name, email)
+      course:courses(*)
     `)
     .eq('course_id', courseId)
     .order('scheduled_date', { ascending: true })
@@ -322,10 +319,7 @@ export async function getOnlineLessonById(lessonId: string) {
     .from('online_lessons')
     .select(`
       *,
-      course:courses(*),
-      lecturer:profiles(id, full_name, email),
-      creator:profiles(id, full_name, email),
-      updater:profiles(id, full_name, email)
+      course:courses(*)
     `)
     .eq('id', lessonId)
     .single();
@@ -333,6 +327,26 @@ export async function getOnlineLessonById(lessonId: string) {
   if (error) {
     console.error('Error fetching online lesson:', error);
     return null;
+  }
+
+  return data as OnlineLesson;
+}
+
+export async function getAllOnlineLessons() {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase
+    .from('online_lessons')
+    .select(`
+      *,
+      course:courses(*)
+    `)
+    .order('scheduled_date', { ascending: true })
+    .order('start_time', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching all online lessons:', error);
+    return [];
   }
 
   return data as OnlineLesson[];
@@ -353,23 +367,20 @@ export async function createOnlineLesson(formData: FormData) {
   const title = formData.get('title') as string;
   const topic = formData.get('topic') as string | null;
   const description = formData.get('description') as string | null;
-  const lecturerId = formData.get('lecturer_id') as string | null;
-  const lecturerName = formData.get('lecturer_name') as string | null;
-  const zoomJoinUrl = formData.get('zoom_join_url') as string;
-  const zoomMeetingId = formData.get('zoom_meeting_id') as string | null;
-  const zoomPasscode = formData.get('zoom_passcode') as string | null;
   const scheduledDate = formData.get('scheduled_date') as string;
   const startTime = formData.get('start_time') as string;
   const endTime = formData.get('end_time') as string;
-  const durationMinutes = formData.get('duration_minutes') as string | null;
-  const recordingUrl = formData.get('recording_url') as string | null;
-  const thumbnailUrl = formData.get('thumbnail_url') as string | null;
-  const classType = formData.get('class_type') as 'live_class' | 'recorded_class';
+  const zoomUrl = formData.get('zoom_url') as string;
   const isPublished = formData.get('is_published') === 'true';
+
+  // Validate required fields
+  if (!courseId || !title || !scheduledDate || !startTime || !endTime || !zoomUrl) {
+    return { success: false, error: 'All required fields must be provided' };
+  }
 
   // Validate Zoom URL
   try {
-    const url = new URL(zoomJoinUrl);
+    const url = new URL(zoomUrl);
     if (!['http:', 'https:'].includes(url.protocol)) {
       return { success: false, error: 'Zoom URL must use http:// or https://' };
     }
@@ -389,21 +400,11 @@ export async function createOnlineLesson(formData: FormData) {
       title,
       topic,
       description,
-      lecturer_id: lecturerId,
-      lecturer_name: lecturerName,
-      zoom_join_url: zoomJoinUrl,
-      zoom_meeting_id: zoomMeetingId,
-      zoom_passcode: zoomPasscode,
       scheduled_date: scheduledDate,
       start_time: startTime,
       end_time: endTime,
-      duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
-      recording_url: recordingUrl,
-      thumbnail_url: thumbnailUrl,
-      class_type: classType,
-      status: 'scheduled',
+      zoom_url: zoomUrl,
       is_published: isPublished,
-      created_by: user.id,
     })
     .select()
     .single();
@@ -427,27 +428,19 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
     return { success: false, error: 'Unauthorized' };
   }
 
+  const courseId = formData.get('course_id') as string;
   const title = formData.get('title') as string;
   const topic = formData.get('topic') as string | null;
   const description = formData.get('description') as string | null;
-  const lecturerId = formData.get('lecturer_id') as string | null;
-  const lecturerName = formData.get('lecturer_name') as string | null;
-  const zoomJoinUrl = formData.get('zoom_join_url') as string;
-  const zoomMeetingId = formData.get('zoom_meeting_id') as string | null;
-  const zoomPasscode = formData.get('zoom_passcode') as string | null;
   const scheduledDate = formData.get('scheduled_date') as string;
   const startTime = formData.get('start_time') as string;
   const endTime = formData.get('end_time') as string;
-  const durationMinutes = formData.get('duration_minutes') as string | null;
-  const recordingUrl = formData.get('recording_url') as string | null;
-  const thumbnailUrl = formData.get('thumbnail_url') as string | null;
-  const classType = formData.get('class_type') as 'live_class' | 'recorded_class';
-  const status = formData.get('status') as 'scheduled' | 'live' | 'completed' | 'cancelled';
+  const zoomUrl = formData.get('zoom_url') as string;
   const isPublished = formData.get('is_published') === 'true';
 
   // Validate Zoom URL
   try {
-    const url = new URL(zoomJoinUrl);
+    const url = new URL(zoomUrl);
     if (!['http:', 'https:'].includes(url.protocol)) {
       return { success: false, error: 'Zoom URL must use http:// or https://' };
     }
@@ -463,24 +456,15 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   const { data, error } = await supabase
     .from('online_lessons')
     .update({
+      course_id: courseId,
       title,
       topic,
       description,
-      lecturer_id: lecturerId,
-      lecturer_name: lecturerName,
-      zoom_join_url: zoomJoinUrl,
-      zoom_meeting_id: zoomMeetingId,
-      zoom_passcode: zoomPasscode,
       scheduled_date: scheduledDate,
       start_time: startTime,
       end_time: endTime,
-      duration_minutes: durationMinutes ? parseInt(durationMinutes) : null,
-      recording_url: recordingUrl,
-      thumbnail_url: thumbnailUrl,
-      class_type: classType,
-      status,
+      zoom_url: zoomUrl,
       is_published: isPublished,
-      updated_by: user.id,
     })
     .eq('id', lessonId)
     .select()
@@ -518,126 +502,8 @@ export async function deleteOnlineLesson(lessonId: string) {
   return { success: true };
 }
 
-export async function getStudentOnlineLessons() {
-  const supabase = await createClient();
-  
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return [];
-  }
-
-  // Get student's enrolled courses
-  const { data: studentData, error: studentError } = await supabase
-    .from('students')
-    .select('id, program_id')
-    .eq('profile_id', user.id)
-    .single();
-
-  if (studentError || !studentData) {
-    console.error('Error fetching student:', studentError);
-    return [];
-  }
-
-  // Get active enrollments
-  const { data: enrollments, error: enrollmentError } = await supabase
-    .from('enrollments')
-    .select('course_id')
-    .eq('student_id', studentData.id)
-    .eq('status', 'active');
-
-  if (enrollmentError) {
-    console.error('Error fetching enrollments:', enrollmentError);
-    return [];
-  }
-
-  if (!enrollments || enrollments.length === 0) {
-    return [];
-  }
-
-  const courseIds = enrollments.map(e => e.course_id);
-
-  // Get published online lessons for enrolled courses
-  const { data: lessons, error: lessonsError } = await supabase
-    .from('online_lessons')
-    .select(`
-      *,
-      course:courses(*),
-      lecturer:profiles(id, full_name, email)
-    `)
-    .in('course_id', courseIds)
-    .eq('is_published', true)
-    .order('scheduled_date', { ascending: true })
-    .order('start_time', { ascending: true });
-
-  if (lessonsError) {
-    console.error('Error fetching online lessons:', lessonsError);
-    return [];
-  }
-
-  return lessons as OnlineLesson[];
-}
-
-export async function getStudentOnlineLessonsByCourse(courseId: string) {
-  const supabase = await createClient();
-  
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return [];
-  }
-
-  // Verify student is enrolled in this course
-  const { data: studentData, error: studentError } = await supabase
-    .from('students')
-    .select('id')
-    .eq('profile_id', user.id)
-    .single();
-
-  if (studentError || !studentData) {
-    return [];
-  }
-
-  const { data: enrollment, error: enrollmentError } = await supabase
-    .from('enrollments')
-    .select('id')
-    .eq('student_id', studentData.id)
-    .eq('course_id', courseId)
-    .eq('status', 'active')
-    .single();
-
-  if (enrollmentError || !enrollment) {
-    return [];
-  }
-
-  // Get published online lessons for this course
-  const { data: lessons, error: lessonsError } = await supabase
-    .from('online_lessons')
-    .select(`
-      *,
-      course:courses(*),
-      lecturer:profiles(id, full_name, email)
-    `)
-    .eq('course_id', courseId)
-    .eq('is_published', true)
-    .order('scheduled_date', { ascending: true })
-    .order('start_time', { ascending: true });
-
-  if (lessonsError) {
-    console.error('Error fetching online lessons:', lessonsError);
-    return [];
-  }
-
-  return lessons as OnlineLesson[];
-}
-
-export async function calculateLessonStatus(lesson: OnlineLesson): Promise<'scheduled' | 'live' | 'completed' | 'cancelled'> {
-  if (lesson.status === 'cancelled') return 'cancelled';
-  
+// Calculate class status dynamically based on current time
+export function calculateLessonStatus(lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' {
   const now = new Date();
   const scheduledDate = new Date(lesson.scheduled_date);
   const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
@@ -649,7 +515,82 @@ export async function calculateLessonStatus(lesson: OnlineLesson): Promise<'sche
   const endTime = new Date(scheduledDate);
   endTime.setHours(endHours, endMinutes, 0, 0);
   
-  if (now < startTime) return 'scheduled';
-  if (now >= startTime && now <= endTime) return 'live';
-  return 'completed';
+  if (now < startTime) {
+    return 'upcoming';
+  } else if (now >= startTime && now <= endTime) {
+    return 'live';
+  } else {
+    return 'completed';
+  }
+}
+
+// Student actions - get lessons for enrolled courses only
+export async function getStudentOnlineLessons(studentId: string) {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase
+    .from('online_lessons')
+    .select(`
+      *,
+      course:courses(*)
+    `)
+    .eq('is_published', true)
+    .order('scheduled_date', { ascending: true })
+    .order('start_time', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching student online lessons:', error);
+    return [];
+  }
+
+  // Filter by enrollment (RLS handles this, but we double-check for safety)
+  const { data: enrollments } = await supabase
+    .from('enrollments')
+    .select('course_id')
+    .eq('student_id', studentId)
+    .eq('status', 'active');
+
+  if (!enrollments) {
+    return [];
+  }
+
+  const enrolledCourseIds = enrollments.map(e => e.course_id);
+  return (data as OnlineLesson[]).filter(lesson => 
+    enrolledCourseIds.includes(lesson.course_id)
+  );
+}
+
+export async function getStudentOnlineLessonsByCourse(studentId: string, courseId: string) {
+  const supabase = await createClient();
+  
+  // Verify enrollment
+  const { data: enrollment } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('student_id', studentId)
+    .eq('course_id', courseId)
+    .eq('status', 'active')
+    .single();
+
+  if (!enrollment) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('online_lessons')
+    .select(`
+      *,
+      course:courses(*)
+    `)
+    .eq('course_id', courseId)
+    .eq('is_published', true)
+    .order('scheduled_date', { ascending: true })
+    .order('start_time', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching student online lessons by course:', error);
+    return [];
+  }
+
+  return data as OnlineLesson[];
 }

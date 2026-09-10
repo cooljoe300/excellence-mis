@@ -2,13 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { PageHeader, EmptyState } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getStudentLearningActivitiesByCourse, getStudentOnlineLessonsByCourse } from '@/app/actions/lms';
 import type { Student, Course, LmsLearningActivity, OnlineLesson } from '@/lib/types';
-import { ArrowLeft, Video, ExternalLink, Loader2, Calendar, Clock, User, Search, Eye, ZoomIn, Timer } from 'lucide-react';
+import { ArrowLeft, Video, ExternalLink, Loader2, Calendar, Clock, Search, Timer } from 'lucide-react';
 
 export function StudentUnitActivitiesClient({ 
   student, 
@@ -30,7 +29,7 @@ export function StudentUnitActivitiesClient({
     try {
       const [activitiesData, lessonsData] = await Promise.all([
         getStudentLearningActivitiesByCourse(course.id),
-        getStudentOnlineLessonsByCourse(course.id)
+        getStudentOnlineLessonsByCourse(student.id, course.id)
       ]);
       setActivities(activitiesData);
       setOnlineLessons(lessonsData);
@@ -43,12 +42,10 @@ export function StudentUnitActivitiesClient({
 
   useEffect(() => {
     loadData();
-  }, [course.id]);
+  }, [student.id, course.id]);
 
   // Calculate lesson status dynamically
-  const getLessonStatus = useCallback((lesson: OnlineLesson): 'scheduled' | 'live' | 'completed' | 'cancelled' => {
-    if (lesson.status === 'cancelled') return 'cancelled';
-    
+  const getLessonStatus = useCallback((lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' => {
     const now = new Date();
     const scheduledDate = new Date(lesson.scheduled_date);
     const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
@@ -60,7 +57,7 @@ export function StudentUnitActivitiesClient({
     const endTime = new Date(scheduledDate);
     endTime.setHours(endHours, endMinutes, 0, 0);
     
-    if (now < startTime) return 'scheduled';
+    if (now < startTime) return 'upcoming';
     if (now >= startTime && now <= endTime) return 'live';
     return 'completed';
   }, []);
@@ -70,7 +67,7 @@ export function StudentUnitActivitiesClient({
     const status = getLessonStatus(lesson);
     
     // Status filter
-    if (filter === 'upcoming' && status !== 'scheduled') return false;
+    if (filter === 'upcoming' && status !== 'upcoming') return false;
     if (filter === 'live' && status !== 'live') return false;
     if (filter === 'completed' && status !== 'completed') return false;
     
@@ -78,8 +75,7 @@ export function StudentUnitActivitiesClient({
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       return lesson.title.toLowerCase().includes(query) ||
-             (lesson.topic && lesson.topic.toLowerCase().includes(query)) ||
-             (lesson.lecturer_name && lesson.lecturer_name.toLowerCase().includes(query));
+             (lesson.topic && lesson.topic.toLowerCase().includes(query));
     }
     
     return true;
@@ -97,7 +93,7 @@ export function StudentUnitActivitiesClient({
       const newCountdowns: Record<string, string> = {};
       
       lessonsWithStatus.forEach(lesson => {
-        if (lesson.calculatedStatus === 'scheduled') {
+        if (lesson.calculatedStatus === 'upcoming') {
           const now = new Date();
           const scheduledDate = new Date(lesson.scheduled_date);
           const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
@@ -112,13 +108,12 @@ export function StudentUnitActivitiesClient({
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
             
-            if (hours > 24) {
-              const days = Math.floor(hours / 24);
-              newCountdowns[lesson.id] = `${days}d ${hours % 24}h`;
-            } else if (hours > 0) {
+            if (hours > 0) {
               newCountdowns[lesson.id] = `${hours}h ${minutes}m`;
-            } else {
+            } else if (minutes > 0) {
               newCountdowns[lesson.id] = `${minutes}m ${seconds}s`;
+            } else {
+              newCountdowns[lesson.id] = `${seconds}s`;
             }
           }
         }
@@ -129,52 +124,57 @@ export function StudentUnitActivitiesClient({
 
     updateCountdowns();
     const interval = setInterval(updateCountdowns, 1000);
-    
     return () => clearInterval(interval);
   }, [lessonsWithStatus]);
 
-  function getStatusBadge(status: string) {
-    const styles = {
-      scheduled: 'bg-blue-100 text-blue-800',
-      live: 'bg-red-100 text-red-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-gray-100 text-gray-800',
-    };
+  function formatDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  function formatTime(timeStr: string) {
+    const [hours, minutes] = timeStr.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  }
+
+  function handleJoinClass(lesson: OnlineLesson) {
+    window.open(lesson.zoom_url, '_blank', 'noopener,noreferrer');
+  }
+
+  if (loading) {
     return (
-      <Badge className={styles[status as keyof typeof styles]}>
-        {status === 'live' ? '🔴 LIVE NOW' : status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
     );
   }
 
-  function handleJoinZoom(lesson: OnlineLesson) {
-    window.open(lesson.zoom_join_url, '_blank', 'noopener,noreferrer');
-  }
-
-  function handleCopyLink(lesson: OnlineLesson) {
-    navigator.clipboard.writeText(lesson.zoom_join_url);
-    // Could add toast notification here
-  }
-
   return (
-    <div>
-      <PageHeader
-        title={`${course.code} - ${course.name}`}
-        description={`${student.first_name} ${student.last_name} • Online Classes`}
-        action={
-          <Link href="/student/lms/my-learning">
-            <Button variant="secondary" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to My Learning
-            </Button>
-          </Link>
-        }
-      />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link href="/student/lms/my-learning">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to My Learning
+          </Button>
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold text-slate-900">{course.code} - {course.name}</h1>
+          <p className="text-slate-600 mt-1">Online classes and learning activities</p>
+        </div>
+      </div>
 
       {/* Search and Filter */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search classes..."
             value={searchQuery}
@@ -183,121 +183,151 @@ export function StudentUnitActivitiesClient({
           />
         </div>
         <div className="flex gap-2">
-          {['all', 'upcoming', 'live', 'completed'].map((f) => (
-            <Button
-              key={f}
-              size="sm"
-              variant={filter === f ? 'primary' : 'secondary'}
-              onClick={() => setFilter(f as any)}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </Button>
-          ))}
+          <Button
+            variant={filter === 'all' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setFilter('all')}
+          >
+            All
+          </Button>
+          <Button
+            variant={filter === 'upcoming' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setFilter('upcoming')}
+          >
+            Upcoming
+          </Button>
+          <Button
+            variant={filter === 'live' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setFilter('live')}
+          >
+            Live
+          </Button>
+          <Button
+            variant={filter === 'completed' ? 'primary' : 'secondary'}
+            size="sm"
+            onClick={() => setFilter('completed')}
+          >
+            Completed
+          </Button>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-        </div>
-      ) : lessonsWithStatus.length === 0 ? (
-        <EmptyState
-          icon={Video}
-          title="No online classes available"
-          description={searchQuery 
-            ? "No classes match your search criteria."
-            : "No online classes have been added to this course yet."
-          }
-        />
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {lessonsWithStatus.map((lesson) => {
-            const status = lesson.calculatedStatus;
-            const isLive = status === 'live';
-            
-            return (
-              <div key={lesson.id} className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 hover:shadow-sm transition-all">
-                <div className="flex items-start justify-between mb-3">
-                  <Video className="h-5 w-5 text-slate-400" />
-                  {getStatusBadge(status)}
-                </div>
-                
-                <h3 className="font-semibold text-slate-900 mb-1">{lesson.title}</h3>
-                {lesson.topic && (
-                  <p className="text-sm text-slate-600 mb-3">{lesson.topic}</p>
-                )}
-                
-                <div className="space-y-2 mb-4 text-sm">
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      {new Date(lesson.scheduled_date).toLocaleDateString('en-GB', {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short'
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-slate-600">
-                    <Clock className="h-4 w-4" />
-                    <span>{lesson.start_time} - {lesson.end_time}</span>
-                  </div>
-                  {lesson.lecturer_name && (
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <User className="h-4 w-4" />
-                      <span>{lesson.lecturer_name}</span>
+      {/* Online Classes */}
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Online Classes</h2>
+        
+        {lessonsWithStatus.length === 0 ? (
+          <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+            <Video className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-slate-900 mb-2">No online classes scheduled</h3>
+            <p className="text-slate-600">Check back later for upcoming online classes.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {lessonsWithStatus.map((lesson) => {
+              const status = lesson.calculatedStatus;
+              return (
+                <div key={lesson.id} className="bg-white rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        {status === 'live' && (
+                          <Badge variant="destructive">LIVE NOW</Badge>
+                        )}
+                        {status === 'upcoming' && (
+                          <Badge variant="default">UPCOMING</Badge>
+                        )}
+                        {status === 'completed' && (
+                          <Badge variant="secondary">COMPLETED</Badge>
+                        )}
+                        {status === 'upcoming' && countdowns[lesson.id] && (
+                          <div className="flex items-center gap-1 text-sm text-slate-600">
+                            <Timer className="h-4 w-4" />
+                            {countdowns[lesson.id]}
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="font-semibold text-slate-900">{lesson.title}</h3>
+                      {lesson.topic && (
+                        <p className="text-sm text-slate-600 mt-1">{lesson.topic}</p>
+                      )}
+                      {lesson.description && (
+                        <p className="text-sm text-slate-600 mt-2">{lesson.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 mt-3 text-sm text-slate-600">
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-4 w-4" />
+                          {formatDate(lesson.scheduled_date)}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  {countdowns[lesson.id] && (
-                    <div className="flex items-center gap-2 text-blue-600 font-medium">
-                      <Timer className="h-4 w-4" />
-                      <span>Starts in {countdowns[lesson.id]}</span>
+                    <div className="ml-4 flex gap-2">
+                      {status === 'live' ? (
+                        <Button
+                          onClick={() => handleJoinClass(lesson)}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          Join Live Class
+                        </Button>
+                      ) : status === 'upcoming' ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setPreviewLesson(lesson)}
+                        >
+                          Preview
+                        </Button>
+                      ) : (
+                        <Button variant="ghost" disabled>
+                          Completed
+                        </Button>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-                <div className="flex gap-2">
-                  <Button 
-                    size="sm" 
-                    onClick={() => setPreviewLesson(lesson)}
-                    variant="secondary"
-                    className="flex-1"
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview
-                  </Button>
-                  {isLive ? (
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleJoinZoom(lesson)}
-                      className="flex-1 bg-red-600 hover:bg-red-700"
-                    >
-                      <ZoomIn className="h-4 w-4 mr-2" />
-                      Join Live
-                    </Button>
-                  ) : status === 'scheduled' ? (
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleJoinZoom(lesson)}
-                      className="flex-1"
-                    >
-                      <ZoomIn className="h-4 w-4 mr-2" />
-                      Join
-                    </Button>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      variant="secondary"
-                      disabled
-                      className="flex-1"
-                    >
-                      Ended
-                    </Button>
-                  )}
+      {/* Learning Activities */}
+      {activities.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Learning Activities</h2>
+          <div className="space-y-4">
+            {activities.map((activity) => (
+              <div key={activity.id} className="bg-white rounded-lg border border-slate-200 p-4 hover:border-slate-300 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-slate-900">{activity.name}</h3>
+                    {activity.description && activity.display_description && (
+                      <p className="text-sm text-slate-600 mt-1">{activity.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline">{activity.provider}</Badge>
+                      {activity.status === 'active' && (
+                        <Badge variant="default">Active</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <Link href={`/student/lms/activities/${activity.id}`}>
+                      <Button variant="outline" size="sm">
+                        Open
+                        <ExternalLink className="h-4 w-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
 
@@ -307,98 +337,58 @@ export function StudentUnitActivitiesClient({
           <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">{previewLesson.title}</h3>
-                <Button size="sm" variant="secondary" onClick={() => setPreviewLesson(null)}>
+                <h2 className="text-xl font-bold text-slate-900">Class Details</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPreviewLesson(null)}
+                >
                   Close
                 </Button>
               </div>
-
-              {previewLesson.topic && (
-                <div className="mb-4">
-                  <h4 className="font-medium text-slate-900 mb-1">Topic</h4>
-                  <p className="text-slate-600">{previewLesson.topic}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              
+              <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-slate-900 mb-1">Date</h4>
-                  <p className="text-slate-600">
-                    {new Date(previewLesson.scheduled_date).toLocaleDateString('en-GB', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
+                  <label className="text-sm font-medium text-slate-700">Unit</label>
+                  <p className="text-slate-900 mt-1">{course.code} - {course.name}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Class</label>
+                  <p className="text-slate-900 mt-1">{previewLesson.title}</p>
+                  {previewLesson.topic && (
+                    <p className="text-slate-600 mt-1">{previewLesson.topic}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Date</label>
+                  <p className="text-slate-900 mt-1">{formatDate(previewLesson.scheduled_date)}</p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Time</label>
+                  <p className="text-slate-900 mt-1">
+                    {formatTime(previewLesson.start_time)} – {formatTime(previewLesson.end_time)}
                   </p>
                 </div>
-                <div>
-                  <h4 className="font-medium text-slate-900 mb-1">Time</h4>
-                  <p className="text-slate-600">
-                    {previewLesson.start_time} - {previewLesson.end_time}
-                    {previewLesson.duration_minutes && (
-                      <span className="ml-1">({previewLesson.duration_minutes} min)</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {previewLesson.lecturer_name && (
-                <div className="mb-4">
-                  <h4 className="font-medium text-slate-900 mb-1">Lecturer</h4>
-                  <p className="text-slate-600">{previewLesson.lecturer_name}</p>
-                </div>
-              )}
-
-              {previewLesson.description && (
-                <div className="mb-4">
-                  <h4 className="font-medium text-slate-900 mb-1">Description</h4>
-                  <p className="text-slate-600">{previewLesson.description}</p>
-                </div>
-              )}
-
-              <div className="mb-4 p-4 bg-slate-50 rounded-lg">
-                <h4 className="font-medium text-slate-900 mb-2">Zoom Online Class</h4>
-                <p className="text-sm text-slate-600 mb-3">
-                  The class will open in Zoom. Make sure you have a stable internet connection before joining.
-                </p>
                 
-                {previewLesson.zoom_meeting_id && (
-                  <div className="mb-2">
-                    <span className="text-sm text-slate-600">Meeting ID: </span>
-                    <span className="font-mono">{previewLesson.zoom_meeting_id}</span>
+                {previewLesson.description && (
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Description</label>
+                    <p className="text-slate-900 mt-1">{previewLesson.description}</p>
                   </div>
                 )}
                 
-                {previewLesson.zoom_passcode && (
-                  <div className="mb-3">
-                    <span className="text-sm text-slate-600">Passcode: </span>
-                    <span className="font-mono">{previewLesson.zoom_passcode}</span>
-                  </div>
-                )}
-                
-                {getLessonStatus(previewLesson) === 'scheduled' && countdowns[previewLesson.id] && (
-                  <div className="flex items-center gap-2 text-blue-600 font-medium">
-                    <Timer className="h-4 w-4" />
-                    <span>Starts in {countdowns[previewLesson.id]}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  variant="secondary" 
-                  onClick={() => handleCopyLink(previewLesson)}
-                  className="flex-1"
-                >
-                  Copy Link
-                </Button>
-                <Button 
-                  onClick={() => handleJoinZoom(previewLesson)}
-                  className="flex-1"
-                >
-                  Join Zoom Class
-                </Button>
+                <div className="pt-4 border-t border-slate-200">
+                  <p className="text-sm font-medium text-slate-700 mb-2">ZOOM ONLINE CLASS</p>
+                  <Button
+                    onClick={() => handleJoinClass(previewLesson)}
+                    className="w-full"
+                  >
+                    Join Class
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

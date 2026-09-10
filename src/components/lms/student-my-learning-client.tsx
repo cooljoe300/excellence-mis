@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { PageHeader, EmptyState } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getStudentLearningActivities, getStudentOnlineLessons } from '@/app/actions/lms';
 import { getCourses } from '@/app/actions/courses';
 import type { Student, LmsLearningActivity, OnlineLesson } from '@/lib/types';
-import { BookOpen, Video, Loader2, Search, Calendar, Clock, Users, CheckCircle, ArrowRight, TrendingUp } from 'lucide-react';
+import { BookOpen, Video, Loader2, Search, Calendar, Clock, Users, CheckCircle, ArrowRight } from 'lucide-react';
 
 export function StudentMyLearningClient({ student }: { student: Student }) {
   const [activities, setActivities] = useState<LmsLearningActivity[]>([]);
@@ -24,7 +23,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     try {
       const [activitiesData, lessonsData, coursesData] = await Promise.all([
         getStudentLearningActivities(),
-        getStudentOnlineLessons(),
+        getStudentOnlineLessons(student.id),
         getCourses()
       ]);
       
@@ -45,7 +44,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
         const endTime = new Date(scheduledDate);
         endTime.setHours(endHours, endMinutes, 0, 0);
         
-        return now >= startTime && now <= endTime && lesson.status !== 'cancelled';
+        return now >= startTime && now <= endTime;
       });
       
       setLiveLesson(live || null);
@@ -58,7 +57,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [student.id]);
 
   // Group activities by course
   const activitiesByCourse = activities.reduce((acc, activity) => {
@@ -93,48 +92,129 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
     const startTime = new Date(scheduledDate);
     startTime.setHours(startHours, startMinutes, 0, 0);
-    return new Date() < startTime && lesson.status !== 'cancelled';
+    return new Date() < startTime;
   }).length;
   
-  const thisWeekLessons = onlineLessons.filter(lesson => {
+  const completedLessons = onlineLessons.filter(lesson => {
     const scheduledDate = new Date(lesson.scheduled_date);
-    const now = new Date();
-    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    return scheduledDate >= now && scheduledDate <= weekFromNow && lesson.status !== 'cancelled';
+    const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
+    const endTime = new Date(scheduledDate);
+    endTime.setHours(endHours, endMinutes, 0, 0);
+    return new Date() > endTime;
   }).length;
-  
-  const completedLessons = onlineLessons.filter(lesson => lesson.status === 'completed').length;
-  
-  // Filter courses based on search
-  const filteredCourses = Object.values(activitiesByCourse).filter(({ course }) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return course.name.toLowerCase().includes(query) || 
-           course.code.toLowerCase().includes(query);
-  });
+
+  function calculateStatus(lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' {
+    const now = new Date();
+    const scheduledDate = new Date(lesson.scheduled_date);
+    const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
+    const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
+    
+    const startTime = new Date(scheduledDate);
+    startTime.setHours(startHours, startMinutes, 0, 0);
+    
+    const endTime = new Date(scheduledDate);
+    endTime.setHours(endHours, endMinutes, 0, 0);
+    
+    if (now < startTime) return 'upcoming';
+    if (now >= startTime && now <= endTime) return 'live';
+    return 'completed';
+  }
+
+  function formatDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  function formatTime(timeStr: string) {
+    const [hours, minutes] = timeStr.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  }
+
+  function handleJoinClass(lesson: OnlineLesson) {
+    window.open(lesson.zoom_url, '_blank', 'noopener,noreferrer');
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <PageHeader
-        title="My Learning"
-        description={`Welcome back, ${student.first_name} 👋`}
-      />
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">My Learning</h1>
+        <p className="text-slate-600 mt-1">Your enrolled units and online classes</p>
+      </div>
+
+      {/* Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <BookOpen className="h-4 w-4" />
+            Enrolled Units
+          </div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{enrolledUnits}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Video className="h-4 w-4" />
+            Total Classes
+          </div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{onlineLessons.length}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Clock className="h-4 w-4" />
+            Upcoming
+          </div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{upcomingLessons}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <CheckCircle className="h-4 w-4" />
+            Completed
+          </div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{completedLessons}</div>
+        </div>
+      </div>
 
       {/* Live Class Banner */}
       {liveLesson && (
-        <div className="mb-6 bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-4 text-white">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-6 text-white">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-3 w-3 bg-white rounded-full animate-pulse" />
-              <div>
-                <h3 className="font-semibold">🔴 LIVE CLASS AVAILABLE</h3>
-                <p className="text-sm opacity-90">{liveLesson.title}</p>
-                {liveLesson.topic && <p className="text-sm opacity-75">{liveLesson.topic}</p>}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
+                <span className="font-semibold">LIVE NOW</span>
+              </div>
+              <h3 className="text-xl font-bold">{liveLesson.title}</h3>
+              {liveLesson.topic && (
+                <p className="text-red-100 mt-1">{liveLesson.topic}</p>
+              )}
+              <div className="flex items-center gap-4 mt-2 text-sm text-red-100">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  {formatDate(liveLesson.scheduled_date)}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  {formatTime(liveLesson.start_time)} – {formatTime(liveLesson.end_time)}
+                </div>
               </div>
             </div>
-            <Button 
-              onClick={() => window.open(liveLesson.zoom_join_url, '_blank')}
-              className="bg-white text-red-600 hover:bg-slate-100"
+            <Button
+              onClick={() => handleJoinClass(liveLesson)}
+              className="bg-white text-red-600 hover:bg-red-50"
             >
               Join Live Class
             </Button>
@@ -142,127 +222,113 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
         </div>
       )}
 
-      {/* Statistics Cards */}
-      <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <BookOpen className="h-5 w-5 text-slate-400" />
-            <span className="text-2xl font-bold text-slate-900">{enrolledUnits}</span>
-          </div>
-          <p className="text-sm text-slate-600">Enrolled Units</p>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <Calendar className="h-5 w-5 text-slate-400" />
-            <span className="text-2xl font-bold text-slate-900">{upcomingLessons}</span>
-          </div>
-          <p className="text-sm text-slate-600">Upcoming Classes</p>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="h-5 w-5 text-slate-400" />
-            <span className="text-2xl font-bold text-slate-900">{thisWeekLessons}</span>
-          </div>
-          <p className="text-sm text-slate-600">Classes This Week</p>
-        </div>
-
-        <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <CheckCircle className="h-5 w-5 text-slate-400" />
-            <span className="text-2xl font-bold text-slate-900">{completedLessons}</span>
-          </div>
-          <p className="text-sm text-slate-600">Completed Classes</p>
-        </div>
-      </div>
-
       {/* Search */}
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Search your units or classes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <Input
+          placeholder="Search units or classes..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      {/* Units with Online Classes */}
+      {Object.keys(lessonsByCourse).length === 0 ? (
+        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+          <Video className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-900 mb-2">No online classes scheduled</h3>
+          <p className="text-slate-600">Check back later for upcoming online classes.</p>
         </div>
-      ) : filteredCourses.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title={searchQuery ? "No matching units found" : "No units enrolled yet"}
-          description={searchQuery 
-            ? "Try adjusting your search terms."
-            : "You currently don't have any enrolled units. Please contact the college administration if you believe this is incorrect."
-          }
-        />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCourses.map(({ course, activities: courseActivities }) => {
-            const courseLessons = lessonsByCourse[course.id]?.lessons || [];
-            const upcomingLesson = courseLessons.find(lesson => {
-              const scheduledDate = new Date(lesson.scheduled_date);
-              const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
-              const startTime = new Date(scheduledDate);
-              startTime.setHours(startHours, startMinutes, 0, 0);
-              return new Date() < startTime && lesson.status !== 'cancelled';
-            });
+        <div className="space-y-6">
+          {Object.entries(lessonsByCourse).map(([courseId, { course, lessons }]) => {
+            const courseName = course?.name || course?.code || 'Unknown Unit';
+            const courseCode = course?.code || '';
             
+            const filteredLessons = lessons.filter(lesson => {
+              const searchLower = searchQuery.toLowerCase();
+              return (
+                lesson.title.toLowerCase().includes(searchLower) ||
+                (lesson.topic && lesson.topic.toLowerCase().includes(searchLower)) ||
+                courseName.toLowerCase().includes(searchLower)
+              );
+            });
+
+            if (filteredLessons.length === 0) return null;
+
             return (
-              <div key={course.id} className="border border-slate-200 rounded-lg p-4 hover:border-slate-300 hover:shadow-sm transition-all">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-slate-900">{course.name}</h3>
-                    <p className="text-sm text-slate-600">{course.code}</p>
-                  </div>
-                  <BookOpen className="h-5 w-5 text-slate-400" />
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Online Lessons</span>
-                    <Badge variant="outline">{courseLessons.length}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600">Upcoming</span>
-                    <Badge variant="outline">
-                      {courseLessons.filter(l => l.status === 'scheduled').length}
-                    </Badge>
+              <div key={courseId} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                <div className="p-4 border-b border-slate-200 bg-slate-50">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-slate-900">{courseCode} {courseName}</h3>
+                      <p className="text-sm text-slate-600 mt-1">{filteredLessons.length} online class{filteredLessons.length !== 1 ? 'es' : ''}</p>
+                    </div>
+                    <Link href={`/student/lms/my-learning/units/${courseId}`}>
+                      <Button variant="ghost" size="sm">
+                        View All
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </Link>
                   </div>
                 </div>
-
-                {upcomingLesson && (
-                  <div className="mb-4 p-3 bg-slate-50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Calendar className="h-4 w-4 text-slate-400" />
-                      <span className="text-sm font-medium text-slate-900">Next Class</span>
-                    </div>
-                    <p className="text-sm text-slate-600">{upcomingLesson.title}</p>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                      <Clock className="h-3 w-3" />
-                      <span>
-                        {new Date(upcomingLesson.scheduled_date).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'short'
-                        })} • {upcomingLesson.start_time}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                <Link href={`/student/lms/my-learning/units/${course.id}`}>
-                  <Button className="w-full" size="sm">
-                    View Unit
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
+                <div className="divide-y divide-slate-200">
+                  {filteredLessons.map((lesson) => {
+                    const status = calculateStatus(lesson);
+                    return (
+                      <div key={lesson.id} className="p-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {status === 'live' && (
+                                <Badge variant="destructive">LIVE NOW</Badge>
+                              )}
+                              {status === 'upcoming' && (
+                                <Badge variant="default">UPCOMING</Badge>
+                              )}
+                              {status === 'completed' && (
+                                <Badge variant="secondary">COMPLETED</Badge>
+                              )}
+                            </div>
+                            <h4 className="font-medium text-slate-900">{lesson.title}</h4>
+                            {lesson.topic && (
+                              <p className="text-sm text-slate-600 mt-1">{lesson.topic}</p>
+                            )}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-slate-600">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-4 w-4" />
+                                {formatDate(lesson.scheduled_date)}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            {status === 'live' ? (
+                              <Button
+                                onClick={() => handleJoinClass(lesson)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Join Live Class
+                              </Button>
+                            ) : status === 'upcoming' ? (
+                              <Button variant="outline">
+                                Preview
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" disabled>
+                                Completed
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}

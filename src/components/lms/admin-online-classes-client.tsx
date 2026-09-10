@@ -1,78 +1,59 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { PageHeader, DataTable, EmptyState } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
-import { getOnlineLessonsByCourse, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson } from '@/app/actions/lms';
+import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson } from '@/app/actions/lms';
 import { getCourses } from '@/app/actions/courses';
-import type { Program, Course, OnlineLesson, OnlineLessonType, OnlineLessonStatus } from '@/lib/types';
-import { ArrowLeft, Plus, Edit, Trash2, Video, Clock, Calendar, User, Eye, Loader2 } from 'lucide-react';
+import type { Course, OnlineLesson } from '@/lib/types';
+import { Plus, Edit, Trash2, Video, Clock, Calendar, Loader2 } from 'lucide-react';
 
-export function AdminOnlineClassesClient({ 
-  programs 
-}: { 
-  programs: Program[] 
-}) {
+export function AdminOnlineClassesClient() {
   const { success, error: toastError } = useToast();
-  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [lessons, setLessons] = useState<OnlineLesson[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingLesson, setEditingLesson] = useState<OnlineLesson | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<OnlineLesson | null>(null);
-  const [previewLesson, setPreviewLesson] = useState<OnlineLesson | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formData, setFormData] = useState({
+    course_id: '',
     title: '',
     topic: '',
     description: '',
-    lecturer_id: '',
-    lecturer_name: '',
-    zoom_join_url: '',
-    zoom_meeting_id: '',
-    zoom_passcode: '',
     scheduled_date: '',
     start_time: '',
     end_time: '',
-    duration_minutes: '',
-    recording_url: '',
-    thumbnail_url: '',
-    class_type: 'live_class' as OnlineLessonType,
-    status: 'scheduled' as OnlineLessonStatus,
-    is_published: false,
+    zoom_url: '',
+    is_published: true,
   });
 
-  async function loadCourses(programId: string) {
-    setLoading(true);
+  useEffect(() => {
+    loadCourses();
+    loadLessons();
+  }, []);
+
+  async function loadCourses() {
     try {
       const allCourses = await getCourses();
-      const programCourses = allCourses.filter(c => c.program_id === programId);
-      setCourses(programCourses);
-      setSelectedCourse(null);
-      setLessons([]);
+      setCourses(allCourses);
     } catch (error) {
       console.error('Error loading courses:', error);
       toastError('Failed to load courses');
-    } finally {
-      setLoading(false);
     }
   }
 
-  async function loadLessons(courseId: string) {
+  async function loadLessons() {
     setLoading(true);
     try {
-      const data = await getOnlineLessonsByCourse(courseId);
+      const data = await getAllOnlineLessons();
       setLessons(data);
     } catch (error) {
       console.error('Error loading lessons:', error);
@@ -87,638 +68,427 @@ export function AdminOnlineClassesClient({
     setFormLoading(true);
 
     const formDataObj = new FormData();
-    formDataObj.append('course_id', selectedCourse!.id);
+    formDataObj.append('course_id', formData.course_id);
     formDataObj.append('title', formData.title);
     formDataObj.append('topic', formData.topic);
     formDataObj.append('description', formData.description);
-    formDataObj.append('lecturer_id', formData.lecturer_id);
-    formDataObj.append('lecturer_name', formData.lecturer_name);
-    formDataObj.append('zoom_join_url', formData.zoom_join_url);
-    formDataObj.append('zoom_meeting_id', formData.zoom_meeting_id);
-    formDataObj.append('zoom_passcode', formData.zoom_passcode);
     formDataObj.append('scheduled_date', formData.scheduled_date);
     formDataObj.append('start_time', formData.start_time);
     formDataObj.append('end_time', formData.end_time);
-    formDataObj.append('duration_minutes', formData.duration_minutes);
-    formDataObj.append('recording_url', formData.recording_url);
-    formDataObj.append('thumbnail_url', formData.thumbnail_url);
-    formDataObj.append('class_type', formData.class_type);
-    formDataObj.append('status', formData.status);
+    formDataObj.append('zoom_url', formData.zoom_url);
     formDataObj.append('is_published', formData.is_published.toString());
 
-    const result = editingLesson
-      ? await updateOnlineLesson(editingLesson.id, formDataObj)
-      : await createOnlineLesson(formDataObj);
-
-    if (result.success) {
-      success(editingLesson ? 'Lesson updated' : 'Lesson created');
-      setShowForm(false);
-      setEditingLesson(null);
-      resetForm();
-      if (selectedCourse) {
-        await loadLessons(selectedCourse.id);
+    try {
+      if (editingLesson) {
+        const result = await updateOnlineLesson(editingLesson.id, formDataObj);
+        if (result.success) {
+          success('Online class updated successfully');
+          setShowForm(false);
+          setEditingLesson(null);
+          resetForm();
+          loadLessons();
+        } else {
+          toastError(result.error || 'Failed to update online class');
+        }
+      } else {
+        const result = await createOnlineLesson(formDataObj);
+        if (result.success) {
+          success('Online class published successfully');
+          setShowForm(false);
+          resetForm();
+          loadLessons();
+        } else {
+          toastError(result.error || 'Failed to publish online class');
+        }
       }
-    } else {
-      toastError(result.error || 'Failed to save lesson');
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      toastError('An error occurred while saving the class');
+    } finally {
+      setFormLoading(false);
     }
-
-    setFormLoading(false);
   }
 
   async function handleDelete() {
     if (!deleteTarget) return;
-    
-    const result = await deleteOnlineLesson(deleteTarget.id);
-    if (result.success) {
-      success('Lesson deleted');
-      setDeleteTarget(null);
-      if (selectedCourse) {
-        await loadLessons(selectedCourse.id);
+
+    try {
+      const result = await deleteOnlineLesson(deleteTarget.id);
+      if (result.success) {
+        success('Online class deleted successfully');
+        setDeleteTarget(null);
+        loadLessons();
+      } else {
+        toastError(result.error || 'Failed to delete online class');
       }
-    } else {
-      toastError(result.error || 'Failed to delete lesson');
+    } catch (error) {
+      console.error('Error deleting lesson:', error);
+      toastError('An error occurred while deleting the class');
     }
+  }
+
+  function handleEdit(lesson: OnlineLesson) {
+    setEditingLesson(lesson);
+    setFormData({
+      course_id: lesson.course_id,
+      title: lesson.title,
+      topic: lesson.topic || '',
+      description: lesson.description || '',
+      scheduled_date: lesson.scheduled_date,
+      start_time: lesson.start_time,
+      end_time: lesson.end_time,
+      zoom_url: lesson.zoom_url,
+      is_published: lesson.is_published,
+    });
+    setShowForm(true);
   }
 
   function resetForm() {
     setFormData({
+      course_id: '',
       title: '',
       topic: '',
       description: '',
-      lecturer_id: '',
-      lecturer_name: '',
-      zoom_join_url: '',
-      zoom_meeting_id: '',
-      zoom_passcode: '',
       scheduled_date: '',
       start_time: '',
       end_time: '',
-      duration_minutes: '',
-      recording_url: '',
-      thumbnail_url: '',
-      class_type: 'live_class',
-      status: 'scheduled',
-      is_published: false,
+      zoom_url: '',
+      is_published: true,
     });
   }
 
-  function openForm(lesson?: OnlineLesson) {
-    if (lesson) {
-      setEditingLesson(lesson);
-      setFormData({
-        title: lesson.title,
-        topic: lesson.topic || '',
-        description: lesson.description || '',
-        lecturer_id: lesson.lecturer_id || '',
-        lecturer_name: lesson.lecturer_name || '',
-        zoom_join_url: lesson.zoom_join_url,
-        zoom_meeting_id: lesson.zoom_meeting_id || '',
-        zoom_passcode: lesson.zoom_passcode || '',
-        scheduled_date: lesson.scheduled_date,
-        start_time: lesson.start_time,
-        end_time: lesson.end_time,
-        duration_minutes: lesson.duration_minutes?.toString() || '',
-        recording_url: lesson.recording_url || '',
-        thumbnail_url: lesson.thumbnail_url || '',
-        class_type: lesson.class_type,
-        status: lesson.status,
-        is_published: lesson.is_published,
-      });
-    } else {
-      setEditingLesson(null);
-      resetForm();
-    }
-    setShowForm(true);
+  function formatDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   }
 
-  function handleProgramChange(programId: string) {
-    const program = programs.find(p => p.id === programId);
-    setSelectedProgram(program || null);
-    if (program) {
-      loadCourses(program.id);
-    }
+  function formatTime(timeStr: string) {
+    const [hours, minutes] = timeStr.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
   }
 
-  function handleCourseChange(courseId: string) {
-    const course = courses.find(c => c.id === courseId);
-    setSelectedCourse(course || null);
-    if (course) {
-      loadLessons(course.id);
-    }
+  function calculateStatus(lesson: OnlineLesson): 'upcoming' | 'live' | 'completed' {
+    const now = new Date();
+    const scheduledDate = new Date(lesson.scheduled_date);
+    const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
+    const [endHours, endMinutes] = lesson.end_time.split(':').map(Number);
+    
+    const startTime = new Date(scheduledDate);
+    startTime.setHours(startHours, startMinutes, 0, 0);
+    
+    const endTime = new Date(scheduledDate);
+    endTime.setHours(endHours, endMinutes, 0, 0);
+    
+    if (now < startTime) return 'upcoming';
+    if (now >= startTime && now <= endTime) return 'live';
+    return 'completed';
   }
 
-  function getStatusBadge(status: OnlineLessonStatus) {
-    const styles = {
-      scheduled: 'bg-blue-100 text-blue-800',
-      live: 'bg-red-100 text-red-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-gray-100 text-gray-800',
-    };
-    return (
-      <Badge className={styles[status]}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    );
-  }
-
-  function getClassTypeBadge(type: OnlineLessonType) {
-    return (
-      <Badge variant="outline">
-        {type === 'live_class' ? 'Live Class' : 'Recorded Class'}
-      </Badge>
-    );
-  }
+  const totalClasses = lessons.length;
+  const upcomingClasses = lessons.filter(l => calculateStatus(l) === 'upcoming').length;
+  const publishedClasses = lessons.filter(l => l.is_published).length;
 
   return (
-    <div>
-      <PageHeader
-        title="Online Classes"
-        description="Manage live Zoom classes and recorded lessons for students"
-        action={
-          <Link href="/dashboard/lms/programmes">
-            <Button variant="secondary" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to LMS
-            </Button>
-          </Link>
-        }
-      />
-
-      {/* Program and Course Selection */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <Label htmlFor="program">Select Programme</Label>
-          <select
-            id="program"
-            value={selectedProgram?.id || ''}
-            onChange={(e) => handleProgramChange(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">Choose a programme</option>
-            {programs.map((program) => (
-              <option key={program.id} value={program.id}>
-                {program.name} ({program.code})
-              </option>
-            ))}
-          </select>
+          <h1 className="text-2xl font-bold text-slate-900">Online Classes</h1>
+          <p className="text-slate-600 mt-1">Post and manage Zoom classes for enrolled students.</p>
         </div>
+        <Button onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Zoom Class
+        </Button>
+      </div>
 
-        <div>
-          <Label htmlFor="course">Select Course</Label>
-          <select
-            id="course"
-            value={selectedCourse?.id || ''}
-            onChange={(e) => handleCourseChange(e.target.value)}
-            disabled={!selectedProgram}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          >
-            <option value="">{selectedProgram ? "Choose a course" : "Select programme first"}</option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.code} - {course.name}
-              </option>
-            ))}
-          </select>
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="text-sm text-slate-600">Total Classes</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{totalClasses}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="text-sm text-slate-600">Upcoming</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{upcomingClasses}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="text-sm text-slate-600">Published</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{publishedClasses}</div>
         </div>
       </div>
 
-      {selectedCourse && (
-        <>
-          <div className="mb-4 flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold">{selectedCourse.code} - {selectedCourse.name}</h3>
-              <p className="text-sm text-slate-600">{selectedProgram?.name}</p>
-            </div>
-            <Button onClick={() => openForm()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Online Class
-            </Button>
-          </div>
-
-          {loading ? (
-            <div className="py-8 text-center text-sm text-slate-600">Loading lessons...</div>
-          ) : lessons.length === 0 ? (
-            <EmptyState
-              icon={Video}
-              title="No online classes"
-              description="Add Zoom live classes or recorded lessons for this course."
-            />
-          ) : (
-            <DataTable>
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Title</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Published</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lessons.map((lesson) => (
-                    <TableRow key={lesson.id}>
-                      <TableCell className="font-medium text-slate-900">
-                        {lesson.title}
+      {/* Lessons Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        </div>
+      ) : lessons.length === 0 ? (
+        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+          <Video className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-900 mb-2">No online classes yet</h3>
+          <p className="text-slate-600 mb-4">Get started by adding your first Zoom class.</p>
+          <Button onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Zoom Class
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Unit</TableHead>
+                <TableHead>Class</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lessons.map((lesson) => {
+                const status = calculateStatus(lesson);
+                const course = courses.find(c => c.id === lesson.course_id);
+                return (
+                  <TableRow key={lesson.id}>
+                    <TableCell className="font-medium">
+                      {course?.code || course?.name || 'Unknown'}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{lesson.title}</div>
                         {lesson.topic && (
                           <div className="text-sm text-slate-600">{lesson.topic}</div>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {getClassTypeBadge(lesson.class_type)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {new Date(lesson.scheduled_date).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric'
-                        })}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {lesson.start_time} - {lesson.end_time}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(lesson.status)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={lesson.is_published ? 'default' : 'secondary'}>
-                          {lesson.is_published ? 'Yes' : 'No'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="secondary" onClick={() => setPreviewLesson(lesson)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="secondary" onClick={() => openForm(lesson)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="danger" onClick={() => setDeleteTarget(lesson)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </DataTable>
-          )}
-        </>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-slate-400" />
+                        {formatDate(lesson.scheduled_date)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-slate-400" />
+                        {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {status === 'live' && (
+                          <Badge variant="destructive">LIVE NOW</Badge>
+                        )}
+                        {status === 'upcoming' && (
+                          <Badge variant="default">UPCOMING</Badge>
+                        )}
+                        {status === 'completed' && (
+                          <Badge variant="secondary">COMPLETED</Badge>
+                        )}
+                        {!lesson.is_published && (
+                          <Badge variant="outline">DRAFT</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(lesson)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteTarget(lesson)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
 
+      {/* Add/Edit Modal */}
       <Modal
-        open={showForm}
-        onClose={() => {
-          setShowForm(false);
-          setEditingLesson(null);
-          resetForm();
-        }}
-        title={editingLesson ? 'Edit Online Class' : 'Add Online Class'}
-        size="xl"
+        isOpen={showForm}
+        onClose={() => { setShowForm(false); setEditingLesson(null); resetForm(); }}
+        title={editingLesson ? 'Edit Zoom Class' : 'Add Zoom Class'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="course_id" className="block text-sm font-medium text-slate-700 mb-1">
+              Unit <span className="text-red-600">*</span>
+            </label>
+            <select
+              id="course_id"
+              required
+              value={formData.course_id}
+              onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+            >
+              <option value="">Select unit</option>
+              {courses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.code} - {course.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-slate-700 mb-1">
+              Class Title <span className="text-red-600">*</span>
+            </label>
+            <Input
+              id="title"
+              required
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="e.g., Quantitative Analysis — Regression Analysis"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="topic" className="block text-sm font-medium text-slate-700 mb-1">
+              Topic
+            </label>
+            <Input
+              id="topic"
+              value={formData.topic}
+              onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+              placeholder="e.g., Regression Analysis"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="title">Class Title *</Label>
+              <label htmlFor="scheduled_date" className="block text-sm font-medium text-slate-700 mb-1">
+                Date <span className="text-red-600">*</span>
+              </label>
               <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="e.g., Financial Accounting Live Lesson"
+                id="scheduled_date"
+                type="date"
                 required
+                value={formData.scheduled_date}
+                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
               />
             </div>
-
-            <div>
-              <Label htmlFor="topic">Topic</Label>
-              <Input
-                id="topic"
-                value={formData.topic}
-                onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
-                placeholder="e.g., Regression Analysis"
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="start_time" className="block text-sm font-medium text-slate-700 mb-1">
+                  Start <span className="text-red-600">*</span>
+                </label>
+                <Input
+                  id="start_time"
+                  type="time"
+                  required
+                  value={formData.start_time}
+                  onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                />
+              </div>
+              <div>
+                <label htmlFor="end_time" className="block text-sm font-medium text-slate-700 mb-1">
+                  End <span className="text-red-600">*</span>
+                </label>
+                <Input
+                  id="end_time"
+                  type="time"
+                  required
+                  value={formData.end_time}
+                  onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                />
+              </div>
             </div>
           </div>
 
           <div>
-            <Label htmlFor="description">Description</Label>
+            <label htmlFor="zoom_url" className="block text-sm font-medium text-slate-700 mb-1">
+              Zoom Join URL <span className="text-red-600">*</span>
+            </label>
+            <Input
+              id="zoom_url"
+              type="url"
+              required
+              value={formData.zoom_url}
+              onChange={(e) => setFormData({ ...formData, zoom_url: e.target.value })}
+              placeholder="https://zoom.us/j/123456789"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-slate-700 mb-1">
+              Description
+            </label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Class description for students"
+              placeholder="Optional description of the class content..."
               rows={3}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="lecturer_name">Lecturer Name</Label>
-              <Input
-                id="lecturer_name"
-                value={formData.lecturer_name}
-                onChange={(e) => setFormData({ ...formData, lecturer_name: e.target.value })}
-                placeholder="e.g., Dr. John Mwangi"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="class_type">Class Type</Label>
-              <select
-                id="class_type"
-                value={formData.class_type}
-                onChange={(e) => setFormData({ ...formData, class_type: e.target.value as OnlineLessonType })}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="live_class">Live Zoom Class</option>
-                <option value="recorded_class">Recorded Class</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="zoom_join_url">Zoom Join URL *</Label>
-            <Input
-              id="zoom_join_url"
-              value={formData.zoom_join_url}
-              onChange={(e) => setFormData({ ...formData, zoom_join_url: e.target.value })}
-              placeholder="https://zoom.us/j/123456789"
-              required
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              Full Zoom meeting join URL. Students will click to join live classes.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="zoom_meeting_id">Meeting ID (Optional)</Label>
-              <Input
-                id="zoom_meeting_id"
-                value={formData.zoom_meeting_id}
-                onChange={(e) => setFormData({ ...formData, zoom_meeting_id: e.target.value })}
-                placeholder="123 456 7890"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="zoom_passcode">Passcode (Optional)</Label>
-              <Input
-                id="zoom_passcode"
-                value={formData.zoom_passcode}
-                onChange={(e) => setFormData({ ...formData, zoom_passcode: e.target.value })}
-                placeholder="ABC123"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="scheduled_date">Date *</Label>
-              <Input
-                id="scheduled_date"
-                type="date"
-                value={formData.scheduled_date}
-                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="start_time">Start Time *</Label>
-              <Input
-                id="start_time"
-                type="time"
-                value={formData.start_time}
-                onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="end_time">End Time *</Label>
-              <Input
-                id="end_time"
-                type="time"
-                value={formData.end_time}
-                onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="duration_minutes">Duration (minutes)</Label>
-              <Input
-                id="duration_minutes"
-                type="number"
-                value={formData.duration_minutes}
-                onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
-                placeholder="e.g., 120"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <select
-                id="status"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as OnlineLessonStatus })}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="scheduled">Scheduled</option>
-                <option value="live">Live</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="recording_url">Recording URL (Optional)</Label>
-              <Input
-                id="recording_url"
-                value={formData.recording_url}
-                onChange={(e) => setFormData({ ...formData, recording_url: e.target.value })}
-                placeholder="https://zoom.us/recording/..."
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                For recorded classes, add the Zoom cloud recording share link
-              </p>
-            </div>
-
-            <div>
-              <Label htmlFor="thumbnail_url">Thumbnail URL (Optional)</Label>
-              <Input
-                id="thumbnail_url"
-                value={formData.thumbnail_url}
-                onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
-                placeholder="https://..."
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <input
               type="checkbox"
               id="is_published"
               checked={formData.is_published}
               onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-              className="h-4 w-4"
+              className="rounded border-slate-300 text-slate-900 focus:ring-slate-950"
             />
-            <Label htmlFor="is_published" className="text-sm">
-              Publish to students
-            </Label>
+            <label htmlFor="is_published" className="text-sm text-slate-700">
+              Publish this class (visible to students)
+            </label>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"
               variant="secondary"
-              onClick={() => {
-                setShowForm(false);
-                setEditingLesson(null);
-                resetForm();
-              }}
+              onClick={() => { setShowForm(false); setEditingLesson(null); resetForm(); }}
+              disabled={formLoading}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={formLoading}>
-              {formLoading ? 'Saving...' : editingLesson ? 'Update' : 'Create'}
+              {formLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                editingLesson ? 'Update Class' : 'Publish Class'
+              )}
             </Button>
           </div>
         </form>
       </Modal>
 
+      {/* Delete Confirmation */}
       <ConfirmDialog
-        open={!!deleteTarget}
+        isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
-        title="Delete online class"
-        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
-        confirmLabel="Delete class"
+        title="Delete Online Class"
+        description="Are you sure you want to delete this online class? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
       />
-
-      <Modal
-        open={!!previewLesson}
-        onClose={() => setPreviewLesson(null)}
-        title={`Preview: ${previewLesson?.title}`}
-        size="lg"
-      >
-        {previewLesson && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              {getClassTypeBadge(previewLesson.class_type)}
-              {getStatusBadge(previewLesson.status)}
-              <Badge variant={previewLesson.is_published ? 'default' : 'secondary'}>
-                {previewLesson.is_published ? 'Published' : 'Draft'}
-              </Badge>
-            </div>
-
-            {previewLesson.topic && (
-              <div>
-                <h4 className="font-semibold text-slate-900">Topic</h4>
-                <p className="text-slate-600">{previewLesson.topic}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <h4 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Date
-                </h4>
-                <p className="text-slate-600">
-                  {new Date(previewLesson.scheduled_date).toLocaleDateString('en-GB', {
-                    weekday: 'long',
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  })}
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Time
-                </h4>
-                <p className="text-slate-600">
-                  {previewLesson.start_time} - {previewLesson.end_time}
-                  {previewLesson.duration_minutes && (
-                    <span className="ml-2">({previewLesson.duration_minutes} min)</span>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {previewLesson.lecturer_name && (
-              <div>
-                <h4 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Lecturer
-                </h4>
-                <p className="text-slate-600">{previewLesson.lecturer_name}</p>
-              </div>
-            )}
-
-            {previewLesson.description && (
-              <div>
-                <h4 className="font-semibold text-slate-900">Description</h4>
-                <p className="text-slate-600">{previewLesson.description}</p>
-              </div>
-            )}
-
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-2">Zoom Details</h4>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="text-slate-600">Join URL:</span>
-                  <a 
-                    href={previewLesson.zoom_join_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="ml-2 text-blue-600 hover:underline"
-                  >
-                    {previewLesson.zoom_join_url}
-                  </a>
-                </div>
-                {previewLesson.zoom_meeting_id && (
-                  <div>
-                    <span className="text-slate-600">Meeting ID:</span>
-                    <span className="ml-2">{previewLesson.zoom_meeting_id}</span>
-                  </div>
-                )}
-                {previewLesson.zoom_passcode && (
-                  <div>
-                    <span className="text-slate-600">Passcode:</span>
-                    <span className="ml-2">{previewLesson.zoom_passcode}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {previewLesson.recording_url && (
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <h4 className="font-semibold text-slate-900 mb-2">Recording Available</h4>
-                <a 
-                  href={previewLesson.recording_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                >
-                  {previewLesson.recording_url}
-                </a>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }
