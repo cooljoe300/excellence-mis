@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { importStudentToLms } from '@/app/actions/lms';
 import { CheckCircle2, Circle, Upload, CreditCard, UserPlus, FileText, FileText as LetterIcon } from 'lucide-react';
 import type { Student } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -30,23 +29,6 @@ export function StudentWorkflow({
 
   const admissionNumber = student.admission_number ?? student.student_number;
   const idCardReady = !!student.id_card_issued_at;
-  const lmsSynced = student.lms_sync_status === 'synced';
-
-  async function handleImport() {
-    setImporting(true);
-    setImportResult(null);
-    const result = await importStudentToLms(student.id);
-    if (result.error) {
-      setImportResult({ error: result.error });
-    } else {
-      setImportResult({
-        username: result.username,
-        temporaryPassword: result.temporaryPassword,
-      });
-      router.refresh();
-    }
-    setImporting(false);
-  }
 
   const steps = [
     {
@@ -98,31 +80,6 @@ export function StudentWorkflow({
             View / Print ID Card
           </Button>
         </Link>
-      ),
-    },
-    {
-      id: 5,
-      title: 'Import to Moodle LMS',
-      description: lmsSynced
-        ? `Synced as ${student.lms_username}`
-        : student.lms_sync_status === 'failed'
-          ? student.lms_sync_error ?? 'Import failed'
-          : 'Create LMS account from MIS record',
-      done: lmsSynced,
-      icon: Upload,
-      action: !lmsSynced ? (
-        <Button size="sm" onClick={handleImport} disabled={importing}>
-          {importing ? 'Importing...' : 'Import to LMS'}
-        </Button>
-      ) : (
-        <a
-          href="https://lms.excellenceonlinecollege.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-blue-700 hover:underline"
-        >
-          Open LMS
-        </a>
       ),
     },
   ];
