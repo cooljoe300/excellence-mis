@@ -15,7 +15,7 @@ import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import { getLearningActivitiesByCourse, createLearningActivity, updateLearningActivity, deleteLearningActivity } from '@/app/actions/lms';
 import type { Program, Course, LmsLearningActivity, LmsActivityProvider, LmsLaunchMode, LmsActivityStatus } from '@/lib/types';
-import { ArrowLeft, Plus, Edit, Trash2, Video, Clock, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, Edit, Trash2, Video, Clock, ExternalLink, Eye } from 'lucide-react';
 
 export function LmsUnitActivitiesClient({ 
   program, 
@@ -30,6 +30,7 @@ export function LmsUnitActivitiesClient({
   const [showForm, setShowForm] = useState(false);
   const [editingActivity, setEditingActivity] = useState<LmsLearningActivity | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LmsLearningActivity | null>(null);
+  const [previewActivity, setPreviewActivity] = useState<LmsLearningActivity | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -191,6 +192,9 @@ export function LmsUnitActivitiesClient({
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => setPreviewActivity(activity)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button size="sm" variant="secondary" onClick={() => openForm(activity)}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -291,10 +295,13 @@ export function LmsUnitActivitiesClient({
                 onChange={(e) => setFormData({ ...formData, launch_mode: e.target.value as LmsLaunchMode })}
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               >
-                <option value="iframe">Embedded Inside MIS</option>
+                <option value="iframe">Embedded Inside MIS (Recommended)</option>
                 <option value="zoom_sdk">Zoom SDK</option>
-                <option value="same_tab">Same Tab</option>
+                <option value="same_tab">Same Tab (Fallback)</option>
               </select>
+              <p className="text-xs text-slate-500 mt-1">
+                If the provider blocks embedding, students will see a fallback option
+              </p>
             </div>
           </div>
 
@@ -338,6 +345,47 @@ export function LmsUnitActivitiesClient({
         description={`Are you sure you want to delete "${deleteTarget?.name}"? This action cannot be undone.`}
         confirmLabel="Delete activity"
       />
+
+      <Modal
+        open={!!previewActivity}
+        onClose={() => setPreviewActivity(null)}
+        title={`Preview: ${previewActivity?.name}`}
+        size="xl"
+      >
+        {previewActivity && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Badge variant="outline">{previewActivity.provider.replace('_', ' ')}</Badge>
+              <Badge status={previewActivity.status}>{previewActivity.status}</Badge>
+              <span className="text-sm text-slate-600">
+                {previewActivity.launch_mode.replace('_', ' ')}
+              </span>
+            </div>
+
+            {previewActivity.display_description && previewActivity.description && (
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <p className="text-sm text-slate-700">{previewActivity.description}</p>
+              </div>
+            )}
+
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm text-amber-800">
+                <strong>Note:</strong> This is a preview for administrators. Students will see this content
+                through the activity viewer. If the provider blocks iframe embedding, students will see a
+                fallback message with a button to open the content directly.
+              </p>
+            </div>
+
+            <iframe
+              src={previewActivity.external_url}
+              className="w-full h-[60vh] border-0 rounded-lg bg-white"
+              title={`Preview: ${previewActivity.name}`}
+              allow="autoplay; fullscreen; picture-in-picture; camera; microphone; display-capture"
+              allowFullScreen
+            />
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

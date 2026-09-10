@@ -44,7 +44,7 @@ export function StudentActivityViewerClient({
         
         if (!hasAccess) {
           toastError('You do not have access to this learning activity');
-          window.location.href = '/student/lms/my-learning';
+          window.location.href = '/student/(portal)/lms/my-learning';
         }
       } catch (error) {
         console.error('Error verifying enrollment:', error);
@@ -52,7 +52,17 @@ export function StudentActivityViewerClient({
     }
 
     verifyEnrollment();
-  }, [activity.course_id, activity.id, toastError]);
+
+    // Set a timeout to detect if iframe loading is blocked
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setIframeError(true);
+        setLoading(false);
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [activity.course_id, activity.id, toastError, loading]);
 
   return (
     <div>
@@ -84,7 +94,7 @@ export function StudentActivityViewerClient({
             <Video className="h-16 w-16 text-slate-400" />
           </div>
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            This learning activity opens in a new tab
+            This learning activity opens in the same tab
           </h3>
           <p className="text-sm text-slate-600 mb-6">
             Click below to continue to the learning provider.
@@ -97,8 +107,9 @@ export function StudentActivityViewerClient({
       ) : (
         <div className="relative">
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-slate-50 rounded-lg">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50 rounded-lg border border-slate-200">
+              <Loader2 className="h-12 w-12 animate-spin text-slate-400 mb-4" />
+              <p className="text-sm text-slate-600">Loading lesson...</p>
             </div>
           )}
 
@@ -111,21 +122,21 @@ export function StudentActivityViewerClient({
                 Cannot display inside MIS
               </h3>
               <p className="text-sm text-slate-600 mb-6">
-                This learning activity is hosted by an external learning provider.
-                The provider does not allow this page to be displayed inside the MIS.
+                This learning activity is hosted by {activity.provider.replace('_', ' ')}.
+                The provider does not allow this content to be displayed inside the Excellence MIS player.
               </p>
               <Button onClick={handleContinueToLesson} size="lg">
                 <ExternalLink className="h-4 w-4 mr-2" />
-                Continue to Lesson
+                Watch Recording
               </Button>
             </div>
           ) : (
             <iframe
               ref={iframeRef}
               src={activity.external_url}
-              className="w-full min-h-[80vh] border-0 rounded-lg"
+              className="w-full min-h-[80vh] border-0 rounded-lg bg-white"
               title={activity.name}
-              allow="camera; microphone; fullscreen; display-capture"
+              allow="autoplay; fullscreen; picture-in-picture; camera; microphone; display-capture"
               allowFullScreen
               onLoad={handleIframeLoad}
               onError={handleIframeError}

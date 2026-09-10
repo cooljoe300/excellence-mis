@@ -97,7 +97,7 @@ function CourseRow({ course }: { course: Course }) {
         >
           <Button size="sm" variant="secondary">
             <Video className="h-4 w-4 mr-2" />
-            {loadingActivities ? 'Loading...' : activityCount !== null ? `${activityCount} Activities` : 'View Activities'}
+            {loadingActivities ? 'Loading...' : activityCount !== null ? `${activityCount} Activities` : 'Manage Activities'}
           </Button>
         </Link>
       </TableCell>
