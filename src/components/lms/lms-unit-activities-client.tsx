@@ -14,7 +14,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import { getLearningActivitiesByCourse, createLearningActivity, updateLearningActivity, deleteLearningActivity } from '@/app/actions/lms';
-import type { Program, Course, LmsLearningActivity } from '@/lib/types';
+import type { Program, Course, LmsLearningActivity, LmsActivityProvider, LmsLaunchMode, LmsActivityStatus } from '@/lib/types';
 import { ArrowLeft, Plus, Edit, Trash2, Video, Clock, ExternalLink } from 'lucide-react';
 
 export function LmsUnitActivitiesClient({ 
@@ -36,9 +36,9 @@ export function LmsUnitActivitiesClient({
     external_url: '',
     description: '',
     display_description: true,
-    provider: 'external_link' as const,
-    launch_mode: 'iframe' as const,
-    status: 'active' as const,
+    provider: 'external_link' as LmsActivityProvider,
+    launch_mode: 'iframe' as LmsLaunchMode,
+    status: 'active' as LmsActivityStatus,
   });
 
   async function loadActivities() {
@@ -104,9 +104,9 @@ export function LmsUnitActivitiesClient({
       external_url: '',
       description: '',
       display_description: true,
-      provider: 'external_link',
-      launch_mode: 'iframe',
-      status: 'active',
+      provider: 'external_link' as LmsActivityProvider,
+      launch_mode: 'iframe' as LmsLaunchMode,
+      status: 'active' as LmsActivityStatus,
     });
   }
 
@@ -118,9 +118,9 @@ export function LmsUnitActivitiesClient({
         external_url: activity.external_url,
         description: activity.description || '',
         display_description: activity.display_description,
-        provider: activity.provider,
-        launch_mode: activity.launch_mode,
-        status: activity.status,
+        provider: activity.provider as LmsActivityProvider,
+        launch_mode: activity.launch_mode as LmsLaunchMode,
+        status: activity.status as LmsActivityStatus,
       });
     } else {
       setEditingActivity(null);
@@ -272,7 +272,7 @@ export function LmsUnitActivitiesClient({
               <select
                 id="provider"
                 value={formData.provider}
-                onChange={(e) => setFormData({ ...formData, provider: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, provider: e.target.value as LmsActivityProvider })}
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               >
                 <option value="zoom">Zoom</option>
@@ -288,7 +288,7 @@ export function LmsUnitActivitiesClient({
               <select
                 id="launch_mode"
                 value={formData.launch_mode}
-                onChange={(e) => setFormData({ ...formData, launch_mode: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, launch_mode: e.target.value as LmsLaunchMode })}
                 className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
               >
                 <option value="iframe">Embedded Inside MIS</option>
@@ -303,7 +303,7 @@ export function LmsUnitActivitiesClient({
             <select
               id="status"
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as LmsActivityStatus })}
               className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
             >
               <option value="active">Active</option>
