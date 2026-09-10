@@ -45,30 +45,36 @@ function AttendanceFormModal({
   return (
     <Modal open onClose={onClose} title="Record Attendance" size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <Select
-          name="enrollment_id"
-          label="Enrollment"
-          options={[
-            { value: '', label: 'Select enrollment' },
-            ...enrollments.map((e) => ({
-              value: e.id,
-              label: `${(e.student as { first_name: string; last_name: string })?.first_name} ${(e.student as { first_name: string; last_name: string })?.last_name} — ${(e.course as { code: string })?.code}`,
-            })),
-          ]}
-          required
-        />
+        <div>
+          <label htmlFor="enrollment_id" className="block text-sm font-medium text-slate-700">Enrollment</label>
+          <Select
+            name="enrollment_id"
+            id="enrollment_id"
+            options={[
+              { value: '', label: 'Select enrollment' },
+              ...enrollments.map((e) => ({
+                value: e.id,
+                label: `${(e.student as { first_name: string; last_name: string })?.first_name} ${(e.student as { first_name: string; last_name: string })?.last_name} — ${(e.course as { code: string })?.code}`,
+              })),
+            ]}
+            required
+          />
+        </div>
         <Input name="date" label="Date" type="date" defaultValue={new Date().toISOString().split('T')[0]} required />
-        <Select
-          name="status"
-          label="Status"
-          defaultValue="present"
-          options={[
-            { value: 'present', label: 'Present' },
-            { value: 'absent', label: 'Absent' },
-            { value: 'late', label: 'Late' },
-            { value: 'excused', label: 'Excused' },
-          ]}
-        />
+        <div>
+          <label htmlFor="status" className="block text-sm font-medium text-slate-700">Status</label>
+          <Select
+            name="status"
+            id="status"
+            defaultValue="present"
+            options={[
+              { value: 'present', label: 'Present' },
+              { value: 'absent', label: 'Absent' },
+              { value: 'late', label: 'Late' },
+              { value: 'excused', label: 'Excused' },
+            ]}
+          />
+        </div>
         <Input name="notes" label="Notes" />
         {error && <Alert variant="error">{error}</Alert>}
         <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">

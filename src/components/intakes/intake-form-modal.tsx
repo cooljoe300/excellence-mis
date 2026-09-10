@@ -59,24 +59,30 @@ export function IntakeFormModal({ onClose, intake }: { onClose: () => void; inta
           <Input name="start_date" label="Start date" type="date" defaultValue={intake?.start_date} required />
           <Input name="end_date" label="End date" type="date" defaultValue={intake?.end_date} required />
         </div>
-        <Select
-          name="is_current"
-          label="Current intake"
-          defaultValue={intake?.is_current ? 'true' : 'false'}
-          options={[
-            { value: 'false', label: 'No' },
-            { value: 'true', label: 'Yes — default for new admissions' },
-          ]}
-        />
-        <Select
-          name="is_active"
-          label="Status"
-          defaultValue={intake?.is_active === false ? 'false' : 'true'}
-          options={[
-            { value: 'true', label: 'Active — open for admissions' },
-            { value: 'false', label: 'Closed' },
-          ]}
-        />
+        <div>
+          <label htmlFor="is_current" className="block text-sm font-medium text-slate-700">Current intake</label>
+          <Select
+            name="is_current"
+            id="is_current"
+            defaultValue={intake?.is_current ? 'true' : 'false'}
+            options={[
+              { value: 'false', label: 'No' },
+              { value: 'true', label: 'Yes — default for new admissions' },
+            ]}
+          />
+        </div>
+        <div>
+          <label htmlFor="is_active" className="block text-sm font-medium text-slate-700">Status</label>
+          <Select
+            name="is_active"
+            id="is_active"
+            defaultValue={intake?.is_active === false ? 'false' : 'true'}
+            options={[
+              { value: 'true', label: 'Active — open for admissions' },
+              { value: 'false', label: 'Closed' },
+            ]}
+          />
+        </div>
         {error && <Alert variant="error">{error}</Alert>}
         <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>

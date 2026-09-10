@@ -564,7 +564,10 @@ export function StudentSelfForm({
             <Input name="last_name" label="Last name" defaultValue={personalInfo.last_name ?? existingStudent?.last_name ?? defaultLastName} required completed={!!(personalInfo.last_name || existingStudent?.last_name)} />
             <Input name="phone" label="Phone" defaultValue={personalInfo.phone ?? existingStudent?.phone ?? ''} completed={!!(personalInfo.phone || existingStudent?.phone)} />
             <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={personalInfo.date_of_birth ?? existingStudent?.date_of_birth ?? ''} completed={!!(personalInfo.date_of_birth || existingStudent?.date_of_birth)} />
-            <Select name="gender" label="Gender" defaultValue={personalInfo.gender ?? existingStudent?.gender ?? ''} options={genderOptions} completed={!!(personalInfo.gender || existingStudent?.gender)} />
+            <div>
+              <label htmlFor="gender" className="block text-sm font-medium text-slate-700">Gender</label>
+              <Select name="gender" id="gender" defaultValue={personalInfo.gender ?? existingStudent?.gender ?? ''} options={genderOptions} completed={!!(personalInfo.gender || existingStudent?.gender)} />
+            </div>
             <Input name="nationality" label="Nationality" defaultValue={personalInfo.nationality ?? existingStudent?.nationality ?? 'Kenyan'} completed={!!(personalInfo.nationality || existingStudent?.nationality)} />
             <div className="sm:col-span-2">
               <Input name="address" label="Street address" defaultValue={personalInfo.address ?? existingStudent?.address ?? ''} completed={!!(personalInfo.address || existingStudent?.address)} />
@@ -638,29 +641,35 @@ export function StudentSelfForm({
               </div>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
-              <Select
-                name="program_id"
-                label="Program"
-                defaultValue={existingStudent?.program_id ?? ''}
-                options={programOptions}
-                onChange={(e) => setSelectedProgramId(e.target.value)}
-                required
-                disabled={!!existingStudent?.program_id}
-                completed={!!existingStudent?.program_id}
-              />
+              <div>
+                <label htmlFor="program_id" className="block text-sm font-medium text-slate-700">Program</label>
+                <Select
+                  name="program_id"
+                  id="program_id"
+                  defaultValue={existingStudent?.program_id ?? ''}
+                  options={programOptions}
+                  onChange={(e) => setSelectedProgramId(e.target.value)}
+                  required
+                  disabled={!!existingStudent?.program_id}
+                  completed={!!existingStudent?.program_id}
+                />
+              </div>
               {/* Hidden input to ensure program_id is submitted when field is disabled */}
               {existingStudent?.program_id && (
                 <input type="hidden" name="program_id" value={existingStudent.program_id} />
               )}
-              <Select
-                name="term_id"
-                label="Semester"
-                value={selectedTermId}
-                onChange={(e) => setSelectedTermId(e.target.value)}
-                options={termOptions}
-                required
-                completed={!!selectedTermId}
-              />
+              <div>
+                <label htmlFor="term_id" className="block text-sm font-medium text-slate-700">Semester</label>
+                <Select
+                  name="term_id"
+                  id="term_id"
+                  value={selectedTermId}
+                  onChange={(e) => setSelectedTermId(e.target.value)}
+                  options={termOptions}
+                  required
+                  completed={!!selectedTermId}
+                />
+              </div>
               <p className="sm:col-span-2 text-[11px] text-slate-500 -mt-2">
                 Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
               </p>

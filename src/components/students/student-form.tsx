@@ -335,7 +335,10 @@ Excellence Online College`;
           <Input name="email" label="Email" type="email" defaultValue={student?.email} required />
           <Input name="phone" label="Phone" defaultValue={student?.phone ?? ''} />
           <Input name="date_of_birth" label="Date of birth" type="date" defaultValue={student?.date_of_birth ?? ''} />
-          <Select name="gender" label="Gender" defaultValue={student?.gender ?? ''} options={genderOptions} />
+          <div>
+            <label htmlFor="gender" className="block text-sm font-medium text-slate-700">Gender</label>
+            <Select name="gender" id="gender" defaultValue={student?.gender ?? ''} options={genderOptions} />
+          </div>
           <Input name="nationality" label="Nationality" defaultValue={student?.nationality ?? 'Kenyan'} />
           <div className="sm:col-span-2">
             <PassportPhotoUpload
@@ -365,28 +368,35 @@ Excellence Online College`;
           <CardTitle>Academic & Emergency</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Select
-            name="program_id"
-            label="Program"
-            value={programId}
-            onChange={(e) => setProgramId(e.target.value)}
-            options={programOptions}
-            required={!student}
-          />
+          <div>
+            <label htmlFor="program_id" className="block text-sm font-medium text-slate-700">Program</label>
+            <Select
+              name="program_id"
+              id="program_id"
+              value={programId}
+              onChange={(e) => setProgramId(e.target.value)}
+              options={programOptions}
+              required={!student}
+            />
+          </div>
           {!student && (
             <p className="sm:col-span-2 text-xs text-slate-500 -mt-2">
               Admission number is generated from the program (e.g. EOC/CIFA/001/26).
             </p>
           )}
-          <Select
-            name="intake_id"
-            label="Intake"
-            defaultValue={student?.intake_id ?? ''}
-            options={intakeOptions}
-          />
+          <div>
+            <label htmlFor="intake_id" className="block text-sm font-medium text-slate-700">Intake</label>
+            <Select
+              name="intake_id"
+              id="intake_id"
+              defaultValue={student?.intake_id ?? ''}
+              options={intakeOptions}
+            />
+          </div>
           <Input name="enrollment_date" label="Enrollment date" type="date" defaultValue={student?.enrollment_date ?? new Date().toISOString().split('T')[0]} />
           <div>
-            <Select name="status" label="Status" defaultValue={student?.status ?? 'active'} options={statusOptions} />
+            <label htmlFor="status" className="block text-sm font-medium text-slate-700">Status</label>
+            <Select name="status" id="status" defaultValue={student?.status ?? 'active'} options={statusOptions} />
             {student && (
               <p className="mt-1 text-xs text-slate-500">
                 Setting status to Withdrawn, Inactive, or Suspended deregisters open units, adjusts

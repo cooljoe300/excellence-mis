@@ -79,15 +79,18 @@ export function SemesterFormModal({
           <Input name="start_date" label="Start date" type="date" defaultValue={term?.start_date} required />
           <Input name="end_date" label="End date" type="date" defaultValue={term?.end_date} required />
         </div>
-        <Select
-          name="is_current"
-          label="Current semester"
-          defaultValue={term?.is_current ? 'true' : 'false'}
-          options={[
-            { value: 'false', label: 'No' },
-            { value: 'true', label: 'Yes — use for registrations & fees' },
-          ]}
-        />
+        <div>
+          <label htmlFor="is_current" className="block text-sm font-medium text-slate-700">Current semester</label>
+          <Select
+            name="is_current"
+            id="is_current"
+            defaultValue={term?.is_current ? 'true' : 'false'}
+            options={[
+              { value: 'false', label: 'No' },
+              { value: 'true', label: 'Yes — use for registrations & fees' },
+            ]}
+          />
+        </div>
         {error && <Alert variant="error">{error}</Alert>}
         <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>

@@ -86,15 +86,18 @@ export function ProgramFormModal({ onClose, program }: { onClose: () => void; pr
           />
         </div>
         {program && (
-          <Select
-            name="is_active"
-            label="Status"
-            defaultValue={program.is_active ? 'true' : 'false'}
-            options={[
-              { value: 'true', label: 'Active' },
-              { value: 'false', label: 'Inactive' },
-            ]}
-          />
+          <div>
+            <label htmlFor="is_active" className="block text-sm font-medium text-slate-700">Status</label>
+            <Select
+              name="is_active"
+              id="is_active"
+              defaultValue={program.is_active ? 'true' : 'false'}
+              options={[
+                { value: 'true', label: 'Active' },
+                { value: 'false', label: 'Inactive' },
+              ]}
+            />
+          </div>
         )}
         {error && <Alert variant="error">{error}</Alert>}
         <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">

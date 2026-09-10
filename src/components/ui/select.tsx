@@ -147,6 +147,7 @@ SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 interface LegacySelectProps {
   id?: string;
   name?: string;
+  label?: string;
   options: { value: string; label: string }[];
   value?: string;
   defaultValue?: string;
@@ -157,7 +158,7 @@ interface LegacySelectProps {
 }
 
 const LegacySelect = React.forwardRef<HTMLSelectElement, LegacySelectProps>(
-  ({ id, name, options, value, defaultValue, required, disabled, className, onChange }, ref) => {
+  ({ id, name, label, options, value, defaultValue, required, disabled, className, onChange }, ref) => {
     return (
       <select
         id={id}
