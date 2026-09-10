@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { PageHeader, EmptyState } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { getStudentLearningActivitiesByCourse, getStudentOnlineLessonsByCourse } from '@/app/actions/lms';
 import type { Student, Course, LmsLearningActivity, OnlineLesson } from '@/lib/types';
-import { ArrowLeft, Video, ExternalLink, Loader2, Calendar, Clock, User, Search, Eye, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Video, ExternalLink, Loader2, Calendar, Clock, User, Search, Eye, ZoomIn, Timer } from 'lucide-react';
 
 export function StudentUnitActivitiesClient({ 
   student, 
@@ -23,6 +23,7 @@ export function StudentUnitActivitiesClient({
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'live' | 'completed'>('all');
   const [previewLesson, setPreviewLesson] = useState<OnlineLesson | null>(null);
+  const [countdowns, setCountdowns] = useState<Record<string, string>>({});
 
   async function loadData() {
     setLoading(true);
@@ -45,7 +46,7 @@ export function StudentUnitActivitiesClient({
   }, [course.id]);
 
   // Calculate lesson status dynamically
-  function getLessonStatus(lesson: OnlineLesson): 'scheduled' | 'live' | 'completed' | 'cancelled' {
+  const getLessonStatus = useCallback((lesson: OnlineLesson): 'scheduled' | 'live' | 'completed' | 'cancelled' => {
     if (lesson.status === 'cancelled') return 'cancelled';
     
     const now = new Date();
@@ -62,7 +63,7 @@ export function StudentUnitActivitiesClient({
     if (now < startTime) return 'scheduled';
     if (now >= startTime && now <= endTime) return 'live';
     return 'completed';
-  }
+  }, []);
 
   // Filter lessons based on search and status
   const filteredLessons = onlineLessons.filter(lesson => {
@@ -83,6 +84,54 @@ export function StudentUnitActivitiesClient({
     
     return true;
   });
+
+  // Dynamic status calculation for rendering
+  const lessonsWithStatus = filteredLessons.map(lesson => ({
+    ...lesson,
+    calculatedStatus: getLessonStatus(lesson)
+  }));
+
+  // Update countdowns every second
+  useEffect(() => {
+    const updateCountdowns = () => {
+      const newCountdowns: Record<string, string> = {};
+      
+      lessonsWithStatus.forEach(lesson => {
+        if (lesson.calculatedStatus === 'scheduled') {
+          const now = new Date();
+          const scheduledDate = new Date(lesson.scheduled_date);
+          const [startHours, startMinutes] = lesson.start_time.split(':').map(Number);
+          
+          const startTime = new Date(scheduledDate);
+          startTime.setHours(startHours, startMinutes, 0, 0);
+          
+          const diff = startTime.getTime() - now.getTime();
+          
+          if (diff > 0) {
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            if (hours > 24) {
+              const days = Math.floor(hours / 24);
+              newCountdowns[lesson.id] = `${days}d ${hours % 24}h`;
+            } else if (hours > 0) {
+              newCountdowns[lesson.id] = `${hours}h ${minutes}m`;
+            } else {
+              newCountdowns[lesson.id] = `${minutes}m ${seconds}s`;
+            }
+          }
+        }
+      });
+      
+      setCountdowns(newCountdowns);
+    };
+
+    updateCountdowns();
+    const interval = setInterval(updateCountdowns, 1000);
+    
+    return () => clearInterval(interval);
+  }, [lessonsWithStatus]);
 
   function getStatusBadge(status: string) {
     const styles = {
@@ -151,7 +200,7 @@ export function StudentUnitActivitiesClient({
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      ) : filteredLessons.length === 0 ? (
+      ) : lessonsWithStatus.length === 0 ? (
         <EmptyState
           icon={Video}
           title="No online classes available"
@@ -162,8 +211,8 @@ export function StudentUnitActivitiesClient({
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredLessons.map((lesson) => {
-            const status = getLessonStatus(lesson);
+          {lessonsWithStatus.map((lesson) => {
+            const status = lesson.calculatedStatus;
             const isLive = status === 'live';
             
             return (
@@ -197,6 +246,12 @@ export function StudentUnitActivitiesClient({
                     <div className="flex items-center gap-2 text-slate-600">
                       <User className="h-4 w-4" />
                       <span>{lesson.lecturer_name}</span>
+                    </div>
+                  )}
+                  {countdowns[lesson.id] && (
+                    <div className="flex items-center gap-2 text-blue-600 font-medium">
+                      <Timer className="h-4 w-4" />
+                      <span>Starts in {countdowns[lesson.id]}</span>
                     </div>
                   )}
                 </div>
@@ -319,6 +374,13 @@ export function StudentUnitActivitiesClient({
                   <div className="mb-3">
                     <span className="text-sm text-slate-600">Passcode: </span>
                     <span className="font-mono">{previewLesson.zoom_passcode}</span>
+                  </div>
+                )}
+                
+                {getLessonStatus(previewLesson) === 'scheduled' && countdowns[previewLesson.id] && (
+                  <div className="flex items-center gap-2 text-blue-600 font-medium">
+                    <Timer className="h-4 w-4" />
+                    <span>Starts in {countdowns[previewLesson.id]}</span>
                   </div>
                 )}
               </div>
