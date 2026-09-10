@@ -380,22 +380,26 @@ export function StudentUnitActivitiesClient({
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">RECORDED CLASS</Badge>
                     </div>
-                    {previewLesson.passcode && (
-                      <div className="bg-slate-50 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium text-slate-700">Recording Passcode</span>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(previewLesson.passcode);
-                            }}
-                            className="text-sm text-slate-600 hover:text-slate-900"
-                          >
-                            Copy
-                          </button>
+                    {(() => {
+                      const passcode = previewLesson.passcode;
+                      if (!passcode) return null;
+                      return (
+                        <div className="bg-slate-50 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-slate-700">Recording Passcode</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(passcode);
+                              }}
+                              className="text-sm text-slate-600 hover:text-slate-900"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <p className="text-slate-900 font-mono">{passcode}</p>
                         </div>
-                        <p className="text-slate-900 font-mono">{previewLesson.passcode}</p>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </>
                 ) : (
                   <>

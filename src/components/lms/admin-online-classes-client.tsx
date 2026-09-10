@@ -473,24 +473,28 @@ export function AdminOnlineClassesClient() {
                 {previewLesson.class_type === 'recorded' ? 'RECORDED CLASS' : 'LIVE CLASS'}
               </Badge>
             </div>
-            {previewLesson.passcode && (
-              <div className="bg-slate-50 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-slate-600" />
-                    <span className="text-sm font-medium text-slate-700">Recording Passcode</span>
+            {(() => {
+              const passcode = previewLesson.passcode;
+              if (!passcode) return null;
+              return (
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-slate-600" />
+                      <span className="text-sm font-medium text-slate-700">Recording Passcode</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(passcode)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(previewLesson.passcode)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+                  <p className="text-slate-900 font-mono">{passcode}</p>
                 </div>
-                <p className="text-slate-900 font-mono">{previewLesson.passcode}</p>
-              </div>
-            )}
+              );
+            })()}
             <div className="pt-4 border-t border-slate-200">
               <Button
                 onClick={() => {
