@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import * as SelectPrimitive from '@radix-ui/react-select';
-import { Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Radix UI Select components (renamed to avoid conflict with LegacySelect)
@@ -155,31 +155,50 @@ interface LegacySelectProps {
   disabled?: boolean;
   className?: string;
   onChange?: (value: string) => void;
+  completed?: boolean;
 }
 
 const LegacySelect = React.forwardRef<HTMLSelectElement, LegacySelectProps>(
-  ({ id, name, label, options, value, defaultValue, required, disabled, className, onChange }, ref) => {
+  ({ id, name, label, options, value, defaultValue, required, disabled, className, onChange, completed }, ref) => {
+    const selectId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     return (
-      <select
-        id={id}
-        name={name}
-        value={value}
-        defaultValue={defaultValue}
-        required={required}
-        disabled={disabled}
-        onChange={(e) => onChange?.(e.target.value)}
-        className={cn(
-          'flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-          className
-        )}
-        ref={ref}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          {label && (
+            <label htmlFor={selectId} className="block text-sm font-medium text-slate-700">
+              {label}
+            </label>
+          )}
+          {completed && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+              <CheckCircle2 className="h-3 w-3" />
+              Already Provided
+            </span>
+          )}
+        </div>
+        <select
+          id={selectId}
+          name={name}
+          value={value}
+          defaultValue={defaultValue}
+          required={required}
+          disabled={disabled}
+          onChange={(e) => onChange?.(e.target.value)}
+          className={cn(
+            'flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+            completed && !disabled && 'border-emerald-200 bg-emerald-50/50',
+            disabled && 'bg-slate-50 text-slate-600 cursor-not-allowed',
+            className
+          )}
+          ref={ref}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
     );
   }
 );
