@@ -343,7 +343,7 @@ export function AdminOnlineClassesClient({
                         {getStatusBadge(lesson.status)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={lesson.is_published ? 'success' : 'secondary'}>
+                        <Badge variant={lesson.is_published ? 'default' : 'secondary'}>
                           {lesson.is_published ? 'Yes' : 'No'}
                         </Badge>
                       </TableCell>
@@ -615,7 +615,7 @@ export function AdminOnlineClassesClient({
             <div className="flex items-center gap-4">
               {getClassTypeBadge(previewLesson.class_type)}
               {getStatusBadge(previewLesson.status)}
-              <Badge variant={previewLesson.is_published ? 'success' : 'secondary'}>
+              <Badge variant={previewLesson.is_published ? 'default' : 'secondary'}>
                 {previewLesson.is_published ? 'Published' : 'Draft'}
               </Badge>
             </div>
