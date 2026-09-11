@@ -9,13 +9,14 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
-import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson } from '@/app/actions/lms';
-import { getCourses } from '@/app/actions/courses';
-import type { Course, OnlineLesson } from '@/lib/types';
+import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson, getAllRecordedClassViewStats } from '@/app/actions/lms';
+import { getCourses, getPrograms } from '@/app/actions/courses';
+import type { Course, OnlineLesson, Program } from '@/lib/types';
 import { Plus, Edit, Trash2, Video, Play, Loader2, Lock, Copy, Calendar } from 'lucide-react';
 
 export function AdminOnlineClassesClient() {
   const { success, error: toastError } = useToast();
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [lessons, setLessons] = useState<OnlineLesson[]>([]);
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,18 @@ export function AdminOnlineClassesClient() {
   const [deleteTarget, setDeleteTarget] = useState<OnlineLesson | null>(null);
   const [previewLesson, setPreviewLesson] = useState<OnlineLesson | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [filterProgramId, setFilterProgramId] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'published'>('all');
+  const [sortBy, setSortBy] = useState<'recent' | 'views' | 'title'>('recent');
+  const [summaryStats, setSummaryStats] = useState({
+    totalClasses: 0,
+    publishedClasses: 0,
+    totalViews: 0,
+    uniqueViewers: 0,
+  });
   const [formData, setFormData] = useState({
+    program_id: '',
     course_id: '',
     title: '',
     topic: '',
@@ -37,13 +49,35 @@ export function AdminOnlineClassesClient() {
   });
 
   useEffect(() => {
+    loadPrograms();
     loadCourses();
     loadLessons();
+    loadSummaryStats();
   }, []);
 
-  async function loadCourses() {
+  useEffect(() => {
+    if (selectedProgramId) {
+      loadCourses(selectedProgramId);
+    }
+  }, [selectedProgramId]);
+
+  useEffect(() => {
+    loadLessons();
+  }, [filterProgramId, filterStatus, sortBy]);
+
+  async function loadPrograms() {
     try {
-      const allCourses = await getCourses();
+      const allPrograms = await getPrograms();
+      setPrograms(allPrograms);
+    } catch (error) {
+      console.error('Error loading programs:', error);
+      toastError('Failed to load programs');
+    }
+  }
+
+  async function loadCourses(programId?: string) {
+    try {
+      const allCourses = await getCourses(programId);
       setCourses(allCourses);
     } catch (error) {
       console.error('Error loading courses:', error);
@@ -55,7 +89,28 @@ export function AdminOnlineClassesClient() {
     setLoading(true);
     try {
       const data = await getAllOnlineLessons();
-      setLessons(data);
+      let filtered = data;
+
+      // Filter by program
+      if (filterProgramId) {
+        filtered = filtered.filter(lesson => lesson.program_id === filterProgramId);
+      }
+
+      // Filter by status
+      if (filterStatus === 'draft') {
+        filtered = filtered.filter(lesson => !lesson.is_published);
+      } else if (filterStatus === 'published') {
+        filtered = filtered.filter(lesson => lesson.is_published);
+      }
+
+      // Sort
+      if (sortBy === 'recent') {
+        filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      } else if (sortBy === 'title') {
+        filtered = filtered.sort((a, b) => a.title.localeCompare(b.title));
+      }
+
+      setLessons(filtered);
     } catch (error) {
       console.error('Error loading lessons:', error);
       toastError('Failed to load online lessons');
@@ -64,11 +119,32 @@ export function AdminOnlineClassesClient() {
     }
   }
 
+  async function loadSummaryStats() {
+    try {
+      const data = await getAllOnlineLessons();
+      const totalClasses = data.length;
+      const publishedClasses = data.filter(l => l.is_published).length;
+      
+      // Get real view statistics
+      const viewStats = await getAllRecordedClassViewStats();
+
+      setSummaryStats({
+        totalClasses,
+        publishedClasses,
+        totalViews: viewStats.totalViews,
+        uniqueViewers: viewStats.uniqueViewers,
+      });
+    } catch (error) {
+      console.error('Error loading summary stats:', error);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormLoading(true);
 
     const formDataObj = new FormData();
+    formDataObj.append('program_id', formData.program_id);
     formDataObj.append('course_id', formData.course_id);
     formDataObj.append('title', formData.title);
     formDataObj.append('topic', formData.topic);
@@ -130,7 +206,9 @@ export function AdminOnlineClassesClient() {
 
   function handleEdit(lesson: OnlineLesson) {
     setEditingLesson(lesson);
+    setSelectedProgramId(lesson.program_id || '');
     setFormData({
+      program_id: lesson.program_id || '',
       course_id: lesson.course_id,
       title: lesson.title,
       topic: lesson.topic || '',
@@ -144,8 +222,15 @@ export function AdminOnlineClassesClient() {
     setShowForm(true);
   }
 
+  function handleProgramChange(programId: string) {
+    setSelectedProgramId(programId);
+    setFormData({ ...formData, program_id: programId, course_id: '' });
+  }
+
   function resetForm() {
+    setSelectedProgramId('');
     setFormData({
+      program_id: '',
       course_id: '',
       title: '',
       topic: '',
@@ -191,18 +276,67 @@ export function AdminOnlineClassesClient() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="text-sm text-slate-600">Total Classes</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{totalClasses}</div>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600">Recorded</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{recordedClasses}</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalClasses}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
           <div className="text-sm text-slate-600">Published</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{publishedClasses}</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.publishedClasses}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="text-sm text-slate-600">Total Views</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalViews}</div>
+        </div>
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <div className="text-sm text-slate-600">Unique Viewers</div>
+          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.uniqueViewers}</div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-slate-200 p-4">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Programme</label>
+            <select
+              value={filterProgramId}
+              onChange={(e) => setFilterProgramId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Programmes</option>
+              {programs.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'draft' | 'published')}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-slate-700 mb-1">Sort By</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'recent' | 'views' | 'title')}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="recent">Most Recent</option>
+              <option value="title">Title</option>
+              <option value="views">Most Viewed</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -226,10 +360,11 @@ export function AdminOnlineClassesClient() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Programme</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Date Added</TableHead>
+                <TableHead>Views</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -237,10 +372,14 @@ export function AdminOnlineClassesClient() {
             <TableBody>
               {lessons.map((lesson) => {
                 const course = courses.find(c => c.id === lesson.course_id);
+                const program = programs.find(p => p.id === lesson.program_id);
                 return (
                   <TableRow key={lesson.id}>
                     <TableCell className="font-medium">
-                      {course?.code || course?.name || 'Unknown'}
+                      {program?.name || lesson.program_id || 'Unknown'}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {course?.code || course?.name || lesson.unit_name || 'Unknown'}
                     </TableCell>
                     <TableCell>
                       <div>
@@ -256,9 +395,9 @@ export function AdminOnlineClassesClient() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-slate-400" />
-                        {formatDate(lesson.created_at)}
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span>👁 0</span>
+                        <span>👥 0</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -309,23 +448,49 @@ export function AdminOnlineClassesClient() {
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
+            <label htmlFor="program_id" className="block text-sm font-medium text-slate-700 mb-1">
+              Programme <span className="text-red-600">*</span>
+            </label>
+            <select
+              id="program_id"
+              required
+              value={formData.program_id}
+              onChange={(e) => handleProgramChange(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+            >
+              <option value="">Select programme</option>
+              {programs.map((program) => (
+                <option key={program.id} value={program.id}>
+                  {program.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label htmlFor="course_id" className="block text-sm font-medium text-slate-700 mb-1">
               Unit <span className="text-red-600">*</span>
             </label>
             <select
               id="course_id"
               required
+              disabled={!selectedProgramId}
               value={formData.course_id}
               onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
-              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 disabled:bg-slate-100 disabled:cursor-not-allowed"
             >
-              <option value="">Select unit</option>
+              <option value="">
+                {!selectedProgramId ? 'Please select a programme first' : 'Select unit'}
+              </option>
               {courses.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.code} - {course.name}
                 </option>
               ))}
             </select>
+            {!selectedProgramId && (
+              <p className="text-xs text-slate-500 mt-1">Select a programme to see available units</p>
+            )}
           </div>
 
           <div>
@@ -418,17 +583,20 @@ export function AdminOnlineClassesClient() {
             <p className="text-xs text-slate-500 mt-1">Leave blank if the recording does not require a passcode.</p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="is_published"
-              checked={formData.is_published}
-              onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-              className="rounded border-slate-300 text-slate-900 focus:ring-slate-950"
-            />
-            <label htmlFor="is_published" className="text-sm text-slate-700">
-              Publish to students
+          <div>
+            <label htmlFor="is_published" className="block text-sm font-medium text-slate-700 mb-1">
+              Status
             </label>
+            <select
+              id="is_published"
+              value={formData.is_published ? 'published' : 'draft'}
+              onChange={(e) => setFormData({ ...formData, is_published: e.target.value === 'published' })}
+              className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
+            >
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+            <p className="text-xs text-slate-500 mt-1">Draft classes are only visible to administrators.</p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

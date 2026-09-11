@@ -328,6 +328,7 @@ export interface LmsLearningActivity {
 export interface OnlineLesson {
   id: string;
   course_id: string;
+  program_id: string | null;
   title: string;
   topic: string | null;
   description: string | null;
@@ -340,7 +341,16 @@ export interface OnlineLesson {
   passcode: string | null;
   class_type: OnlineLessonType;
   is_published: boolean;
+  unit_name: string | null;
   created_at: string;
   updated_at: string;
   course?: Course;
+  program?: Program;
+}
+
+export interface RecordedClassView {
+  id: string;
+  online_lesson_id: string;
+  student_id: string;
+  viewed_at: string;
 }

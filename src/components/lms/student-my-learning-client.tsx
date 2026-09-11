@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { getStudentLearningActivities, getStudentOnlineLessons } from '@/app/actions/lms';
+import { getStudentLearningActivities, getStudentOnlineLessons, trackRecordedClassView } from '@/app/actions/lms';
 import { getCourses } from '@/app/actions/courses';
 import { calculateLessonStatus } from '@/lib/lms-utils';
 import type { Student, LmsLearningActivity, OnlineLesson } from '@/lib/types';
@@ -63,18 +63,30 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     return acc;
   }, {} as Record<string, { course: any; activities: LmsLearningActivity[] }>);
   
-  // Group online lessons by course
-  const lessonsByCourse = onlineLessons.reduce((acc, lesson) => {
+  // Group online lessons by program first, then by course
+  const lessonsByProgram = onlineLessons.reduce((acc, lesson) => {
+    const programId = lesson.program_id || 'no-program';
+    const programName = (lesson.program as any)?.name || 'Other';
+    
+    if (!acc[programId]) {
+      acc[programId] = {
+        program: lesson.program,
+        programName,
+        courses: {},
+      };
+    }
+    
     const courseId = lesson.course_id;
-    if (!acc[courseId]) {
-      acc[courseId] = {
+    if (!acc[programId].courses[courseId]) {
+      acc[programId].courses[courseId] = {
         course: lesson.course,
         lessons: [],
       };
     }
-    acc[courseId].lessons.push(lesson);
+    
+    acc[programId].courses[courseId].lessons.push(lesson);
     return acc;
-  }, {} as Record<string, { course: any; lessons: OnlineLesson[] }>);
+  }, {} as Record<string, { program: any; programName: string; courses: Record<string, { course: any; lessons: OnlineLesson[] }> }>);
   
   // Calculate statistics
   const enrolledUnits = Object.keys(activitiesByCourse).length;
@@ -109,6 +121,12 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
   function handleJoinClass(lesson: OnlineLesson) {
     const url = lesson.class_type === 'recorded' ? lesson.recording_url : lesson.zoom_url;
     if (url) {
+      // Track view for recorded classes
+      if (lesson.class_type === 'recorded' && student.id) {
+        trackRecordedClassView(lesson.id, student.id).catch(err => {
+          console.error('Failed to track view:', err);
+        });
+      }
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   }
@@ -234,7 +252,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
       </div>
 
       {/* Units with Online Classes */}
-      {Object.keys(lessonsByCourse).length === 0 ? (
+      {Object.keys(lessonsByProgram).length === 0 ? (
         <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
           <Video className="h-12 w-12 text-slate-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-slate-900 mb-2">No online classes scheduled</h3>
@@ -242,197 +260,222 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
         </div>
       ) : (
         <div className="space-y-6">
-          {Object.entries(lessonsByCourse).map(([courseId, { course, lessons }]) => {
-            const courseName = course?.name || course?.code || 'Unknown Unit';
-            const courseCode = course?.code || '';
+          {Object.entries(lessonsByProgram).map(([programId, { program, programName, courses }]) => {
+            const allLessons = Object.values(courses).flatMap(c => c.lessons);
             
-            const filteredLessons = lessons.filter(lesson => {
+            const filteredLessons = allLessons.filter(lesson => {
               const searchLower = searchQuery.toLowerCase();
               return (
                 lesson.title.toLowerCase().includes(searchLower) ||
                 (lesson.topic && lesson.topic.toLowerCase().includes(searchLower)) ||
-                courseName.toLowerCase().includes(searchLower)
+                programName.toLowerCase().includes(searchLower)
               );
             });
 
             if (filteredLessons.length === 0) return null;
 
             return (
-              <div key={courseId} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div key={programId} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                 <div className="p-4 border-b border-slate-200 bg-slate-50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold text-slate-900">{courseCode} {courseName}</h3>
-                      <p className="text-sm text-slate-600 mt-1">{filteredLessons.length} online class{filteredLessons.length !== 1 ? 'es' : ''}</p>
-                    </div>
-                    <Link href={`/student/lms/my-learning/units/${courseId}`}>
-                      <Button variant="ghost" size="sm">
-                        View All
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </Link>
+                  <div>
+                    <h3 className="font-semibold text-slate-900">{programName}</h3>
+                    <p className="text-sm text-slate-600 mt-1">{Object.keys(courses).length} unit{Object.keys(courses).length !== 1 ? 's' : ''} • {filteredLessons.length} class{filteredLessons.length !== 1 ? 'es' : ''}</p>
                   </div>
                 </div>
                 <div className="divide-y divide-slate-200">
-                  {filteredLessons.map((lesson) => {
-                    const isRecorded = lesson.class_type === 'recorded';
-                    const status = isRecorded ? 'recorded' : calculateLessonStatus(lesson);
-                    const meetingId = lesson.zoom_meeting_id || extractMeetingId(lesson.zoom_url);
+                  {Object.entries(courses).map(([courseId, { course, lessons }]) => {
+                    const courseName = course?.name || course?.code || 'Unknown Unit';
+                    const courseCode = course?.code || '';
                     
+                    const courseFilteredLessons = lessons.filter(lesson => {
+                      const searchLower = searchQuery.toLowerCase();
+                      return (
+                        lesson.title.toLowerCase().includes(searchLower) ||
+                        (lesson.topic && lesson.topic.toLowerCase().includes(searchLower)) ||
+                        courseName.toLowerCase().includes(searchLower)
+                      );
+                    });
+
+                    if (courseFilteredLessons.length === 0) return null;
+
                     return (
-                      <div key={lesson.id} className="p-4 hover:bg-slate-50 transition-colors">
-                        <div className="flex flex-col gap-4">
-                          {/* Lesson Header */}
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                {isRecorded && (
-                                  <Badge variant="secondary">RECORDED CLASS</Badge>
-                                )}
-                                {!isRecorded && status === 'live' && (
-                                  <Badge variant="destructive">LIVE NOW</Badge>
-                                )}
-                                {!isRecorded && status === 'upcoming' && (
-                                  <Badge variant="default">UPCOMING</Badge>
-                                )}
-                                {!isRecorded && status === 'completed' && (
-                                  <Badge variant="secondary">COMPLETED</Badge>
-                                )}
-                              </div>
-                              <h4 className="font-medium text-slate-900">{lesson.title}</h4>
-                              {lesson.topic && (
-                                <p className="text-sm text-slate-600 mt-1">{lesson.topic}</p>
-                              )}
-                              {!isRecorded && lesson.scheduled_date && (
-                                <div className="flex items-center gap-4 mt-2 text-sm text-slate-600">
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4" />
-                                    {formatDate(lesson.scheduled_date)}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Clock className="h-4 w-4" />
-                                    {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                      <div key={courseId} className="p-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h4 className="font-medium text-slate-900">{courseCode} {courseName}</h4>
+                            <p className="text-sm text-slate-600">{courseFilteredLessons.length} class{courseFilteredLessons.length !== 1 ? 'es' : ''}</p>
                           </div>
-
-                          {/* Zoom Details Section */}
-                          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-                            <div className="text-sm font-medium text-slate-700">Zoom Meeting Details</div>
+                          <Link href={`/student/lms/my-learning/units/${courseId}`}>
+                            <Button variant="ghost" size="sm">
+                              View All
+                              <ArrowRight className="h-4 w-4 ml-2" />
+                            </Button>
+                          </Link>
+                        </div>
+                        <div className="space-y-3">
+                          {courseFilteredLessons.map((lesson) => {
+                            const isRecorded = lesson.class_type === 'recorded';
+                            const status = isRecorded ? 'recorded' : calculateLessonStatus(lesson);
+                            const meetingId = lesson.zoom_meeting_id || extractMeetingId(lesson.zoom_url);
                             
-                            {/* Meeting ID */}
-                            {meetingId && (
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="text-xs text-slate-500 mb-1">Meeting ID</div>
-                                  <div className="font-mono text-sm bg-white px-2 py-1 rounded border border-slate-200">
-                                    {meetingId}
+                            return (
+                              <div key={lesson.id} className="flex flex-col gap-4">
+                                {/* Lesson Header */}
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      {isRecorded && (
+                                        <Badge variant="secondary">RECORDED CLASS</Badge>
+                                      )}
+                                      {!isRecorded && status === 'live' && (
+                                        <Badge variant="destructive">LIVE NOW</Badge>
+                                      )}
+                                      {!isRecorded && status === 'upcoming' && (
+                                        <Badge variant="default">UPCOMING</Badge>
+                                      )}
+                                      {!isRecorded && status === 'completed' && (
+                                        <Badge variant="secondary">COMPLETED</Badge>
+                                      )}
+                                    </div>
+                                    <h4 className="font-medium text-slate-900">{lesson.title}</h4>
+                                    {lesson.topic && (
+                                      <p className="text-sm text-slate-600 mt-1">{lesson.topic}</p>
+                                    )}
+                                    {!isRecorded && lesson.scheduled_date && (
+                                      <div className="flex items-center gap-4 mt-2 text-sm text-slate-600">
+                                        <div className="flex items-center gap-1">
+                                          <Calendar className="h-4 w-4" />
+                                          {formatDate(lesson.scheduled_date)}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                          <Clock className="h-4 w-4" />
+                                          {formatTime(lesson.start_time)} – {formatTime(lesson.end_time)}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copyToClipboard(meetingId, 'meetingId', lesson.id)}
-                                  className="ml-2"
-                                >
-                                  {isFieldCopied('meetingId', lesson.id) ? (
-                                    <span className="text-green-600">✓ Copied</span>
-                                  ) : (
-                                    <>
-                                      <Copy className="h-4 w-4 mr-1" />
-                                      Copy
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            )}
 
-                            {/* Passcode */}
-                            {lesson.passcode && (
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="text-xs text-slate-500 mb-1">Passcode</div>
-                                  <div className="font-mono text-sm bg-white px-2 py-1 rounded border border-slate-200">
-                                    {lesson.passcode}
+                                {/* Zoom Details Section */}
+                                {!isRecorded && (
+                                  <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                                    <div className="text-sm font-medium text-slate-700">Zoom Meeting Details</div>
+                                    
+                                    {/* Meeting ID */}
+                                    {meetingId && (
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="text-xs text-slate-500 mb-1">Meeting ID</div>
+                                          <div className="font-mono text-sm bg-white px-2 py-1 rounded border border-slate-200">
+                                            {meetingId}
+                                          </div>
+                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => copyToClipboard(meetingId, 'meetingId', lesson.id)}
+                                          className="ml-2"
+                                        >
+                                          {isFieldCopied('meetingId', lesson.id) ? (
+                                            <span className="text-green-600">✓ Copied</span>
+                                          ) : (
+                                            <>
+                                              <Copy className="h-4 w-4 mr-1" />
+                                              Copy
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    {/* Passcode */}
+                                    {lesson.passcode && (
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="text-xs text-slate-500 mb-1">Passcode</div>
+                                          <div className="font-mono text-sm bg-white px-2 py-1 rounded border border-slate-200">
+                                            {lesson.passcode}
+                                          </div>
+                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => copyToClipboard(lesson.passcode, 'passcode', lesson.id)}
+                                          className="ml-2"
+                                        >
+                                          {isFieldCopied('passcode', lesson.id) ? (
+                                            <span className="text-green-600">✓ Copied</span>
+                                          ) : (
+                                            <>
+                                              <Copy className="h-4 w-4 mr-1" />
+                                              Copy
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    {/* Meeting Link */}
+                                    {lesson.zoom_url && (
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex-1">
+                                          <div className="text-xs text-slate-500 mb-1">Meeting Link</div>
+                                          <div className="text-xs bg-white px-2 py-1 rounded border border-slate-200 truncate">
+                                            {lesson.zoom_url}
+                                          </div>
+                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => copyToClipboard(lesson.zoom_url, 'link', lesson.id)}
+                                          className="ml-2"
+                                        >
+                                          {isFieldCopied('link', lesson.id) ? (
+                                            <span className="text-green-600">✓ Copied</span>
+                                          ) : (
+                                            <>
+                                              <Copy className="h-4 w-4 mr-1" />
+                                              Copy
+                                            </>
+                                          )}
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copyToClipboard(lesson.passcode, 'passcode', lesson.id)}
-                                  className="ml-2"
-                                >
-                                  {isFieldCopied('passcode', lesson.id) ? (
-                                    <span className="text-green-600">✓ Copied</span>
-                                  ) : (
-                                    <>
-                                      <Copy className="h-4 w-4 mr-1" />
-                                      Copy
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            )}
+                                )}
 
-                            {/* Meeting Link */}
-                            {lesson.zoom_url && (
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <div className="text-xs text-slate-500 mb-1">Meeting Link</div>
-                                  <div className="text-xs bg-white px-2 py-1 rounded border border-slate-200 truncate">
-                                    {lesson.zoom_url}
-                                  </div>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copyToClipboard(lesson.zoom_url, 'link', lesson.id)}
-                                  className="ml-2"
-                                >
-                                  {isFieldCopied('link', lesson.id) ? (
-                                    <span className="text-green-600">✓ Copied</span>
+                                {/* Join Button */}
+                                <div className="flex justify-end">
+                                  {isRecorded ? (
+                                    <Button
+                                      onClick={() => handleJoinClass(lesson)}
+                                      variant="secondary"
+                                      className="w-full sm:w-auto"
+                                    >
+                                      <Video className="h-4 w-4 mr-2" />
+                                      Watch Recording
+                                    </Button>
+                                  ) : status === 'live' ? (
+                                    <Button
+                                      onClick={() => handleJoinClass(lesson)}
+                                      className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
+                                    >
+                                      <Phone className="h-4 w-4 mr-2" />
+                                      Join Zoom
+                                    </Button>
+                                  ) : status === 'upcoming' ? (
+                                    <Button variant="secondary" disabled className="w-full sm:w-auto">
+                                      Upcoming
+                                    </Button>
                                   ) : (
-                                    <>
-                                      <Copy className="h-4 w-4 mr-1" />
-                                      Copy
-                                    </>
+                                    <Button variant="ghost" disabled className="w-full sm:w-auto">
+                                      Completed
+                                    </Button>
                                   )}
-                                </Button>
+                                </div>
                               </div>
-                            )}
-                          </div>
-
-                          {/* Join Button */}
-                          <div className="flex justify-end">
-                            {isRecorded ? (
-                              <Button
-                                onClick={() => handleJoinClass(lesson)}
-                                variant="secondary"
-                                className="w-full sm:w-auto"
-                              >
-                                <Video className="h-4 w-4 mr-2" />
-                                Watch Recording
-                              </Button>
-                            ) : status === 'live' ? (
-                              <Button
-                                onClick={() => handleJoinClass(lesson)}
-                                className="bg-red-600 hover:bg-red-700 w-full sm:w-auto"
-                              >
-                                <Phone className="h-4 w-4 mr-2" />
-                                Join Zoom
-                              </Button>
-                            ) : status === 'upcoming' ? (
-                              <Button variant="secondary" disabled className="w-full sm:w-auto">
-                                Upcoming
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" disabled className="w-full sm:w-auto">
-                                Completed
-                              </Button>
-                            )}
-                          </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );

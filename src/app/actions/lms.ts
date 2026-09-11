@@ -364,6 +364,7 @@ export async function createOnlineLesson(formData: FormData) {
   }
 
   const courseId = formData.get('course_id') as string;
+  const programId = formData.get('program_id') as string | null;
   const title = formData.get('title') as string;
   const topic = formData.get('topic') as string | null;
   const description = formData.get('description') as string | null;
@@ -376,6 +377,23 @@ export async function createOnlineLesson(formData: FormData) {
   const passcode = formData.get('passcode') as string | null;
   const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
+
+  // Get program_id and unit_name from course if not provided
+  let finalProgramId = programId;
+  let unitName = null;
+  
+  if (courseId && !finalProgramId) {
+    const { data: course } = await supabase
+      .from('courses')
+      .select('program_id, name')
+      .eq('id', courseId)
+      .single();
+    
+    if (course) {
+      finalProgramId = course.program_id;
+      unitName = course.name;
+    }
+  }
 
   // For recorded classes, recording_url is required
   if (classType === 'recorded' && !recordingUrl) {
@@ -419,6 +437,8 @@ export async function createOnlineLesson(formData: FormData) {
     .from('online_lessons')
     .insert({
       course_id: courseId,
+      program_id: finalProgramId,
+      unit_name: unitName,
       title,
       topic,
       description,
@@ -455,6 +475,7 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   }
 
   const courseId = formData.get('course_id') as string;
+  const programId = formData.get('program_id') as string | null;
   const title = formData.get('title') as string;
   const topic = formData.get('topic') as string | null;
   const description = formData.get('description') as string | null;
@@ -467,6 +488,23 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   const passcode = formData.get('passcode') as string | null;
   const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
+
+  // Get program_id and unit_name from course if not provided
+  let finalProgramId = programId;
+  let unitName = null;
+  
+  if (courseId && !finalProgramId) {
+    const { data: course } = await supabase
+      .from('courses')
+      .select('program_id, name')
+      .eq('id', courseId)
+      .single();
+    
+    if (course) {
+      finalProgramId = course.program_id;
+      unitName = course.name;
+    }
+  }
 
   // Validate URLs if provided
   if (zoomUrl) {
@@ -500,6 +538,8 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
     .from('online_lessons')
     .update({
       course_id: courseId,
+      program_id: finalProgramId,
+      unit_name: unitName,
       title,
       topic,
       description,
@@ -549,6 +589,66 @@ export async function deleteOnlineLesson(lessonId: string) {
   return { success: true };
 }
 
+export async function trackRecordedClassView(lessonId: string, studentId: string) {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase
+    .from('recorded_class_views')
+    .insert({
+      online_lesson_id: lessonId,
+      student_id: studentId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error tracking view:', error);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data };
+}
+
+export async function getRecordedClassViewStats(lessonId: string) {
+  const supabase = await createClient();
+  
+  const { data: views, error } = await supabase
+    .from('recorded_class_views')
+    .select('student_id, viewed_at')
+    .eq('online_lesson_id', lessonId);
+
+  if (error) {
+    console.error('Error getting view stats:', error);
+    return { totalViews: 0, uniqueViewers: 0, lastViewed: null };
+  }
+
+  const totalViews = views?.length || 0;
+  const uniqueViewers = new Set(views?.map(v => v.student_id)).size;
+  const lastViewed = views?.length > 0 
+    ? views.sort((a, b) => new Date(b.viewed_at).getTime() - new Date(a.viewed_at).getTime())[0].viewed_at
+    : null;
+
+  return { totalViews, uniqueViewers, lastViewed };
+}
+
+export async function getAllRecordedClassViewStats() {
+  const supabase = await createClient();
+  
+  const { data: views, error } = await supabase
+    .from('recorded_class_views')
+    .select('online_lesson_id, student_id, viewed_at');
+
+  if (error) {
+    console.error('Error getting all view stats:', error);
+    return { totalViews: 0, uniqueViewers: 0 };
+  }
+
+  const totalViews = views?.length || 0;
+  const uniqueViewers = new Set(views?.map(v => v.student_id)).size;
+
+  return { totalViews, uniqueViewers };
+}
+
 // Student actions - get lessons for enrolled courses only
 export async function getStudentOnlineLessons(studentId: string) {
   const supabase = await createClient();
@@ -557,7 +657,8 @@ export async function getStudentOnlineLessons(studentId: string) {
     .from('online_lessons')
     .select(`
       *,
-      course:courses(*)
+      course:courses(*),
+      program:programs(*)
     `)
     .eq('is_published', true)
     .order('scheduled_date', { ascending: true })
