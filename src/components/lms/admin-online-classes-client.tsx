@@ -497,12 +497,14 @@ export function AdminOnlineClassesClient() {
             <label htmlFor="title" className="block text-sm font-medium text-slate-700 mb-1">
               Class Title <span className="text-red-600">*</span>
             </label>
-            <Input
+            <input
               id="title"
+              type="text"
               required
               value={formData.title}
               onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
               placeholder="e.g., Introduction to Financial Accounting – Lesson 1"
+              className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
@@ -510,11 +512,13 @@ export function AdminOnlineClassesClient() {
             <label htmlFor="topic" className="block text-sm font-medium text-slate-700 mb-1">
               Topic
             </label>
-            <Input
+            <input
               id="topic"
+              type="text"
               value={formData.topic}
               onChange={(e) => setFormData(prev => ({ ...prev, topic: e.target.value }))}
               placeholder="e.g., Introduction to Double Entry Accounting"
+              className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
@@ -535,13 +539,14 @@ export function AdminOnlineClassesClient() {
             <label htmlFor="recording_url" className="block text-sm font-medium text-slate-700 mb-1">
               Recorded Class URL <span className="text-red-600">*</span>
             </label>
-            <Input
+            <input
               id="recording_url"
               type="url"
               required
               value={formData.recording_url}
               onChange={(e) => setFormData(prev => ({ ...prev, recording_url: e.target.value }))}
               placeholder="Paste Zoom recording link here"
+              className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
@@ -549,11 +554,13 @@ export function AdminOnlineClassesClient() {
             <label htmlFor="zoom_meeting_id" className="block text-sm font-medium text-slate-700 mb-1">
               Zoom Meeting ID
             </label>
-            <Input
+            <input
               id="zoom_meeting_id"
+              type="text"
               value={formData.zoom_meeting_id}
               onChange={(e) => setFormData(prev => ({ ...prev, zoom_meeting_id: e.target.value }))}
               placeholder="e.g., 123 456 7890"
+              className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <p className="text-xs text-slate-500 mt-1">Optional: Enter the Zoom meeting ID for easy reference.</p>
           </div>
@@ -574,11 +581,13 @@ export function AdminOnlineClassesClient() {
             <label htmlFor="passcode" className="block text-sm font-medium text-slate-700 mb-1">
               Passcode
             </label>
-            <Input
+            <input
               id="passcode"
+              type="text"
               value={formData.passcode}
               onChange={(e) => setFormData(prev => ({ ...prev, passcode: e.target.value }))}
               placeholder="Enter recording passcode if required"
+              className="w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             <p className="text-xs text-slate-500 mt-1">Leave blank if the recording does not require a passcode.</p>
           </div>
