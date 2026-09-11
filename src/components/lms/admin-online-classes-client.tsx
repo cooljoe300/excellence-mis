@@ -224,7 +224,7 @@ export function AdminOnlineClassesClient() {
 
   function handleProgramChange(programId: string) {
     setSelectedProgramId(programId);
-    setFormData({ ...formData, program_id: programId, course_id: '' });
+    setFormData(prev => ({ ...prev, program_id: programId, course_id: '' }));
   }
 
   function resetForm() {
@@ -476,7 +476,7 @@ export function AdminOnlineClassesClient() {
               required
               disabled={!selectedProgramId}
               value={formData.course_id}
-              onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, course_id: e.target.value }))}
               className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950 disabled:bg-slate-100 disabled:cursor-not-allowed"
             >
               <option value="">
@@ -501,7 +501,7 @@ export function AdminOnlineClassesClient() {
               id="title"
               required
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
               placeholder="e.g., Introduction to Financial Accounting – Lesson 1"
             />
           </div>
@@ -513,7 +513,7 @@ export function AdminOnlineClassesClient() {
             <Input
               id="topic"
               value={formData.topic}
-              onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, topic: e.target.value }))}
               placeholder="e.g., Introduction to Double Entry Accounting"
             />
           </div>
@@ -525,7 +525,7 @@ export function AdminOnlineClassesClient() {
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="This recorded lesson covers the basic principles of double-entry accounting."
               rows={3}
             />
@@ -540,7 +540,7 @@ export function AdminOnlineClassesClient() {
               type="url"
               required
               value={formData.recording_url}
-              onChange={(e) => setFormData({ ...formData, recording_url: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, recording_url: e.target.value }))}
               placeholder="Paste Zoom recording link here"
             />
           </div>
@@ -552,7 +552,7 @@ export function AdminOnlineClassesClient() {
             <Input
               id="zoom_meeting_id"
               value={formData.zoom_meeting_id}
-              onChange={(e) => setFormData({ ...formData, zoom_meeting_id: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, zoom_meeting_id: e.target.value }))}
               placeholder="e.g., 123 456 7890"
             />
             <p className="text-xs text-slate-500 mt-1">Optional: Enter the Zoom meeting ID for easy reference.</p>
@@ -577,7 +577,7 @@ export function AdminOnlineClassesClient() {
             <Input
               id="passcode"
               value={formData.passcode}
-              onChange={(e) => setFormData({ ...formData, passcode: e.target.value })}
+              onChange={(e) => setFormData(prev => ({ ...prev, passcode: e.target.value }))}
               placeholder="Enter recording passcode if required"
             />
             <p className="text-xs text-slate-500 mt-1">Leave blank if the recording does not require a passcode.</p>
@@ -590,7 +590,7 @@ export function AdminOnlineClassesClient() {
             <select
               id="is_published"
               value={formData.is_published ? 'published' : 'draft'}
-              onChange={(e) => setFormData({ ...formData, is_published: e.target.value === 'published' })}
+              onChange={(e) => setFormData(prev => ({ ...prev, is_published: e.target.value === 'published' }))}
               className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
             >
               <option value="published">Published</option>
