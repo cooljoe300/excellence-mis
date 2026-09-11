@@ -649,6 +649,53 @@ export async function getAllRecordedClassViewStats() {
   return { totalViews, uniqueViewers };
 }
 
+export async function getRecordedClassViewStatsMap(lessonIds: string[]) {
+  const supabase = await createClient();
+  
+  const { data: views, error } = await supabase
+    .from('recorded_class_views')
+    .select('online_lesson_id, student_id, viewed_at')
+    .in('online_lesson_id', lessonIds);
+
+  if (error) {
+    console.error('Error getting lesson view stats:', error);
+    return {};
+  }
+
+  const statsMap: Record<string, { totalViews: number; uniqueViewers: number; lastViewed: string | null }> = {};
+  
+  // Initialize all lessons with 0 views
+  lessonIds.forEach(id => {
+    statsMap[id] = { totalViews: 0, uniqueViewers: 0, lastViewed: null };
+  });
+
+  // Count views per lesson
+  if (views) {
+    views.forEach(view => {
+      if (!statsMap[view.online_lesson_id]) {
+        statsMap[view.online_lesson_id] = { totalViews: 0, uniqueViewers: 0, lastViewed: null };
+      }
+      
+      statsMap[view.online_lesson_id].totalViews++;
+      
+      // Track last viewed time
+      if (!statsMap[view.online_lesson_id].lastViewed || 
+          new Date(view.viewed_at) > new Date(statsMap[view.online_lesson_id].lastViewed || '')) {
+        statsMap[view.online_lesson_id].lastViewed = view.viewed_at;
+      }
+    });
+
+    // Count unique students per lesson
+    lessonIds.forEach(lessonId => {
+      const lessonViews = views.filter(v => v.online_lesson_id === lessonId);
+      const uniqueStudents = new Set(lessonViews.map(v => v.student_id)).size;
+      statsMap[lessonId].uniqueViewers = uniqueStudents;
+    });
+  }
+
+  return statsMap;
+}
+
 // Student actions - get lessons for enrolled courses only
 export async function getStudentOnlineLessons(studentId: string) {
   const supabase = await createClient();

@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
-import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson, getAllRecordedClassViewStats } from '@/app/actions/lms';
+import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson, getAllRecordedClassViewStats, getRecordedClassViewStatsMap } from '@/app/actions/lms';
 import { getCourses, getPrograms } from '@/app/actions/courses';
 import type { Course, OnlineLesson, Program } from '@/lib/types';
 import { Plus, Edit, Trash2, Video, Play, Loader2, Lock, Copy, Calendar } from 'lucide-react';
@@ -35,6 +35,7 @@ export function AdminOnlineClassesClient() {
     totalViews: 0,
     uniqueViewers: 0,
   });
+  const [lessonViewStats, setLessonViewStats] = useState<Record<string, { totalViews: number; uniqueViewers: number; lastViewed: string | null }>>({});
   const [formData, setFormData] = useState({
     program_id: '',
     course_id: '',
@@ -111,6 +112,15 @@ export function AdminOnlineClassesClient() {
       }
 
       setLessons(filtered);
+
+      // Load view statistics for the filtered lessons
+      const lessonIds = filtered.map(lesson => lesson.id);
+      if (lessonIds.length > 0) {
+        const statsMap = await getRecordedClassViewStatsMap(lessonIds);
+        setLessonViewStats(statsMap);
+      } else {
+        setLessonViewStats({});
+      }
     } catch (error) {
       console.error('Error loading lessons:', error);
       toastError('Failed to load online lessons');
@@ -396,8 +406,8 @@ export function AdminOnlineClassesClient() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <span>👁 0</span>
-                        <span>👥 0</span>
+                        <span>👁 {lessonViewStats[lesson.id]?.totalViews || 0}</span>
+                        <span>👥 {lessonViewStats[lesson.id]?.uniqueViewers || 0}</span>
                       </div>
                     </TableCell>
                     <TableCell>
