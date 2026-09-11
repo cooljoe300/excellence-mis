@@ -335,6 +335,7 @@ export interface OnlineLesson {
   start_time: string | null;
   end_time: string | null;
   zoom_url: string | null;
+  zoom_meeting_id: string | null;
   recording_url: string | null;
   passcode: string | null;
   class_type: OnlineLessonType;

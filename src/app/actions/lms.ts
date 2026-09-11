@@ -372,6 +372,7 @@ export async function createOnlineLesson(formData: FormData) {
   const endTime = formData.get('end_time') as string | null;
   const zoomUrl = formData.get('zoom_url') as string | null;
   const recordingUrl = formData.get('recording_url') as string | null;
+  const zoomMeetingId = formData.get('zoom_meeting_id') as string | null;
   const passcode = formData.get('passcode') as string | null;
   const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
@@ -426,6 +427,7 @@ export async function createOnlineLesson(formData: FormData) {
       end_time: endTime,
       zoom_url: zoomUrl,
       recording_url: recordingUrl,
+      zoom_meeting_id: zoomMeetingId,
       passcode,
       class_type: classType || 'live',
       is_published: isPublished,
@@ -461,6 +463,7 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   const endTime = formData.get('end_time') as string | null;
   const zoomUrl = formData.get('zoom_url') as string | null;
   const recordingUrl = formData.get('recording_url') as string | null;
+  const zoomMeetingId = formData.get('zoom_meeting_id') as string | null;
   const passcode = formData.get('passcode') as string | null;
   const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
@@ -505,6 +508,7 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
       end_time: endTime,
       zoom_url: zoomUrl,
       recording_url: recordingUrl,
+      zoom_meeting_id: zoomMeetingId,
       passcode,
       class_type: classType,
       is_published: isPublished,

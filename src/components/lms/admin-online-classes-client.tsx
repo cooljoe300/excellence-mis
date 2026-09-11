@@ -30,6 +30,7 @@ export function AdminOnlineClassesClient() {
     topic: '',
     description: '',
     recording_url: '',
+    zoom_meeting_id: '',
     passcode: '',
     class_type: 'recorded' as 'live' | 'recorded',
     is_published: true,
@@ -73,6 +74,7 @@ export function AdminOnlineClassesClient() {
     formDataObj.append('topic', formData.topic);
     formDataObj.append('description', formData.description);
     formDataObj.append('recording_url', formData.recording_url);
+    formDataObj.append('zoom_meeting_id', formData.zoom_meeting_id);
     formDataObj.append('passcode', formData.passcode);
     formDataObj.append('class_type', formData.class_type);
     formDataObj.append('is_published', formData.is_published.toString());
@@ -134,6 +136,7 @@ export function AdminOnlineClassesClient() {
       topic: lesson.topic || '',
       description: lesson.description || '',
       recording_url: lesson.recording_url || '',
+      zoom_meeting_id: lesson.zoom_meeting_id || '',
       passcode: lesson.passcode || '',
       class_type: lesson.class_type || 'recorded',
       is_published: lesson.is_published,
@@ -148,6 +151,7 @@ export function AdminOnlineClassesClient() {
       topic: '',
       description: '',
       recording_url: '',
+      zoom_meeting_id: '',
       passcode: '',
       class_type: 'recorded',
       is_published: true,
@@ -374,6 +378,19 @@ export function AdminOnlineClassesClient() {
               onChange={(e) => setFormData({ ...formData, recording_url: e.target.value })}
               placeholder="Paste Zoom recording link here"
             />
+          </div>
+
+          <div>
+            <label htmlFor="zoom_meeting_id" className="block text-sm font-medium text-slate-700 mb-1">
+              Zoom Meeting ID
+            </label>
+            <Input
+              id="zoom_meeting_id"
+              value={formData.zoom_meeting_id}
+              onChange={(e) => setFormData({ ...formData, zoom_meeting_id: e.target.value })}
+              placeholder="e.g., 123 456 7890"
+            />
+            <p className="text-xs text-slate-500 mt-1">Optional: Enter the Zoom meeting ID for easy reference.</p>
           </div>
 
           <div>
