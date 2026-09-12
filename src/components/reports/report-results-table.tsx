@@ -36,7 +36,11 @@ export function ReportResultsTable({
   const [page, setPage] = useState(0);
 
   const sorted = useMemo(() => {
-    const indexed = table.rows.map((row, index) => ({ row, index }));
+    const indexed = table.rows.map((row, index) => ({ 
+      row, 
+      index,
+      studentId: table.rowStudentIds?.[index] ?? null 
+    }));
     if (sortIndex === null) return indexed;
     return [...indexed].sort((a, b) => {
       const left = a.row[sortIndex] ?? '';
@@ -44,7 +48,7 @@ export function ReportResultsTable({
       const cmp = left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' });
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [sortDir, sortIndex, table.rows]);
+  }, [sortDir, sortIndex, table.rows, table.rowStudentIds]);
 
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
@@ -97,10 +101,9 @@ export function ReportResultsTable({
             </tr>
           </thead>
           <tbody>
-            {pageRows.map(({ row, index }) => {
-              const studentId = table.rowStudentIds?.[index] ?? null;
+            {pageRows.map(({ row, index: sortedIndex, studentId }) => {
               return (
-                <tr key={index} className="border-b border-slate-100 hover:bg-slate-50">
+                <tr key={`${sortedIndex}-${studentId || ''}`} className="border-b border-slate-100 hover:bg-slate-50">
                   {row.map((cell, cellIndex) => {
                     const header = table.headers[cellIndex] ?? '';
                     return (

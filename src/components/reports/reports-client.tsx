@@ -16,6 +16,9 @@ import {
   REPORT_CATEGORIES,
   REPORT_OPTIONS,
   buildReportTable,
+  filterStudents,
+  filterFees,
+  filterEnrollments,
   type ReportFilters,
   type ReportKey,
 } from '@/lib/reports/build-report-table';
@@ -39,42 +42,57 @@ const CATEGORY_ICONS = {
   'Administrative Reports': ClipboardList,
 };
 
-function reportCount(key: ReportKey, data: ReportsBundle) {
+function reportCount(key: ReportKey, data: ReportsBundle, filters: ReportFilters = DEFAULT_REPORT_FILTERS) {
+  // Use filtered data for accurate counts
+  const students = filterStudents(data.students, filters);
+  const fees = filterFees(data.fees, filters);
+  const enrollments = filterEnrollments(data.enrollments, filters);
+  
   switch (key) {
     case 'student-register':
     case 'student-contact-list':
     case 'students-by-status':
     case 'students-by-program':
     case 'students-by-intake':
-      return data.students.length;
+      return students.length;
     case 'active-students':
-      return data.students.filter((s) => s.status === 'active').length;
+      return students.filter((s) => s.status === 'active').length;
     case 'inactive-students':
-      return data.students.filter((s) => s.status === 'inactive').length;
+      return students.filter((s) => s.status === 'inactive').length;
     case 'graduated-students':
-      return data.students.filter((s) => s.status === 'graduated').length;
+      return students.filter((s) => s.status === 'graduated').length;
     case 'withdrawn-students':
-      return data.students.filter((s) => s.status === 'withdrawn').length;
+      return students.filter((s) => s.status === 'withdrawn').length;
     case 'enrollments':
     case 'unit-enrollments':
     case 'student-academic-records':
-      return data.enrollments.length;
+      return enrollments.length;
     case 'attendance':
       return data.attendance.length;
     case 'fee-ledger':
+      // Count unique students with fee records
+      return new Set(fees.map((f) => f.student_id)).size;
     case 'fee-summary':
-      return data.fees.length;
+      return fees.length;
     case 'outstanding-fees':
     case 'students-with-balances':
-      return data.fees.filter((fee) => getFeeBalance(fee) > 0).length;
+      // Count unique students with balances
+      return new Set(fees.filter((fee) => getFeeBalance(fee) > 0).map((f) => f.student_id)).size;
+    case 'zero-payment-students':
+      // Count unique students with zero payments
+      return new Set(fees.filter((f) => Number(f.amount_paid) === 0).map((f) => f.student_id)).size;
+    case 'partially-paid-students':
+      // Count unique students with partial payments
+      return new Set(fees.filter((f) => Number(f.amount_paid) > 0 && getFeeBalance(f) > 0).map((f) => f.student_id)).size;
     case 'fully-paid-students':
-      return data.fees.filter((fee) => getFeeBalance(fee) === 0).length;
+      // Count unique students fully paid
+      return new Set(fees.filter((fee) => getFeeBalance(fee) === 0).map((f) => f.student_id)).size;
     case 'programs':
       return data.programs.length;
     case 'courses':
       return data.courses.length;
     default:
-      return data.students.length;
+      return students.length;
   }
 }
 
@@ -184,7 +202,7 @@ export function ReportsClient({ data }: { data: ReportsBundle }) {
                           <p className="mt-1 text-sm text-slate-500">{report.description}</p>
                         </div>
                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                          {reportCount(report.key, data)}
+                          {reportCount(report.key, data, filters)}
                         </span>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2">
