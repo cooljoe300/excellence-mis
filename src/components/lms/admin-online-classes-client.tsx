@@ -274,41 +274,44 @@ export function AdminOnlineClassesClient() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Recorded Classes</h1>
-          <p className="text-slate-600 mt-1">Add and manage recorded lessons for your students.</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Recorded Classes</h1>
+          <p className="text-slate-600 mt-1 text-sm sm:text-base">Add and manage recorded lessons for your students.</p>
         </div>
-        <Button onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}>
+        <Button 
+          onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}
+          className="w-full sm:w-auto"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Add Recorded Class
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600">Total Classes</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalClasses}</div>
+          <div className="text-xs sm:text-sm text-slate-600">Total Classes</div>
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalClasses}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600">Published</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.publishedClasses}</div>
+          <div className="text-xs sm:text-sm text-slate-600">Published</div>
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.publishedClasses}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600">Total Views</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalViews}</div>
+          <div className="text-xs sm:text-sm text-slate-600">Total Views</div>
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalViews}</div>
         </div>
         <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600">Unique Viewers</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{summaryStats.uniqueViewers}</div>
+          <div className="text-xs sm:text-sm text-slate-600">Unique Viewers</div>
+          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.uniqueViewers}</div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-slate-200 p-4">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="w-full">
             <label className="block text-sm font-medium text-slate-700 mb-1">Programme</label>
             <select
               value={filterProgramId}
@@ -323,7 +326,7 @@ export function AdminOnlineClassesClient() {
               ))}
             </select>
           </div>
-          <div className="flex-1 min-w-[200px]">
+          <div className="w-full">
             <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
             <select
               value={filterStatus}
@@ -335,7 +338,7 @@ export function AdminOnlineClassesClient() {
               <option value="draft">Draft</option>
             </select>
           </div>
-          <div className="flex-1 min-w-[200px]">
+          <div className="w-full">
             <label className="block text-sm font-medium text-slate-700 mb-1">Sort By</label>
             <select
               value={sortBy}
@@ -356,98 +359,189 @@ export function AdminOnlineClassesClient() {
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
       ) : lessons.length === 0 ? (
-        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+        <div className="bg-white rounded-lg border border-slate-200 p-8 sm:p-12 text-center">
           <Video className="h-12 w-12 text-slate-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-slate-900 mb-2">No recorded classes yet</h3>
-          <p className="text-slate-600 mb-4">Get started by adding your first recorded class.</p>
-          <Button onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}>
+          <p className="text-slate-600 mb-4 text-sm sm:text-base">Get started by adding your first recorded class.</p>
+          <Button 
+            onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}
+            className="w-full sm:w-auto"
+          >
             <Plus className="h-4 w-4 mr-2" />
             Add Recorded Class
           </Button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Programme</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Views</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lessons.map((lesson) => {
-                const course = courses.find(c => c.id === lesson.course_id);
-                const program = programs.find(p => p.id === lesson.program_id);
-                return (
-                  <TableRow key={lesson.id}>
-                    <TableCell className="font-medium">
-                      {program?.name || lesson.program_id || 'Unknown'}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {course?.code || course?.name || lesson.unit_name || 'Unknown'}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{lesson.title}</div>
-                        {lesson.topic && (
-                          <div className="text-sm text-slate-600">{lesson.topic}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={lesson.class_type === 'recorded' ? 'secondary' : 'default'}>
+        <>
+          {/* Desktop Table */}
+          <div className="hidden lg:block bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Programme</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Class</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Views</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lessons.map((lesson) => {
+                  const course = courses.find(c => c.id === lesson.course_id);
+                  const program = programs.find(p => p.id === lesson.program_id);
+                  return (
+                    <TableRow key={lesson.id}>
+                      <TableCell className="font-medium">
+                        {program?.name || lesson.program_id || 'Unknown'}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {course?.code || course?.name || lesson.unit_name || 'Unknown'}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{lesson.title}</div>
+                          {lesson.topic && (
+                            <div className="text-sm text-slate-600">{lesson.topic}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={lesson.class_type === 'recorded' ? 'secondary' : 'default'}>
+                          {lesson.class_type === 'recorded' ? 'RECORDED' : 'LIVE'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <span>👁 {lessonViewStats[lesson.id]?.totalViews || 0}</span>
+                          <span>👥 {lessonViewStats[lesson.id]?.uniqueViewers || 0}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {!lesson.is_published && (
+                            <Badge variant="outline">DRAFT</Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setPreviewLesson(lesson)}
+                          >
+                            <Play className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(lesson)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(lesson)}
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="lg:hidden space-y-4">
+            {lessons.map((lesson) => {
+              const course = courses.find(c => c.id === lesson.course_id);
+              const program = programs.find(p => p.id === lesson.program_id);
+              const stats = lessonViewStats[lesson.id] || { totalViews: 0, uniqueViewers: 0, lastViewed: null };
+              
+              return (
+                <div key={lesson.id} className="bg-white rounded-lg border border-slate-200 p-4">
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-slate-900 text-base">{lesson.title}</h3>
+                    {lesson.topic && (
+                      <p className="text-sm text-slate-600 mt-1">{lesson.topic}</p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <span className="text-slate-500 font-medium min-w-[80px]">Programme:</span>
+                      <span className="text-slate-900 break-words">{program?.name || lesson.program_id || 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-slate-500 font-medium min-w-[80px]">Unit:</span>
+                      <span className="text-slate-900 break-words">{course?.code || course?.name || lesson.unit_name || 'Unknown'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-medium min-w-[80px]">Type:</span>
+                      <Badge variant={lesson.class_type === 'recorded' ? 'secondary' : 'default'} className="text-xs">
                         {lesson.class_type === 'recorded' ? 'RECORDED' : 'LIVE'}
                       </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <span>👁 {lessonViewStats[lesson.id]?.totalViews || 0}</span>
-                        <span>👥 {lessonViewStats[lesson.id]?.uniqueViewers || 0}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 font-medium min-w-[80px]">Status:</span>
+                      {lesson.is_published ? (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Published</Badge>
+                      ) : (
+                        <Badge variant="outline">Draft</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4 pt-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-600">👁</span>
+                        <span className="font-medium text-slate-900">{stats.totalViews}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {!lesson.is_published && (
-                          <Badge variant="outline">DRAFT</Badge>
-                        )}
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-600">👥</span>
+                        <span className="font-medium text-slate-900">{stats.uniqueViewers}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setPreviewLesson(lesson)}
-                        >
-                          <Play className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(lesson)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteTarget(lesson)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-200">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setPreviewLesson(lesson)}
+                      className="flex-1"
+                    >
+                      <Play className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleEdit(lesson)}
+                      className="flex-1"
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => setDeleteTarget(lesson)}
+                      className="flex-1"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Add/Edit Modal */}
@@ -455,6 +549,7 @@ export function AdminOnlineClassesClient() {
         open={showForm}
         onClose={() => { setShowForm(false); setEditingLesson(null); resetForm(); }}
         title={editingLesson ? 'Edit Recorded Class' : 'Add Recorded Class'}
+        size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -618,16 +713,17 @@ export function AdminOnlineClassesClient() {
             <p className="text-xs text-slate-500 mt-1">Draft classes are only visible to administrators.</p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
             <Button
               type="button"
               variant="secondary"
               onClick={() => { setShowForm(false); setEditingLesson(null); resetForm(); }}
               disabled={formLoading}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={formLoading}>
+            <Button type="submit" disabled={formLoading} className="w-full sm:w-auto">
               {formLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -652,24 +748,24 @@ export function AdminOnlineClassesClient() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium text-slate-700">Unit</label>
-              <p className="text-slate-900 mt-1">
+              <p className="text-slate-900 mt-1 break-words">
                 {courses.find(c => c.id === previewLesson.course_id)?.code} - {courses.find(c => c.id === previewLesson.course_id)?.name}
               </p>
             </div>
             <div>
               <label className="text-sm font-medium text-slate-700">Class Title</label>
-              <p className="text-slate-900 mt-1">{previewLesson.title}</p>
+              <p className="text-slate-900 mt-1 break-words">{previewLesson.title}</p>
             </div>
             {previewLesson.topic && (
               <div>
                 <label className="text-sm font-medium text-slate-700">Topic</label>
-                <p className="text-slate-900 mt-1">{previewLesson.topic}</p>
+                <p className="text-slate-900 mt-1 break-words">{previewLesson.topic}</p>
               </div>
             )}
             {previewLesson.description && (
               <div>
                 <label className="text-sm font-medium text-slate-700">Description</label>
-                <p className="text-slate-900 mt-1">{previewLesson.description}</p>
+                <p className="text-slate-900 mt-1 break-words">{previewLesson.description}</p>
               </div>
             )}
             <div className="flex items-center gap-2">
@@ -695,7 +791,7 @@ export function AdminOnlineClassesClient() {
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
-                  <p className="text-slate-900 font-mono">{passcode}</p>
+                  <p className="text-slate-900 font-mono break-all">{passcode}</p>
                 </div>
               );
             })()}

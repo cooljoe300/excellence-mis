@@ -15,11 +15,11 @@ interface ModalProps {
 }
 
 const sizeClasses = {
-  sm: 'max-w-sm',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
-  full: 'max-w-6xl',
+  sm: 'max-w-sm sm:max-w-sm',
+  md: 'max-w-lg sm:max-w-lg',
+  lg: 'max-w-full sm:max-w-2xl',
+  xl: 'max-w-full sm:max-w-4xl',
+  full: 'max-w-full sm:max-w-6xl',
 };
 
 export function Modal({
@@ -74,20 +74,22 @@ export function Modal({
         className={cn(
           'relative w-full rounded-t-2xl sm:rounded-xl bg-white shadow-2xl animate-slide-up',
           'max-h-[90vh] overflow-y-auto',
+          'mx-0 sm:mx-auto',
+          'h-full sm:h-auto',
           sizeClasses[size],
           className
         )}
       >
         {(title || description) && (
-          <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
-            <div>
+          <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-6 sm:py-4">
+            <div className="flex-1 min-w-0">
               {title && (
-                <h2 id="modal-title" className="text-lg font-semibold text-slate-900">
+                <h2 id="modal-title" className="text-base sm:text-lg font-semibold text-slate-900 break-words">
                   {title}
                 </h2>
               )}
               {description && (
-                <p id="modal-description" className="mt-1 text-sm text-muted">
+                <p id="modal-description" className="mt-1 text-sm text-muted break-words">
                   {description}
                 </p>
               )}
@@ -102,7 +104,7 @@ export function Modal({
             </button>
           </div>
         )}
-        <div className={cn(!title && !description ? 'p-6' : 'px-6 py-4')}>
+        <div className={cn(!title && !description ? 'p-4 sm:p-6' : 'px-4 py-4 sm:px-6 sm:py-4')}>
           {children}
         </div>
       </div>
