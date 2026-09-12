@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -44,7 +43,6 @@ const priorityConfig = {
 
 export function PendingActionsModal({ actions, isOpen, onClose }: PendingActionsModalProps) {
   const router = useRouter();
-  const [dismissed, setDismissed] = useState(false);
 
   const totalCount = actions.reduce((sum, action) => sum + action.count, 0);
 
@@ -54,7 +52,6 @@ export function PendingActionsModal({ actions, isOpen, onClose }: PendingActions
   };
 
   const handleDismiss = () => {
-    setDismissed(true);
     onClose();
     // Store dismissal in session storage
     if (typeof window !== 'undefined') {
@@ -70,25 +67,7 @@ export function PendingActionsModal({ actions, isOpen, onClose }: PendingActions
     }
   };
 
-  useEffect(() => {
-    // Check if modal was recently dismissed
-    if (typeof window !== 'undefined') {
-      const dismissedAt = sessionStorage.getItem('pendingActionsDismissed');
-      if (dismissedAt) {
-        const dismissedTime = new Date(dismissedAt);
-        const now = new Date();
-        const hoursSinceDismiss = (now.getTime() - dismissedTime.getTime()) / (1000 * 60 * 60);
-        
-        // If dismissed less than 4 hours ago, don't show
-        if (hoursSinceDismiss < 4) {
-          setDismissed(true);
-          onClose();
-        }
-      }
-    }
-  }, [onClose]);
-
-  if (dismissed || !isOpen || actions.length === 0) {
+  if (!isOpen || actions.length === 0) {
     return null;
   }
 

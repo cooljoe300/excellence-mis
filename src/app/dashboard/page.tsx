@@ -2,15 +2,12 @@ import { getEnhancedDashboardStats, getProfile, getRecentStudents } from '@/app/
 import { getAdminPendingActions } from '@/app/actions/pending-actions';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { PendingActionsCard } from '@/components/pending-actions/pending-actions-card';
-import { PendingActionsModal } from '@/components/pending-actions/pending-actions-modal';
-import { PendingActionsBadge } from '@/components/pending-actions/pending-actions-badge';
 import { DashboardClient } from '@/components/dashboard/dashboard-client';
 import { 
   Users, 
   UserPlus, 
   Wallet, 
   AlertCircle, 
-  Bell, 
   BookOpen, 
   GraduationCap, 
   ClipboardList,
@@ -157,11 +154,10 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
 }
 
 export default async function DashboardPage() {
-  const [stats, recentStudents, profile, pendingActions] = await Promise.all([
+  const [stats, recentStudents, profile] = await Promise.all([
     getEnhancedDashboardStats(),
     getRecentStudents(8),
     getProfile(),
-    getAdminPendingActions(),
   ]);
 
   const greeting = getGreeting();
@@ -225,7 +221,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <DashboardClient pendingActions={pendingActions}>
+    <DashboardClient pendingActions={[]}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -237,10 +233,7 @@ export default async function DashboardPage() {
               Here's what's happening at Excellence Online College today.
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-slate-500">{currentDate}</div>
-            <PendingActionsBadge />
-          </div>
+          <div className="text-sm text-slate-500">{currentDate}</div>
         </div>
 
         {/* Pending Actions Card - shown automatically by DashboardClient */}

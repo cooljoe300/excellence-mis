@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Menu, Bell } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Sidebar } from './sidebar';
+import { NotificationDropdown } from '@/components/notifications/notification-dropdown';
 import type { UserRole } from '@/lib/types';
 
 export function DashboardShell({
@@ -27,19 +28,31 @@ export function DashboardShell({
 
       <div className="flex flex-1 flex-col min-w-0">
         {/* Mobile top bar */}
-        <header className="flex items-center gap-3 border-b border-border bg-white px-4 py-3 lg:hidden shrink-0">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(true)}
-            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 transition-colors"
-            aria-label="Open navigation menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Excellence Online</p>
-            <p className="text-xs text-muted">Student MIS</p>
+        <header className="flex items-center justify-between gap-3 border-b border-border bg-white px-4 py-3 lg:hidden shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileOpen(true)}
+              className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 transition-colors"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Excellence Online</p>
+              <p className="text-xs text-muted">Student MIS</p>
+            </div>
           </div>
+          <NotificationDropdown />
+        </header>
+
+        {/* Desktop header */}
+        <header className="hidden lg:flex items-center justify-between border-b border-border bg-white px-6 py-3 shrink-0">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Excellence Online College</p>
+            <p className="text-xs text-muted">Management Information System</p>
+          </div>
+          <NotificationDropdown />
         </header>
 
         <main className="flex-1 overflow-y-auto">

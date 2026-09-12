@@ -1,10 +1,9 @@
 import { AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import type { PendingAction } from '@/app/actions/pending-actions';
 
 interface PendingActionsCardProps {
   actions: PendingAction[];
-  onViewActions: () => void;
+  onViewActions?: () => void;
 }
 
 export function PendingActionsCard({ actions, onViewActions }: PendingActionsCardProps) {
@@ -28,13 +27,6 @@ export function PendingActionsCard({ actions, onViewActions }: PendingActionsCar
           </p>
         </div>
       </div>
-      <Button
-        onClick={onViewActions}
-        variant="secondary"
-        className="mt-4 w-full bg-amber-100 hover:bg-amber-200 text-amber-900 border-amber-300"
-      >
-        View Actions
-      </Button>
     </div>
   );
 }

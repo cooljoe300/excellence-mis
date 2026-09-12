@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { Sidebar } from './sidebar';
+import { NotificationDropdown } from '@/components/notifications/notification-dropdown';
 import type { UserRole } from '@/lib/types';
 import { InstallAppButton } from '@/components/student/install-app-button';
 import { InstallAppPrompt } from '@/components/student/install-app-prompt';
@@ -43,7 +44,22 @@ export function StudentShell({
               <p className="text-xs text-muted">Student MIS</p>
             </div>
           </div>
-          <InstallAppButton />
+          <div className="flex items-center gap-2">
+            <NotificationDropdown />
+            <InstallAppButton />
+          </div>
+        </header>
+
+        {/* Desktop header */}
+        <header className="hidden lg:flex items-center justify-between border-b border-border bg-white px-6 py-3 shrink-0">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Excellence Online College</p>
+            <p className="text-xs text-muted">Student Portal</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <NotificationDropdown />
+            <InstallAppButton />
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto">
