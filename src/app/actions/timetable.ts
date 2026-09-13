@@ -474,7 +474,7 @@ export async function checkTimetableConflict(formData: FormData) {
     }
   }
 
-  // Lecturer conflict check - allow same lecturer if part of shared class
+  // Lecturer conflict check - allow same lecturer to teach multiple classes intelligently
   if (lecturerId) {
     const lecturerConflict = overlapping.find((row) => {
       // Skip if same lecturer but part of the same shared class
@@ -487,6 +487,15 @@ export async function checkTimetableConflict(formData: FormData) {
         if (existingId && row.shared_class_id && row.id === existingId) {
           return false;
         }
+        
+        // Allow lecturer to teach the same unit (course) for different programmes at the same time
+        // This represents shared teaching sessions across programmes
+        if (row.course_id === courseId) {
+          return false;
+        }
+        
+        // Flag conflict only if lecturer is teaching DIFFERENT units at the same time
+        // This represents a genuine scheduling conflict
         return true;
       }
       return false;
@@ -494,7 +503,7 @@ export async function checkTimetableConflict(formData: FormData) {
     
     if (lecturerConflict) {
       conflicts.push(
-        `This lecturer is already assigned to another class from ${formatTimeRange(lecturerConflict.start_time, lecturerConflict.end_time)} on ${day}.`
+        `This lecturer is already scheduled to teach a different unit (${lecturerConflict.course?.name || 'another class'}) from ${formatTimeRange(lecturerConflict.start_time, lecturerConflict.end_time)} on ${day}.`
       );
     }
   }
