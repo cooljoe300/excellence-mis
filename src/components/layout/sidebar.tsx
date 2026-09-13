@@ -28,6 +28,7 @@ import {
   FileText,
   Library,
   Video,
+  MonitorPlay,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -59,6 +60,7 @@ const allNavItems = [
   { href: '/student/exam-results', label: 'Exam Results', icon: Award, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/student/timetable', label: 'Timetable', icon: Calendar, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/student/deregister', label: 'Deregister', icon: UserMinus, roles: ['student'] as UserRole[], section: 'Academic' },
+  { href: '/student/lms', label: 'Open LMS', icon: MonitorPlay, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/student/fees', label: 'Fee Statement', icon: CreditCard, roles: ['student'] as UserRole[], section: 'Finance' },
   { href: '/student/id-card', label: 'My ID Card', icon: IdCard, roles: ['student'] as UserRole[], section: 'Services' },
   { href: '/student/admission-letter', label: 'Admission Letter', icon: FileText, roles: ['student'] as UserRole[], section: 'Services' },
@@ -82,7 +84,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
   const pathname = usePathname();
   const router = useRouter();
   const navItems = getNavItems(userRole);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Academic', 'Finance', 'Services']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Personal', 'Academic', 'Finance', 'Services']));
 
   const portalLabel =
     userRole === 'admin'
