@@ -84,8 +84,8 @@ CREATE OR REPLACE FUNCTION public.apply_fee_discount(
   p_fee_payment_id UUID,
   p_discount_type TEXT,
   p_discount_amount DECIMAL,
-  p_discount_percentage DECIMAL DEFAULT NULL,
-  p_reason TEXT
+  p_reason TEXT,
+  p_discount_percentage DECIMAL DEFAULT NULL
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -206,8 +206,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.apply_fee_discount(UUID, TEXT, DECIMAL, DECIMAL, TEXT) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.apply_fee_discount(UUID, TEXT, DECIMAL, DECIMAL, TEXT) TO authenticated;
+REVOKE ALL ON FUNCTION public.apply_fee_discount(UUID, TEXT, DECIMAL, TEXT, DECIMAL) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.apply_fee_discount(UUID, TEXT, DECIMAL, TEXT, DECIMAL) TO authenticated;
 
 -- Function to remove discount from a fee payment
 CREATE OR REPLACE FUNCTION public.remove_fee_discount(p_fee_payment_id UUID)

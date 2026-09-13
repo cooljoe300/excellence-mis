@@ -535,8 +535,8 @@ export async function applyFeeDiscount(
     p_fee_payment_id: feePaymentId,
     p_discount_type: discountType,
     p_discount_amount: discountAmount,
-    p_discount_percentage: discountPercentage,
     p_reason: reason,
+    ...(discountPercentage !== null && { p_discount_percentage: discountPercentage }),
   });
 
   if (error) {
