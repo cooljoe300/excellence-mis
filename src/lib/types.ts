@@ -155,6 +155,13 @@ export interface FeePayment {
   student_id: string;
   term_id: string | null;
   amount: number;
+  original_amount: number | null;
+  discount_amount: number;
+  discount_percentage: number | null;
+  discount_type: 'fixed' | 'percentage' | null;
+  discount_reason: string | null;
+  discounted_by: string | null;
+  discounted_at: string | null;
   amount_paid: number;
   status: PaymentStatus;
   due_date: string | null;
@@ -194,6 +201,23 @@ export interface FeePaymentSubmission {
   reviewed_at: string | null;
   reviewed_by: string | null;
   created_at: string;
+}
+
+export interface FeeDiscountHistory {
+  id: string;
+  fee_payment_id: string;
+  student_id: string;
+  original_amount: number;
+  discount_amount: number;
+  discount_percentage: number | null;
+  discount_type: 'fixed' | 'percentage';
+  adjusted_amount: number;
+  reason: string;
+  applied_by: string;
+  applied_at: string;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  approved_by: string | null;
+  approved_at: string | null;
 }
 
 export interface StudentDeregistrationRequest {

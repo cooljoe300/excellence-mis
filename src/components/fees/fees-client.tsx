@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/modal';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
 import { PendingApprovalPopup } from '@/components/fees/pending-approval-popup';
+import { FeeDiscountModal } from '@/components/fees/fee-discount-modal';
 import { createFeePayment, approveFeePaymentSubmission, markFeeAsPaid, rejectFeePaymentSubmission } from '@/app/actions/fees';
 import type { AcademicTerm, FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import {
@@ -19,8 +20,10 @@ import {
   formatDate,
   getFeeBalance,
   getStudentFeeDisplayStatus,
+  getOriginalFeeAmount,
+  getDiscountAmount,
 } from '@/lib/utils';
-import { CheckCircle2, XCircle, MessageCircle, Bell } from 'lucide-react';
+import { CheckCircle2, XCircle, MessageCircle, Bell, Percent } from 'lucide-react';
 
 type PendingApproval = {
   submission: FeePaymentSubmission;
@@ -244,6 +247,7 @@ export function FeesClient({
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [markAsPaidFee, setMarkAsPaidFee] = useState<FeePayment | null>(null);
+  const [discountFee, setDiscountFee] = useState<FeePayment | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -463,13 +467,28 @@ export function FeesClient({
                     <td className="px-6 py-4 text-slate-600">
                       <p>{fee.description ?? '—'}</p>
                       <p className="mt-1 text-xs text-slate-500">{formatDate(fee.created_at)}</p>
+                      {fee.discount_amount > 0 && (
+                        <p className="mt-1 text-xs font-medium text-emerald-700">
+                          Discount: {formatCurrency(fee.discount_amount)}
+                          {fee.discount_percentage && ` (${fee.discount_percentage}%)`}
+                        </p>
+                      )}
                       {pendingAmount > 0 && (
                         <p className="mt-1 text-xs font-medium text-amber-700">
                           {formatCurrency(pendingAmount)} awaiting approval
                         </p>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-slate-600">{formatCurrency(fee.amount)}</td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {fee.discount_amount > 0 ? (
+                        <div>
+                          <span className="line-through text-slate-400">{formatCurrency(getOriginalFeeAmount(fee))}</span>
+                          <span className="ml-2 font-medium text-slate-900">{formatCurrency(fee.amount)}</span>
+                        </div>
+                      ) : (
+                        formatCurrency(fee.amount)
+                      )}
+                    </td>
                     <td className="px-6 py-4 font-medium text-emerald-700">
                       {formatCurrency(fee.amount_paid)}
                     </td>
@@ -549,14 +568,24 @@ export function FeesClient({
                           ))}
                         </div>
                       ) : fee.status !== 'paid' ? (
-                        <Button
-                          size="sm"
-                          onClick={() => setMarkAsPaidFee(fee)}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          Mark as Paid
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => setMarkAsPaidFee(fee)}
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Mark as Paid
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setDiscountFee(fee)}
+                          >
+                            <Percent className="h-4 w-4" />
+                            Discount
+                          </Button>
+                        </div>
                       ) : (
                         <div className="flex flex-wrap gap-2">
                           <Link href={`/dashboard/fees/fee-receipt/${fee.id}`} target="_blank">
@@ -569,6 +598,14 @@ export function FeesClient({
                               Download PDF
                             </Button>
                           </Link>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setDiscountFee(fee)}
+                          >
+                            <Percent className="h-4 w-4" />
+                            Discount
+                          </Button>
                         </div>
                       )}
                     </td>
@@ -586,6 +623,15 @@ export function FeesClient({
       
       {markAsPaidFee && (
         <MarkAsPaidModal fee={markAsPaidFee} onClose={() => setMarkAsPaidFee(null)} />
+      )}
+      
+      {discountFee && (
+        <FeeDiscountModal
+          fee={discountFee}
+          student={discountFee.student as Student}
+          onClose={() => setDiscountFee(null)}
+          onSuccess={() => router.refresh()}
+        />
       )}
       
       {showRejectModal && (

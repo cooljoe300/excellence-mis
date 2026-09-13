@@ -521,3 +521,120 @@ export async function markFeeAsPaid(feeId: string, formData: FormData) {
 
   return { success: true, receiptNumber };
 }
+
+export async function applyFeeDiscount(
+  feePaymentId: string,
+  discountType: 'fixed' | 'percentage',
+  discountAmount: number,
+  discountPercentage: number | null,
+  reason: string
+) {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase.rpc('apply_fee_discount', {
+    p_fee_payment_id: feePaymentId,
+    p_discount_type: discountType,
+    p_discount_amount: discountAmount,
+    p_discount_percentage: discountPercentage,
+    p_reason: reason,
+  });
+
+  if (error) {
+    console.error('Error applying fee discount:', error);
+    return { error: error.message };
+  }
+
+  const result = data as {
+    error?: string;
+    success?: boolean;
+    original_amount?: number;
+    discount_amount?: number;
+    adjusted_amount?: number;
+    amount_paid?: number;
+    balance?: number;
+  };
+
+  if (result?.error) return { error: result.error };
+  if (!result?.success) return { error: 'Failed to apply discount' };
+
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
+  revalidatePath('/student/(portal)/fees');
+  revalidatePath('/student/(portal)');
+
+  return {
+    success: true,
+    originalAmount: result.original_amount,
+    discountAmount: result.discount_amount,
+    adjustedAmount: result.adjusted_amount,
+    amountPaid: result.amount_paid,
+    balance: result.balance,
+  };
+}
+
+export async function removeFeeDiscount(feePaymentId: string) {
+  const supabase = await createClient();
+  
+  const { data, error } = await supabase.rpc('remove_fee_discount', {
+    p_fee_payment_id: feePaymentId,
+  });
+
+  if (error) {
+    console.error('Error removing fee discount:', error);
+    return { error: error.message };
+  }
+
+  const result = data as {
+    error?: string;
+    success?: boolean;
+    original_amount?: number;
+    discount_amount?: number;
+    adjusted_amount?: number;
+    amount_paid?: number;
+    balance?: number;
+  };
+
+  if (result?.error) return { error: result.error };
+  if (!result?.success) return { error: 'Failed to remove discount' };
+
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/student/fees');
+  revalidatePath('/student');
+  revalidatePath('/student/(portal)/fees');
+  revalidatePath('/student/(portal)');
+
+  return {
+    success: true,
+    originalAmount: result.original_amount,
+    discountAmount: result.discount_amount,
+    adjustedAmount: result.adjusted_amount,
+    amountPaid: result.amount_paid,
+    balance: result.balance,
+  };
+}
+
+export async function getFeeDiscountHistory(feePaymentId?: string, studentId?: string) {
+  const supabase = await createClient();
+  
+  let query = supabase
+    .from('fee_discount_history')
+    .select('*, student:students(*), applied_by_profile:profiles(full_name, email), approved_by_profile:profiles(full_name, email)');
+
+  if (feePaymentId) {
+    query = query.eq('fee_payment_id', feePaymentId);
+  }
+
+  if (studentId) {
+    query = query.eq('student_id', studentId);
+  }
+
+  const { data, error } = await query.order('applied_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching discount history:', error);
+    return [];
+  }
+
+  return data ?? [];
+}

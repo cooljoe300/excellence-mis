@@ -18,7 +18,7 @@ import {
   getMyStkPushStatus,
   initiateMyStkPush,
 } from '@/app/actions/mpesa';
-import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus, cn } from '@/lib/utils';
+import { formatCurrency, formatDate, getAdmissionNumber, getAvailableFeeBalance, getFeeBalance, getPartialPaymentPresets, getPendingSubmissionAmount, getStudentFeeDisplayStatus, cn, getOriginalFeeAmount, getDiscountAmount } from '@/lib/utils';
 import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import { Modal } from '@/components/ui/modal';
 import {
@@ -159,6 +159,21 @@ function BalanceSummary({
 }) {
   return (
     <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs">
+      {fee.discount_amount > 0 && (
+        <>
+          <div className="flex justify-between">
+            <span className="text-slate-600">Original fee</span>
+            <span className="font-medium line-through text-slate-400">{formatCurrency(getOriginalFeeAmount(fee))}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-600">Discount</span>
+            <span className="font-medium text-emerald-600">
+              {formatCurrency(getDiscountAmount(fee))}
+              {fee.discount_percentage && ` (${fee.discount_percentage}%)`}
+            </span>
+          </div>
+        </>
+      )}
       <div className="flex justify-between">
         <span className="text-slate-600">Amount due</span>
         <span className="font-medium">{formatCurrency(fee.amount)}</span>
@@ -957,6 +972,12 @@ export function StudentFeesClient({
                         {(fee.term as { name: string } | null)?.name ?? 'No term'} ·{' '}
                         {formatDate(fee.created_at)}
                       </p>
+                      {fee.discount_amount > 0 && (
+                        <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+                          Discount: {formatCurrency(fee.discount_amount)}
+                          {fee.discount_percentage && ` (${fee.discount_percentage}%)`}
+                        </p>
+                      )}
                       {hasPending && (
                         <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
                           {formatCurrency(pendingAmount)} pending approval
@@ -969,10 +990,27 @@ export function StudentFeesClient({
                   <FeeProgressBar paid={Number(fee.amount_paid)} total={Number(fee.amount)} />
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-lg bg-slate-50 px-3 py-2">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Billed</p>
-                      <p className="mt-1 text-base font-bold text-slate-900">{formatCurrency(fee.amount)}</p>
-                    </div>
+                    {fee.discount_amount > 0 ? (
+                      <>
+                        <div className="rounded-lg bg-slate-50 px-3 py-2">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Original</p>
+                          <p className="mt-1 text-base font-bold text-slate-400 line-through">{formatCurrency(getOriginalFeeAmount(fee))}</p>
+                        </div>
+                        <div className="rounded-lg bg-emerald-50 px-3 py-2">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">Discount</p>
+                          <p className="mt-1 text-base font-bold text-emerald-700">{formatCurrency(fee.discount_amount)}</p>
+                        </div>
+                        <div className="rounded-lg bg-blue-50 px-3 py-2">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-blue-700">Payable</p>
+                          <p className="mt-1 text-base font-bold text-blue-700">{formatCurrency(fee.amount)}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-lg bg-slate-50 px-3 py-2 sm:col-span-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Billed</p>
+                        <p className="mt-1 text-base font-bold text-slate-900">{formatCurrency(fee.amount)}</p>
+                      </div>
+                    )}
                     <div className="rounded-lg bg-emerald-50 px-3 py-2">
                       <p className="text-[11px] font-medium uppercase tracking-wide text-emerald-700">Paid</p>
                       <p className="mt-1 text-base font-bold text-emerald-700">{formatCurrency(fee.amount_paid)}</p>

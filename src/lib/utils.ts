@@ -48,8 +48,22 @@ export function getAdmissionNumber(student: {
   return student.admission_number ?? student.student_number;
 }
 
-export function getFeeBalance(fee: { amount: number; amount_paid: number }) {
-  return Math.max(0, Number(fee.amount) - Number(fee.amount_paid));
+export function getFeeBalance(fee: { amount: number; amount_paid: number; original_amount?: number | null; discount_amount?: number }) {
+  // Balance = adjusted amount (original - discount) - amount paid
+  const adjustedAmount = fee.amount;
+  return Math.max(0, Number(adjustedAmount) - Number(fee.amount_paid));
+}
+
+export function getOriginalFeeAmount(fee: { original_amount?: number | null; amount: number }) {
+  return fee.original_amount ?? fee.amount;
+}
+
+export function getDiscountAmount(fee: { discount_amount?: number }) {
+  return fee.discount_amount ?? 0;
+}
+
+export function getAdjustedFeeAmount(fee: { amount: number; original_amount?: number | null; discount_amount?: number }) {
+  return fee.amount; // This is already the adjusted amount after discount
 }
 
 export function getAvailableFeeBalance(
