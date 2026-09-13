@@ -4,8 +4,13 @@
 -- 2. Shared/common classes where multiple programmes/intakes attend the same session
 -- 3. Proper conflict detection that distinguishes between real conflicts and shared sessions
 
--- Add class_type enum
-CREATE TYPE class_type AS ENUM ('regular', 'shared');
+-- Add class_type enum if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'class_type') THEN
+    CREATE TYPE class_type AS ENUM ('regular', 'shared');
+  END IF;
+END $$;
 
 -- Add new columns to timetables table
 ALTER TABLE timetables
@@ -24,17 +29,18 @@ ALTER TABLE timetables
 DROP CONSTRAINT IF EXISTS timetables_unique_schedule;
 
 -- Add new unique constraint that handles null lecturer_id properly
--- This prevents duplicates while allowing null lecturer_id
+-- This prevents duplicates while allowing null lecturer_id and multiple class assignments
+-- NOTE: lecturer_id is NOT included to allow lecturers to teach multiple classes/programmes
 ALTER TABLE timetables
 ADD CONSTRAINT timetables_unique_schedule 
-UNIQUE (day, start_time, end_time, program_id, intake_id, course_id, lecturer_id, academic_year, shared_class_id);
+UNIQUE (day, start_time, end_time, program_id, intake_id, course_id, academic_year, shared_class_id);
 
 -- Add comments
 COMMENT ON COLUMN timetables.lecturer_id IS 'Can be null when lecturer is not yet assigned (To Be Confirmed)';
 COMMENT ON COLUMN timetables.class_type IS 'Type of class: regular (single programme/intake) or shared (multiple programmes/intakes together)';
 COMMENT ON COLUMN timetables.shared_class_id IS 'Groups multiple timetable entries that represent the same shared teaching session';
 COMMENT ON CONSTRAINT timetables_unique_schedule ON timetables IS 
-'Prevents duplicate timetable entries. Shared classes with the same shared_class_id are allowed to have overlapping times with the same lecturer.';
+'Prevents duplicate timetable entries. Lecturer_id is not included to allow lecturers to teach multiple classes/programmes simultaneously.';
 
 -- Update RLS policies to handle null lecturer_id
 -- No changes needed as existing policies should work with nullable fields
