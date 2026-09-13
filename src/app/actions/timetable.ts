@@ -87,7 +87,7 @@ async function hydrateTimetables(rows: Timetable[] | null | undefined): Promise<
     programme_assignments: assignmentsMap[row.id] || [],
     program: row.program_id ? programMap[row.program_id] : row.program,
     course: row.course_id ? courseMap[row.course_id] : row.course,
-    lecturer: row.lecturer || (row.lecturer_id ? lecturerMap[row.lecturer_id] : null),
+    lecturer: row.lecturer_id ? lecturerMap[row.lecturer_id] : row.lecturer,
     intake: row.intake_id ? intakeMap[row.intake_id] : row.intake,
     room: row.room_id ? roomMap[row.room_id] : row.room,
   }));
@@ -119,13 +119,13 @@ async function fetchTimetableRows(filters?: {
     // Get regular timetables for this programme + shared sessions
     const { data: regularTimetables, error: regularError } = await supabase
       .from('timetables')
-      .select('*, lecturer:profiles(*)')
+      .select('*')
       .eq('program_id', filters.programId);
 
     const { data: sharedTimetables, error: sharedError } = assignedTimetableIds.length > 0
       ? await supabase
           .from('timetables')
-          .select('*, lecturer:profiles(*)')
+          .select('*')
           .in('id', assignedTimetableIds)
       : { data: [], error: null };
 
@@ -161,7 +161,7 @@ async function fetchTimetableRows(filters?: {
   }
 
   // No programme filter - use regular query
-  let query = supabase.from('timetables').select('*, lecturer:profiles(*)');
+  let query = supabase.from('timetables').select('*');
   if (filters?.intakeId) query = query.eq('intake_id', filters.intakeId);
   if (filters?.academicYear) query = query.eq('academic_year', filters.academicYear);
   if (filters?.status) query = query.eq('status', filters.status);
@@ -892,7 +892,7 @@ export async function publishTimetable(id: string) {
   // Get current timetable to check conflicts before publishing
   const { data: currentTimetable } = await supabase
     .from('timetables')
-    .select('*, lecturer:profiles(*)')
+    .select('*')
     .eq('id', id)
     .single();
 
@@ -1020,7 +1020,7 @@ export async function getStudentTimetable() {
       // Get regular timetables for this programme
       const { data: regularTimetables, error: regularError } = await supabase
         .from('timetables')
-        .select('*, lecturer:profiles(*)')
+        .select('*')
         .eq('program_id', student.program_id)
         .eq('status', 'active');
 
@@ -1034,7 +1034,7 @@ export async function getStudentTimetable() {
       const { data: sharedTimetables, error: sharedError } = assignedTimetableIds.length > 0
         ? await supabase
             .from('timetables')
-            .select('*, lecturer:profiles(*)')
+            .select('*')
             .in('id', assignedTimetableIds)
             .eq('status', 'active')
         : { data: [], error: null };
@@ -1116,7 +1116,7 @@ export async function getStudentTimetable() {
 
     const { data: timetables, error } = await supabase
       .from('timetables')
-      .select('*, lecturer:profiles(*), programme_assignments:timetable_programme_assignments(*)')
+      .select('*, programme_assignments:timetable_programme_assignments(*)')
       .in('course_id', courseIds)
       .eq('status', 'active')
       .order('day', { ascending: true })
