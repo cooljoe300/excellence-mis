@@ -315,7 +315,7 @@ export interface Timetable {
   program?: Program;
   intake?: Intake;
   course?: Course;
-  lecturer?: Profile;
+  lecturer?: Profile | null;
   room?: Room;
 }
 
