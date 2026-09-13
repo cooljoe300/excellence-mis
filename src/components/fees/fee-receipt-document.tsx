@@ -1,7 +1,7 @@
 'use client';
 
 import { DocumentLetterhead } from '@/components/documents/document-letterhead';
-import { formatCurrency, formatDate, getAdmissionNumber, numberToWords } from '@/lib/utils';
+import { formatCurrency, formatDate, getAdmissionNumber, numberToWords, getOriginalFeeAmount, getDiscountAmount } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
 import { FinanceStamp } from '@/components/fees/finance-stamp';
 
@@ -16,6 +16,9 @@ export function FeeReceiptDocument({
   const programName = (student.program as { name: string } | null)?.name ?? '—';
   const termName = (fee.term as { name: string } | null)?.name ?? '—';
   const receiptNumber = fee.receipt_number || `#${fee.id.slice(0, 8).toUpperCase()}`;
+  const originalAmount = getOriginalFeeAmount(fee);
+  const discountAmount = getDiscountAmount(fee);
+  const hasDiscount = discountAmount > 0;
   const balance = fee.amount - (fee.amount_paid || 0);
   const amountInWords = numberToWords(fee.amount_paid || 0);
   
@@ -103,10 +106,31 @@ export function FeeReceiptDocument({
 
         <table className="w-full text-sm">
           <tbody className="divide-y divide-slate-100">
-            <tr>
-              <td className="py-3 pr-4 text-slate-600">Total Amount</td>
-              <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(fee.amount)}</td>
-            </tr>
+            {hasDiscount && (
+              <>
+                <tr>
+                  <td className="py-3 pr-4 text-slate-600">Original Amount</td>
+                  <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(originalAmount)}</td>
+                </tr>
+                <tr>
+                  <td className="py-3 pr-4 text-slate-600">
+                    Discount
+                    {fee.discount_percentage && ` (${fee.discount_percentage}%)`}
+                  </td>
+                  <td className="py-3 text-right font-medium text-emerald-600">-{formatCurrency(discountAmount)}</td>
+                </tr>
+                <tr>
+                  <td className="py-3 pr-4 text-slate-600">Amount Payable</td>
+                  <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(fee.amount)}</td>
+                </tr>
+              </>
+            )}
+            {!hasDiscount && (
+              <tr>
+                <td className="py-3 pr-4 text-slate-600">Total Amount</td>
+                <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(fee.amount)}</td>
+              </tr>
+            )}
             <tr>
               <td className="py-3 pr-4 text-slate-600">Amount Paid</td>
               <td className="py-3 text-right text-lg font-bold text-emerald-700">

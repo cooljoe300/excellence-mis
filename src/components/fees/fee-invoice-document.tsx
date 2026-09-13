@@ -1,5 +1,5 @@
 import { DocumentLetterhead } from '@/components/documents/document-letterhead';
-import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
+import { formatCurrency, formatDate, getAdmissionNumber, getFeeBalance, getOriginalFeeAmount, getDiscountAmount } from '@/lib/utils';
 import type { FeePayment, Student } from '@/lib/types';
 import type { PaymentSettings } from '@/lib/system-settings';
 import { FinanceStamp } from '@/components/fees/finance-stamp';
@@ -18,6 +18,9 @@ export function FeeInvoiceDocument({
   const termName = (fee.term as { name: string } | null)?.name ?? '—';
   const items = fee.items ?? [];
   const balance = getFeeBalance(fee);
+  const originalAmount = getOriginalFeeAmount(fee);
+  const discountAmount = getDiscountAmount(fee);
+  const hasDiscount = discountAmount > 0;
   
   // Use invoice_date from database, or current date if viewing
   const invoiceDate = fee.invoice_date || new Date().toISOString().split('T')[0];
@@ -93,17 +96,44 @@ export function FeeInvoiceDocument({
           ) : (
             <tr>
               <td className="py-3 pr-4 text-slate-800">{fee.description ?? 'Fees'}</td>
-              <td className="py-3 text-right font-medium">{formatCurrency(fee.amount)}</td>
+              <td className="py-3 text-right font-medium">{formatCurrency(originalAmount)}</td>
             </tr>
           )}
         </tbody>
         <tfoot>
-          <tr className="border-t border-slate-200">
-            <td className="pt-4 font-semibold text-slate-900">Total</td>
-            <td className="pt-4 text-right text-lg font-bold text-slate-900">
-              {formatCurrency(fee.amount)}
-            </td>
-          </tr>
+          {hasDiscount && (
+            <>
+              <tr className="border-t border-slate-200">
+                <td className="pt-4 font-semibold text-slate-900">Original Amount</td>
+                <td className="pt-4 text-right text-lg font-bold text-slate-900">
+                  {formatCurrency(originalAmount)}
+                </td>
+              </tr>
+              <tr>
+                <td className="pt-2 text-slate-600">
+                  Discount
+                  {fee.discount_percentage && ` (${fee.discount_percentage}%)`}
+                </td>
+                <td className="pt-2 text-right font-medium text-emerald-600">
+                  -{formatCurrency(discountAmount)}
+                </td>
+              </tr>
+              <tr className="border-t border-slate-200">
+                <td className="pt-4 font-semibold text-slate-900">Amount Payable</td>
+                <td className="pt-4 text-right text-lg font-bold text-slate-900">
+                  {formatCurrency(fee.amount)}
+                </td>
+              </tr>
+            </>
+          )}
+          {!hasDiscount && (
+            <tr className="border-t border-slate-200">
+              <td className="pt-4 font-semibold text-slate-900">Total</td>
+              <td className="pt-4 text-right text-lg font-bold text-slate-900">
+                {formatCurrency(fee.amount)}
+              </td>
+            </tr>
+          )}
           <tr>
             <td className="pt-2 text-slate-600">Amount paid</td>
             <td className="pt-2 text-right font-medium text-emerald-700">

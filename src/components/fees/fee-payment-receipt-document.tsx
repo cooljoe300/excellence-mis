@@ -1,5 +1,5 @@
 import { DocumentLetterhead } from '@/components/documents/document-letterhead';
-import { formatCurrency, formatDate, getAdmissionNumber } from '@/lib/utils';
+import { formatCurrency, formatDate, getAdmissionNumber, getOriginalFeeAmount, getDiscountAmount } from '@/lib/utils';
 import type { FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 
 function getReceiptStatusLabel(status: FeePaymentSubmission['status']) {
@@ -27,6 +27,9 @@ export function FeePaymentReceiptDocument({
   const programName = (student.program as { name: string } | null)?.name ?? '—';
   const termName = (fee.term as { name: string } | null)?.name ?? '—';
   const statusLabel = getReceiptStatusLabel(submission.status);
+  const originalAmount = getOriginalFeeAmount(fee);
+  const discountAmount = getDiscountAmount(fee);
+  const hasDiscount = discountAmount > 0;
 
   return (
     <div
@@ -86,6 +89,31 @@ export function FeePaymentReceiptDocument({
 
       <table className="w-full text-sm">
         <tbody className="divide-y divide-slate-100">
+          {hasDiscount && (
+            <>
+              <tr>
+                <td className="py-3 pr-4 text-slate-600">Original invoice amount</td>
+                <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(originalAmount)}</td>
+              </tr>
+              <tr>
+                <td className="py-3 pr-4 text-slate-600">
+                  Discount
+                  {fee.discount_percentage && ` (${fee.discount_percentage}%)`}
+                </td>
+                <td className="py-3 text-right font-medium text-emerald-600">-{formatCurrency(discountAmount)}</td>
+              </tr>
+              <tr>
+                <td className="py-3 pr-4 text-slate-600">Adjusted invoice amount</td>
+                <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(fee.amount)}</td>
+              </tr>
+            </>
+          )}
+          {!hasDiscount && (
+            <tr>
+              <td className="py-3 pr-4 text-slate-600">Invoice total</td>
+              <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(fee.amount)}</td>
+            </tr>
+          )}
           <tr>
             <td className="py-3 pr-4 text-slate-600">Amount paid</td>
             <td className="py-3 text-right text-lg font-bold text-slate-900">
@@ -103,10 +131,6 @@ export function FeePaymentReceiptDocument({
             <td className="py-3 text-right font-mono font-medium text-slate-900">
               {submission.reference_number}
             </td>
-          </tr>
-          <tr>
-            <td className="py-3 pr-4 text-slate-600">Invoice total</td>
-            <td className="py-3 text-right font-medium text-slate-900">{formatCurrency(fee.amount)}</td>
           </tr>
           <tr>
             <td className="py-3 pr-4 text-slate-600">Total confirmed on invoice</td>
