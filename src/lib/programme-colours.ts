@@ -80,10 +80,29 @@ const CPA_I_COLOUR: ProgrammeColour = {
   badge: '#dc2626',
 };
 
+// Dedicated colour for CIFA programme
+const CIFA_COLOUR: ProgrammeColour = {
+  name: 'CIFA Dedicated',
+  border: '#e1a916', // Accent gold for CIFA
+  background: '#fef9ec',
+  text: '#e1a916',
+  badge: '#e1a916',
+};
+
+// Dedicated colour for CPA-F programme (matches CIFA)
+const CPA_F_COLOUR: ProgrammeColour = {
+  name: 'CPA-F Dedicated',
+  border: '#e1a916', // Same accent gold as CIFA
+  background: '#fef9ec',
+  text: '#e1a916',
+  badge: '#e1a916',
+};
+
 /**
  * Get a consistent colour for a programme based on its ID
  * This ensures the same programme always gets the same colour
  * CPA-I gets a dedicated red colour for distinction
+ * CIFA and CPA-F use the same accent gold colour
  */
 export function getProgrammeColour(programmeId: string | null | undefined, programmeName?: string | null): ProgrammeColour {
   if (!programmeId) {
@@ -91,8 +110,18 @@ export function getProgrammeColour(programmeId: string | null | undefined, progr
   }
 
   // Check if this is CPA-I programme (case-insensitive check)
-  if (programmeName && programmeName.toLowerCase().includes('cpa')) {
+  if (programmeName && programmeName.toLowerCase().includes('cpa-i')) {
     return CPA_I_COLOUR;
+  }
+
+  // Check if this is CIFA programme (case-insensitive check)
+  if (programmeName && programmeName.toLowerCase().includes('cifa')) {
+    return CIFA_COLOUR;
+  }
+
+  // Check if this is CPA-F programme (case-insensitive check)
+  if (programmeName && programmeName.toLowerCase().includes('cpa-f')) {
+    return CPA_F_COLOUR;
   }
 
   // Use a simple hash function to deterministically select a colour
