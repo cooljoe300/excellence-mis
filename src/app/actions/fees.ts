@@ -6,6 +6,7 @@ import type { PaymentStatus } from '@/lib/types';
 import { logWhatsAppNotification, getWhatsAppService } from '@/app/actions/whatsapp-notifications';
 import { getSystemSettings } from '@/app/actions/system-settings';
 import { whatsappService } from '@/lib/whatsapp-service';
+import { syncPendingApprovalNotifications } from '@/app/actions/notifications';
 
 export async function getFeePayments() {
   const supabase = await createClient();
@@ -252,6 +253,9 @@ export async function approveFeePaymentSubmission(submissionId: string) {
   revalidatePath('/student/(portal)');
   revalidatePath('/student/(portal)/page');
 
+  // Sync notifications to remove this approval from pending notifications
+  await syncPendingApprovalNotifications();
+
   return {
     success: true,
     amountPaid: result.amount_paid,
@@ -358,6 +362,9 @@ export async function rejectFeePaymentSubmission(submissionId: string, rejection
   revalidatePath('/student/(portal)/fees');
   revalidatePath('/student/(portal)');
   revalidatePath('/student/(portal)/page');
+
+  // Sync notifications to remove this approval from pending notifications
+  await syncPendingApprovalNotifications();
 
   return {
     success: true,

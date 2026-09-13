@@ -11,6 +11,7 @@ import Select from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import { Alert } from '@/components/ui/alert';
 import { useToast } from '@/components/ui/toast';
+import { PendingApprovalPopup } from '@/components/fees/pending-approval-popup';
 import { createFeePayment, approveFeePaymentSubmission, markFeeAsPaid, rejectFeePaymentSubmission } from '@/app/actions/fees';
 import type { AcademicTerm, FeePayment, FeePaymentSubmission, Student } from '@/lib/types';
 import {
@@ -597,6 +598,8 @@ export function FeesClient({
           onReasonChange={setRejectionReason}
         />
       )}
+
+      <PendingApprovalPopup pendingCount={pendingCount} />
     </div>
   );
 }

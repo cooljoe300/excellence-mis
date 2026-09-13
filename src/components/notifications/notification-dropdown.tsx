@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Bell, X, CheckCircle2, AlertCircle, Info, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
-import { getUserNotifications, getUnreadNotificationCount, markNotificationAsRead, markAllNotificationsAsRead } from '@/app/actions/notifications';
+import { getUserNotifications, getUnreadNotificationCount, getPendingApprovalNotificationCount, syncPendingApprovalNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '@/app/actions/notifications';
 import type { UserNotification } from '@/app/actions/notifications';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ export function NotificationDropdown() {
   const [notifications, setNotifications] = useState<UserNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [markingRead, setMarkingRead] = useState<Set<string>>(new Set());
+  const [syncing, setSyncing] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -28,6 +29,9 @@ export function NotificationDropdown() {
     if (loading) return;
     setLoading(true);
     try {
+      // Sync pending approval notifications first
+      await syncPendingApprovalNotifications();
+      
       const [notificationsData, unreadCount] = await Promise.all([
         getUserNotifications(50),
         getUnreadNotificationCount(),
@@ -43,6 +47,9 @@ export function NotificationDropdown() {
 
   const refreshCount = async () => {
     try {
+      // Sync pending approval notifications on count refresh
+      await syncPendingApprovalNotifications();
+      
       const unreadCount = await getUnreadNotificationCount();
       setCount(unreadCount);
     } catch (error) {
