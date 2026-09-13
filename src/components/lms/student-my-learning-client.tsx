@@ -300,17 +300,9 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
 
                     return (
                       <div key={courseId} className="p-4 hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <h4 className="font-medium text-slate-900">{courseCode} {courseName}</h4>
-                            <p className="text-sm text-slate-600">{courseFilteredLessons.length} class{courseFilteredLessons.length !== 1 ? 'es' : ''}</p>
-                          </div>
-                          <Link href={`/student/lms/my-learning/units/${courseId}`}>
-                            <Button variant="ghost" size="sm">
-                              View All
-                              <ArrowRight className="h-4 w-4 ml-2" />
-                            </Button>
-                          </Link>
+                        <div className="mb-3">
+                          <h4 className="font-medium text-slate-900">{courseCode} {courseName}</h4>
+                          <p className="text-sm text-slate-600">{courseFilteredLessons.length} class{courseFilteredLessons.length !== 1 ? 'es' : ''}</p>
                         </div>
                         <div className="space-y-3">
                           {courseFilteredLessons.map((lesson) => {
