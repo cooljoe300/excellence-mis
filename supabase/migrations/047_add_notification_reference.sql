@@ -10,10 +10,10 @@ CREATE INDEX IF NOT EXISTS user_notifications_reference_idx ON public.user_notif
 -- Add comment
 COMMENT ON COLUMN public.user_notifications.reference_id IS 'External reference ID (e.g., fee_submission_123) to prevent duplicate notifications for the same entity';
 
--- Drop existing function to allow signature change
+-- Drop existing function with 5 parameters (from migration 046)
 DROP FUNCTION IF EXISTS public.create_notification(UUID, TEXT, TEXT, TEXT, TEXT);
 
--- Recreate create_notification function to support reference_id
+-- Recreate create_notification function to support reference_id (6 parameters)
 CREATE FUNCTION public.create_notification(
   p_user_id UUID,
   p_title TEXT,
