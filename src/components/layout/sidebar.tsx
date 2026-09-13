@@ -62,6 +62,7 @@ const allNavItems: NavItem[] = [
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/lms/programmes', label: 'LMS Programmes', icon: Library, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/lms/online-classes', label: 'Online Classes', icon: Video, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
+  { href: 'https://lms.excellenceonlinecollege.com', label: 'Open LMS', icon: ExternalLink, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], external: true },
   { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student'] as UserRole[], section: null },
   { href: '/student/register', label: 'My Details', icon: User, roles: ['student'] as UserRole[], section: 'Personal' },
   { href: '/student/enroll', label: 'Register Units', icon: BookOpen, roles: ['student'] as UserRole[], section: 'Academic' },
@@ -162,6 +163,27 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                 pathname === item.href ||
                 (item.href !== '/dashboard' && pathname.startsWith(item.href));
               const Icon = item.icon;
+              const isExternal = item.external;
+              
+              if (isExternal) {
+                return (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleNavClick}
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                      'text-slate-300 hover:bg-white/10 hover:text-white'
+                    )}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </a>
+                );
+              }
+              
               return (
                 <Link
                   key={item.href}
