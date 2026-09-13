@@ -29,28 +29,24 @@ SET search_path = public
 AS $$
 DECLARE
   v_notification_id UUID;
+  v_existing_id UUID;
 BEGIN
   -- Check if caller is staff/admin (only they can create notifications)
   IF NOT is_staff_or_admin() THEN
     RAISE EXCEPTION 'Only staff and admins can create notifications';
   END IF;
 
-  -- Check if notification with this reference_id already exists
+  -- Check if notification with this reference_id already exists (unread)
   IF p_reference_id IS NOT NULL THEN
-    IF EXISTS (
-      SELECT 1 FROM public.user_notifications
-      WHERE user_id = p_user_id 
-        AND reference_id = p_reference_id
-        AND read = FALSE
-    ) THEN
-      -- Return existing notification ID instead of creating duplicate
-      SELECT id INTO v_notification_id
-      FROM public.user_notifications
-      WHERE user_id = p_user_id 
-        AND reference_id = p_reference_id
-        AND read = FALSE
-      LIMIT 1;
-      RETURN v_notification_id;
+    SELECT id INTO v_existing_id
+    FROM public.user_notifications
+    WHERE user_id = p_user_id 
+      AND reference_id = p_reference_id
+      AND read = FALSE
+    LIMIT 1;
+    
+    IF v_existing_id IS NOT NULL THEN
+      RETURN v_existing_id;
     END IF;
   END;
 
