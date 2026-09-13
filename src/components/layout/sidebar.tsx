@@ -28,7 +28,7 @@ import {
   FileText,
   Library,
   Video,
-  MonitorPlay,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -36,7 +36,16 @@ import { useRouter } from 'next/navigation';
 import { Logo } from '@/components/ui/logo';
 import type { UserRole } from '@/lib/types';
 
-const allNavItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+  roles: UserRole[];
+  section?: string | null;
+  external?: boolean;
+}
+
+const allNavItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/students', label: 'Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/programs', label: 'Programs', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
@@ -60,7 +69,7 @@ const allNavItems = [
   { href: '/student/exam-results', label: 'Exam Results', icon: Award, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/student/timetable', label: 'Timetable', icon: Calendar, roles: ['student'] as UserRole[], section: 'Academic' },
   { href: '/student/deregister', label: 'Deregister', icon: UserMinus, roles: ['student'] as UserRole[], section: 'Academic' },
-  { href: '/student/lms', label: 'Open LMS', icon: MonitorPlay, roles: ['student'] as UserRole[], section: 'Academic' },
+  { href: 'https://lms.excellenceonlinecollege.com', label: 'Open LMS', icon: ExternalLink, roles: ['student'] as UserRole[], section: 'Academic', external: true },
   { href: '/student/fees', label: 'Fee Statement', icon: CreditCard, roles: ['student'] as UserRole[], section: 'Finance' },
   { href: '/student/id-card', label: 'My ID Card', icon: IdCard, roles: ['student'] as UserRole[], section: 'Services' },
   { href: '/student/admission-letter', label: 'Admission Letter', icon: FileText, roles: ['student'] as UserRole[], section: 'Services' },
@@ -205,6 +214,27 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                       pathname === item.href ||
                       (item.href !== '/dashboard' && pathname.startsWith(item.href));
                     const Icon = item.icon;
+                    const isExternal = item.external;
+                    
+                    if (isExternal) {
+                      return (
+                        <a
+                          key={item.href}
+                          href={item.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={handleNavClick}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
+                            'text-slate-300 hover:bg-white/10 hover:text-white'
+                          )}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {item.label}
+                        </a>
+                      );
+                    }
+                    
                     return (
                       <Link
                         key={item.href}
