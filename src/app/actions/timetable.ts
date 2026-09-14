@@ -119,13 +119,13 @@ async function fetchTimetableRows(filters?: {
     // Get regular timetables for this programme + shared sessions
     const { data: regularTimetables, error: regularError } = await supabase
       .from('timetables')
-      .select('*')
+      .select('*, lecturer:profiles(*)')
       .eq('program_id', filters.programId);
 
     const { data: sharedTimetables, error: sharedError } = assignedTimetableIds.length > 0
       ? await supabase
           .from('timetables')
-          .select('*')
+          .select('*, lecturer:profiles(*)')
           .in('id', assignedTimetableIds)
       : { data: [], error: null };
 
@@ -161,7 +161,7 @@ async function fetchTimetableRows(filters?: {
   }
 
   // No programme filter - use regular query
-  let query = supabase.from('timetables').select('*');
+  let query = supabase.from('timetables').select('*, lecturer:profiles(*)');
   if (filters?.intakeId) query = query.eq('intake_id', filters.intakeId);
   if (filters?.academicYear) query = query.eq('academic_year', filters.academicYear);
   if (filters?.status) query = query.eq('status', filters.status);
@@ -1020,7 +1020,7 @@ export async function getStudentTimetable() {
       // Get regular timetables for this programme
       const { data: regularTimetables, error: regularError } = await supabase
         .from('timetables')
-        .select('*')
+        .select('*, lecturer:profiles(*)')
         .eq('program_id', student.program_id)
         .eq('status', 'active');
 
@@ -1034,7 +1034,7 @@ export async function getStudentTimetable() {
       const { data: sharedTimetables, error: sharedError } = assignedTimetableIds.length > 0
         ? await supabase
             .from('timetables')
-            .select('*')
+            .select('*, lecturer:profiles(*)')
             .in('id', assignedTimetableIds)
             .eq('status', 'active')
         : { data: [], error: null };
