@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Printer, RefreshCw, AlertCircle } from 'lucide-react';
 import type { NormalizedTimetableEntry } from '@/app/actions/student-timetable-new';
-import type { TimeSlot } from '@/lib/types';
+import type { TimeSlot, Timetable } from '@/lib/types';
+import { getDisplayTimeSlots } from '@/lib/timetable-utils';
+import { TimetableWeekTable } from './timetable-day-track';
 
 interface StudentTimetableCleanProps {
   data: {
@@ -16,17 +18,17 @@ interface StudentTimetableCleanProps {
       admission_number?: string;
     };
     programme: {
+      id: string;
       name: string;
     } | null;
     intake: {
+      id: string;
       name: string;
     } | null;
     timetables: NormalizedTimetableEntry[];
     timeSlots: TimeSlot[];
   } | { error: string };
 }
-
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export function StudentTimetableClean({ data }: StudentTimetableCleanProps) {
   const [mounted, setMounted] = useState(false);
@@ -39,6 +41,10 @@ export function StudentTimetableClean({ data }: StudentTimetableCleanProps) {
   const handleRefresh = () => {
     setIsRefreshing(true);
     window.location.reload();
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   // Error state
@@ -66,6 +72,104 @@ export function StudentTimetableClean({ data }: StudentTimetableCleanProps) {
 
   const { student, programme, intake, timetables, timeSlots } = data;
 
+  const displaySlots = useMemo(() => getDisplayTimeSlots(timeSlots), [timeSlots]);
+
+  // Convert normalized timetables to Timetable format for TimetableWeekTable
+  const convertedTimetables = useMemo(() => {
+    return timetables.map(tt => ({
+      id: tt.id,
+      academic_year: '',
+      semester: '',
+      program_id: tt.programme?.id || null,
+      department: null,
+      campus: '',
+      intake_id: tt.intake?.id || null,
+      class_section: null,
+      course_id: tt.unit.id,
+      lecturer_id: tt.lecturer?.id || null,
+      room_id: tt.room?.id || null,
+      day: tt.day,
+      start_time: tt.startTime,
+      end_time: tt.endTime,
+      duration: null,
+      max_students: null,
+      teaching_mode: 'physical' as const,
+      meeting_link: null,
+      status: tt.status as 'active' | 'draft' | 'archived',
+      notes: null,
+      class_type: tt.classType as 'regular' | 'shared',
+      shared_class_id: null,
+      created_by: null,
+      updated_by: null,
+      published_by: null,
+      published_at: null,
+      created_at: '',
+      updated_at: '',
+      course: {
+        id: tt.unit.id,
+        program_id: tt.programme?.id || null,
+        name: tt.unit.name,
+        code: tt.unit.code,
+        description: null,
+        credits: 0,
+        unit_fee: 0,
+        instructor_id: null,
+        is_active: true,
+        created_at: '',
+        updated_at: '',
+      },
+      program: tt.programme ? {
+        id: tt.programme.id,
+        name: tt.programme.name,
+        code: '',
+        admission_prefix: null,
+        description: null,
+        duration_months: 0,
+        tuition_fee: 0,
+        is_active: true,
+        created_at: '',
+        updated_at: '',
+      } : undefined,
+      intake: tt.intake ? {
+        id: tt.intake.id,
+        name: tt.intake.name,
+        code: '',
+        start_date: '',
+        end_date: '',
+        is_current: false,
+        is_active: true,
+        academic_year: null,
+        term_id: null,
+        created_at: '',
+      } : undefined,
+      lecturer: tt.lecturer ? {
+        id: tt.lecturer.id,
+        email: '',
+        full_name: tt.lecturer.name,
+        role: 'teacher' as const,
+        phone: null,
+        avatar_url: null,
+        can_teach: true,
+        staff_number: null,
+        department: null,
+        specialization: null,
+        employment_status: null,
+        created_at: '',
+        updated_at: '',
+      } : null,
+      room: tt.room ? {
+        id: tt.room.id,
+        name: tt.room.name,
+        building: null,
+        capacity: null,
+        type: 'lecture_hall' as const,
+        status: 'active',
+        created_at: '',
+        updated_at: '',
+      } : undefined,
+    }));
+  }, [timetables]);
+
   // Empty state
   if (timetables.length === 0) {
     return (
@@ -79,6 +183,7 @@ export function StudentTimetableClean({ data }: StudentTimetableCleanProps) {
                 </h2>
                 <p className="text-sm text-slate-600">
                   {student.student_number || student.admission_number || 'N/A'} · {programme?.name || 'Not assigned'}
+                  {intake && ` · ${intake.name}`}
                 </p>
               </div>
               <Button onClick={handleRefresh} variant="secondary" size="sm">
@@ -104,12 +209,6 @@ export function StudentTimetableClean({ data }: StudentTimetableCleanProps) {
     );
   }
 
-  // Group timetables by day
-  const timetablesByDay = DAYS.reduce((acc, day) => {
-    acc[day] = timetables.filter(tt => tt.day === day);
-    return acc;
-  }, {} as Record<string, NormalizedTimetableEntry[]>);
-
   return (
     <div className="space-y-4">
       <Card>
@@ -129,7 +228,7 @@ export function StudentTimetableClean({ data }: StudentTimetableCleanProps) {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-              <Button onClick={() => window.print()} variant="secondary" size="sm">
+              <Button onClick={handlePrint} variant="secondary" size="sm">
                 <Printer className="h-4 w-4 mr-2" />
                 Print
               </Button>
@@ -141,61 +240,11 @@ export function StudentTimetableClean({ data }: StudentTimetableCleanProps) {
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600 w-24">
-                    Time
-                  </th>
-                  {DAYS.map(day => (
-                    <th key={day} className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-600">
-                      {day.slice(0, 3)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {timeSlots.map((slot, slotIndex) => (
-                  <tr key={slot.id} className="border-b border-slate-100">
-                    <td className="px-4 py-2 text-xs text-slate-600 whitespace-nowrap">
-                      {slot.start_time} – {slot.end_time}
-                    </td>
-                    {DAYS.map(day => {
-                      const dayTimetables = timetablesByDay[day] || [];
-                      const slotTimetables = dayTimetables.filter(
-                        tt => tt.startTime === slot.start_time && tt.endTime === slot.end_time
-                      );
-                      
-                      return (
-                        <td key={`${day}-${slotIndex}`} className="px-2 py-2 align-top">
-                          {slotTimetables.map(tt => (
-                            <div
-                              key={tt.id}
-                              className="mb-1 rounded bg-blue-50 border border-blue-200 p-2 text-xs"
-                            >
-                              <div className="font-semibold text-blue-900 mb-1">
-                                {tt.unit.code}
-                              </div>
-                              <div className="text-blue-700 mb-1">
-                                {tt.unit.name}
-                              </div>
-                              <div className="text-blue-600">
-                                {tt.lecturer?.name || 'Lecturer to be confirmed'}
-                              </div>
-                              {tt.room && (
-                                <div className="text-blue-600">
-                                  {tt.room.name}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <TimetableWeekTable
+              slots={displaySlots}
+              entries={convertedTimetables}
+              variant="student"
+            />
           </div>
         </CardContent>
       </Card>

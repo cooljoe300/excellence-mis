@@ -29,7 +29,6 @@ interface StudentTimetableData {
   programme: {
     id: string;
     name: string;
-    code: string;
   } | null;
   intake: {
     id: string;
@@ -382,11 +381,9 @@ export async function getStudentTimetableClean(): Promise<StudentTimetableData |
       programme: Array.isArray(student.program) && student.program[0] ? {
         id: student.program[0].id,
         name: student.program[0].name,
-        code: student.program[0].code,
       } : (student.program as any) ? {
         id: (student.program as any).id,
         name: (student.program as any).name,
-        code: (student.program as any).code,
       } : null,
       intake: Array.isArray(student.intake) && student.intake[0] ? {
         id: student.intake[0].id,
