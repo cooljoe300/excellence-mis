@@ -170,7 +170,7 @@ export function TimetableDayTrack({
                   )}
                   <p className="text-[9px] font-bold leading-tight">{entry.course?.code || 'Unit'}</p>
                   <p className="text-[8px] leading-tight">{entry.course?.name}</p>
-                  <p className="text-[8px] leading-tight">{entry.lecturer?.full_name || 'To Be Confirmed'}</p>
+                  <p className="text-[8px] leading-tight">{entry.lecturer?.full_name || 'Default'}</p>
                   <p className="text-[8px] leading-tight">{venueLabel(entry)}</p>
                   <p className="text-[8px] leading-tight">{formatTimeRange(entry.start_time, entry.end_time)}</p>
                 </>
@@ -195,7 +195,7 @@ export function TimetableDayTrack({
                   </p>
                   <p className="mt-0.5 text-[10px] leading-snug text-slate-700">{entry.course?.name}</p>
                   <p className="mt-1 text-[10px] text-slate-600">
-                    Lecturer: {entry.lecturer?.full_name || 'To Be Confirmed'}
+                    Lecturer: {entry.lecturer?.full_name || 'Default'}
                   </p>
                   <p className="text-[10px] text-slate-600">Room: {entry.room?.name || 'Online'}</p>
                   <p className="mt-1 text-[10px] font-medium text-slate-800">
