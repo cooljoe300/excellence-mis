@@ -87,7 +87,7 @@ async function hydrateTimetables(rows: Timetable[] | null | undefined): Promise<
     programme_assignments: assignmentsMap[row.id] || [],
     program: row.program_id ? programMap[row.program_id] : row.program,
     course: row.course_id ? courseMap[row.course_id] : row.course,
-    lecturer: row.lecturer || (row.lecturer_id ? lecturerMap[row.lecturer_id] : null),
+    lecturer: row.lecturer_id ? lecturerMap[row.lecturer_id] : row.lecturer,
     intake: row.intake_id ? intakeMap[row.intake_id] : row.intake,
     room: row.room_id ? roomMap[row.room_id] : row.room,
   }));
