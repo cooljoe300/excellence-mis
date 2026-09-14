@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type { Timetable, Profile, Program, Intake, Course, Room, TimeSlot } from '@/lib/types';
+import type { Profile, Course, Room, TimeSlot } from '@/lib/types';
 import { normalizeDay, formatClockTime } from '@/lib/timetable-utils';
 
 /**

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Modal } from '@/components/ui/modal';
 import { Printer, RefreshCw, AlertCircle } from 'lucide-react';
 import type { NormalizedTimetableEntry } from '@/app/actions/student-timetable-new';
-import type { TimeSlot, Timetable, Program, Intake } from '@/lib/types';
+import type { TimeSlot, Timetable } from '@/lib/types';
 import { getDisplayTimeSlots } from '@/lib/timetable-utils';
 import { TimetableWeekTable } from './timetable-day-track';
 import {
