@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Printer, RefreshCw, AlertCircle } from 'lucide-react';
-import type { NormalizedTimetableEntry, TimeSlot } from '@/app/actions/student-timetable-new';
+import type { NormalizedTimetableEntry } from '@/app/actions/student-timetable-new';
+import type { TimeSlot } from '@/lib/types';
 
 interface StudentTimetableCleanProps {
   data: {
