@@ -86,24 +86,66 @@ export async function createFeeInvoiceForEnrollments(
 
   const courseLabels = enrollments.map((e) => `${e.code} — ${e.name}`).join(', ');
 
-  const { data: feePayment, error: feeError } = await supabase
+  // Check for existing fee payment for this student + term combination
+  const { data: existingFeePayment, error: existingError } = await supabase
     .from('fee_payments')
-    .insert({
-      student_id: studentId,
-      term_id: termId,
-      amount: totalFee,
-      amount_paid: 0,
-      status: 'pending',
-      description: `${descriptionPrefix}: ${courseLabels}`,
-    })
-    .select('id')
-    .single();
+    .select('id, amount, amount_paid, status, description')
+    .eq('student_id', studentId)
+    .eq('term_id', termId)
+    .maybeSingle();
 
-  if (feeError) return { error: feeError.message };
+  let feePaymentId: string;
+  let finalAmount: number;
 
+  if (existingFeePayment) {
+    // Update existing fee payment
+    feePaymentId = existingFeePayment.id as string;
+    
+    // Get current items to calculate new total
+    const { data: existingItems } = await supabase
+      .from('fee_payment_items')
+      .select('amount')
+      .eq('fee_payment_id', feePaymentId);
+    
+    const existingItemsTotal = (existingItems ?? []).reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+    finalAmount = existingItemsTotal + totalFee;
+
+    // Update the fee payment with new amount and description
+    const { error: updateError } = await supabase
+      .from('fee_payments')
+      .update({
+        amount: finalAmount,
+        description: existingFeePayment.description 
+          ? `${existingFeePayment.description}, ${courseLabels}`
+          : `${descriptionPrefix}: ${courseLabels}`,
+      })
+      .eq('id', feePaymentId);
+
+    if (updateError) return { error: updateError.message };
+  } else {
+    // Create new fee payment
+    const { data: feePayment, error: feeError } = await supabase
+      .from('fee_payments')
+      .insert({
+        student_id: studentId,
+        term_id: termId,
+        amount: totalFee,
+        amount_paid: 0,
+        status: 'pending',
+        description: `${descriptionPrefix}: ${courseLabels}`,
+      })
+      .select('id')
+      .single();
+
+    if (feeError) return { error: feeError.message };
+    feePaymentId = feePayment.id as string;
+    finalAmount = totalFee;
+  }
+
+  // Add new fee payment items
   const { error: itemsError } = await supabase.from('fee_payment_items').insert(
     enrollments.map((e) => ({
-      fee_payment_id: feePayment.id,
+      fee_payment_id: feePaymentId,
       course_id: e.courseId,
       enrollment_id: e.enrollmentId,
       amount: e.unitFee,
@@ -112,5 +154,5 @@ export async function createFeeInvoiceForEnrollments(
 
   if (itemsError) return { error: itemsError.message };
 
-  return { feePaymentId: feePayment.id as string, totalFee };
+  return { feePaymentId, totalFee: finalAmount };
 }

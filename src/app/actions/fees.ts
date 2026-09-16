@@ -13,7 +13,7 @@ export async function getFeePayments() {
   const { data, error } = await supabase
     .from('fee_payments')
     .select(
-      '*, student:students(*), term:academic_terms(*), submissions:fee_payment_submissions(*)'
+      '*, student:students(*), term:academic_terms(*), submissions:fee_payment_submissions(*), items:fee_payment_items(*, course:courses(code, name))'
     )
     .order('created_at', { ascending: false });
 

@@ -459,6 +459,22 @@ export function FeesClient({
                 );
                 const displayStatus =
                   pendingAmount > 0 ? 'pending approval' : getStudentFeeDisplayStatus(fee);
+                
+                // Get unit details from fee_payment_items if available
+                const feeItems = (fee as any).items || [];
+                const unitDetails = feeItems.length > 0 ? (
+                  <div className="mt-2 space-y-1">
+                    {feeItems.map((item: any) => (
+                      <div key={item.id} className="text-xs text-slate-500 flex items-center gap-2">
+                        <span className="font-medium">{item.course?.code || 'Unknown'}</span>
+                        <span>—</span>
+                        <span>{item.course?.name || 'Unknown'}</span>
+                        <span className="text-slate-400">({formatCurrency(item.amount)})</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+                
                 return (
                   <tr key={fee.id} className="align-top hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium">
@@ -478,6 +494,7 @@ export function FeesClient({
                           {formatCurrency(pendingAmount)} awaiting approval
                         </p>
                       )}
+                      {unitDetails}
                     </td>
                     <td className="px-6 py-4 text-slate-600">
                       {fee.discount_amount > 0 ? (
