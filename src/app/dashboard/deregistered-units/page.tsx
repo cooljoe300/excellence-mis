@@ -8,19 +8,20 @@ import { DeregisteredUnitsClient } from '@/components/deregistered-units/deregis
 export default async function DeregisteredUnitsPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const page = Number(searchParams.page || 1);
-  const limit = Number(searchParams.limit || 50);
+  const params = await searchParams;
+  const page = Number(params.page || 1);
+  const limit = Number(params.limit || 50);
   const offset = (page - 1) * limit;
 
-  const search = typeof searchParams.search === 'string' ? searchParams.search : undefined;
-  const programId = typeof searchParams.programId === 'string' ? searchParams.programId : undefined;
-  const intakeId = typeof searchParams.intakeId === 'string' ? searchParams.intakeId : undefined;
-  const termId = typeof searchParams.termId === 'string' ? searchParams.termId : undefined;
-  const courseId = typeof searchParams.courseId === 'string' ? searchParams.courseId : undefined;
-  const dateFrom = typeof searchParams.dateFrom === 'string' ? searchParams.dateFrom : undefined;
-  const dateTo = typeof searchParams.dateTo === 'string' ? searchParams.dateTo : undefined;
+  const search = typeof params.search === 'string' ? params.search : undefined;
+  const programId = typeof params.programId === 'string' ? params.programId : undefined;
+  const intakeId = typeof params.intakeId === 'string' ? params.intakeId : undefined;
+  const termId = typeof params.termId === 'string' ? params.termId : undefined;
+  const courseId = typeof params.courseId === 'string' ? params.courseId : undefined;
+  const dateFrom = typeof params.dateFrom === 'string' ? params.dateFrom : undefined;
+  const dateTo = typeof params.dateTo === 'string' ? params.dateTo : undefined;
 
   const [deregisteredUnits, totalCount, pageData] = await Promise.all([
     getDeregisteredUnits({

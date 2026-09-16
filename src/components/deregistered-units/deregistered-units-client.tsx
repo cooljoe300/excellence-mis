@@ -158,7 +158,7 @@ export function DeregisteredUnitsClient({
               <label className="mb-1 block text-sm font-medium text-slate-700">Program</label>
               <Select
                 value={filters.programId || ''}
-                onChange={(e) => updateFilter('programId', e.target.value)}
+                onChange={(value) => updateFilter('programId', value)}
                 options={[
                   { value: '', label: 'All Programs' },
                   ...pageData.programs.map((p) => ({
@@ -172,7 +172,7 @@ export function DeregisteredUnitsClient({
               <label className="mb-1 block text-sm font-medium text-slate-700">Intake</label>
               <Select
                 value={filters.intakeId || ''}
-                onChange={(e) => updateFilter('intakeId', e.target.value)}
+                onChange={(value) => updateFilter('intakeId', value)}
                 options={[
                   { value: '', label: 'All Intakes' },
                   ...pageData.intakes.map((i) => ({
@@ -186,7 +186,7 @@ export function DeregisteredUnitsClient({
               <label className="mb-1 block text-sm font-medium text-slate-700">Term</label>
               <Select
                 value={filters.termId || ''}
-                onChange={(e) => updateFilter('termId', e.target.value)}
+                onChange={(value) => updateFilter('termId', value)}
                 options={[
                   { value: '', label: 'All Terms' },
                   ...pageData.terms.map((t) => ({
@@ -200,7 +200,7 @@ export function DeregisteredUnitsClient({
               <label className="mb-1 block text-sm font-medium text-slate-700">Course</label>
               <Select
                 value={filters.courseId || ''}
-                onChange={(e) => updateFilter('courseId', e.target.value)}
+                onChange={(value) => updateFilter('courseId', value)}
                 options={[
                   { value: '', label: 'All Courses' },
                   ...pageData.courses.map((c) => ({
