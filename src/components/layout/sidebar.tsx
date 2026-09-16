@@ -47,24 +47,33 @@ interface NavItem {
 }
 
 const allNavItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
-  { href: '/dashboard/students', label: 'Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/programs', label: 'Programs', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/semesters', label: 'Semesters', icon: CalendarDays, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/courses', label: 'Courses', icon: BookOpen, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
-  { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
-  { href: '/dashboard/deregistered-units', label: 'Deregistered Units', icon: Ban, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/timetable', label: 'Timetable', icon: Calendar, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
-  { href: '/dashboard/timetable/rooms', label: 'Rooms', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
-  { href: '/dashboard/fees', label: 'Fees', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['superadmin', 'admin'] as UserRole[] },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
-  { href: '/dashboard/lms/programmes', label: 'LMS Programmes', icon: Library, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
-  { href: '/dashboard/lms/online-classes', label: 'Online Classes', icon: Video, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
-  { href: 'https://lms.excellenceonlinecollege.com', label: 'Open LMS', icon: ExternalLink, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], external: true },
+  // Admin navigation - GENERAL
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'GENERAL' },
+  // Admin navigation - ACADEMICS
+  { href: '/dashboard/students', label: 'Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
+  { href: '/dashboard/programs', label: 'Programs', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
+  { href: '/dashboard/courses', label: 'Courses / Units', icon: BookOpen, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'ACADEMICS' },
+  { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
+  { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'ACADEMICS' },
+  { href: '/dashboard/deregistered-units', label: 'Deregistered Units', icon: Ban, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
+  // Admin navigation - TIMETABLE & ATTENDANCE
+  { href: '/dashboard/timetable', label: 'Timetable', icon: Calendar, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'TIMETABLE & ATTENDANCE' },
+  { href: '/dashboard/timetable/rooms', label: 'Rooms', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'TIMETABLE & ATTENDANCE' },
+  { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'TIMETABLE & ATTENDANCE' },
+  // Admin navigation - FINANCE
+  { href: '/dashboard/fees', label: 'Fees', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'FINANCE' },
+  // Admin navigation - REPORTING
+  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'REPORTING' },
+  // Admin navigation - LMS & ONLINE LEARNING
+  { href: '/dashboard/lms/programmes', label: 'LMS Programmes', icon: Library, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'LMS & ONLINE LEARNING' },
+  { href: '/dashboard/lms/online-classes', label: 'Online Classes', icon: Video, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'LMS & ONLINE LEARNING' },
+  { href: 'https://lms.excellenceonlinecollege.com', label: 'Open LMS', icon: ExternalLink, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'LMS & ONLINE LEARNING', external: true },
+  // Admin navigation - ADMINISTRATION
+  { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['superadmin', 'admin'] as UserRole[], section: 'ADMINISTRATION' },
+  { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ADMINISTRATION' },
+  // Admin navigation - legacy semesters (keeping for compatibility)
+  { href: '/dashboard/semesters', label: 'Semesters', icon: CalendarDays, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
+  // Student navigation - unchanged
   { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student'] as UserRole[], section: null },
   { href: '/student/register', label: 'My Details', icon: User, roles: ['student'] as UserRole[], section: 'Personal' },
   { href: '/student/enroll', label: 'Register Units', icon: BookOpen, roles: ['student'] as UserRole[], section: 'Academic' },
@@ -77,6 +86,7 @@ const allNavItems: NavItem[] = [
   { href: '/student/id-card', label: 'My ID Card', icon: IdCard, roles: ['student'] as UserRole[], section: 'Services' },
   { href: '/student/admission-letter', label: 'Admission Letter', icon: FileText, roles: ['student'] as UserRole[], section: 'Services' },
   { href: '/student/lms/my-learning', label: 'My Learning', icon: Library, roles: ['student'] as UserRole[], section: 'Academic' },
+  // Teacher navigation - unchanged
   { href: '/teacher', label: 'Dashboard', icon: LayoutDashboard, roles: ['teacher'] as UserRole[], section: null },
   { href: '/teacher/timetable', label: 'My Timetable', icon: Calendar, roles: ['teacher'] as UserRole[], section: null },
 ];
@@ -96,7 +106,12 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
   const pathname = usePathname();
   const router = useRouter();
   const navItems = getNavItems(userRole);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['Personal', 'Academic', 'Finance', 'Services']));
+  const isAdmin = ['superadmin', 'admin', 'staff', 'teacher'].includes(userRole);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    isAdmin 
+      ? new Set(['GENERAL', 'ACADEMICS', 'TIMETABLE & ATTENDANCE', 'FINANCE', 'REPORTING', 'LMS & ONLINE LEARNING', 'ADMINISTRATION'])
+      : new Set(['Personal', 'Academic', 'Finance', 'Services'])
+  );
 
   const portalLabel =
     userRole === 'admin'
@@ -182,6 +197,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     {item.label}
+                    <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                   </a>
                 );
               }
@@ -255,6 +271,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                         >
                           <Icon className="h-4 w-4 shrink-0" />
                           {item.label}
+                          <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                         </a>
                       );
                     }
