@@ -5,6 +5,7 @@ import { getPesapalAvailability } from '@/app/actions/pesapal';
 import { StudentFeesClient } from '@/components/students/student-fees-client';
 import { PageHeader } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
+import { logAudit } from '@/lib/audit-logger';
 
 export default async function StudentFeesPage({
   searchParams,
@@ -44,6 +45,17 @@ export default async function StudentFeesPage({
   }
 
   const pesapalAvailability = await getPesapalAvailability();
+
+  // Log that student viewed fees
+  await logAudit({
+    action: 'view',
+    module: 'fees',
+    entityType: 'fee_payment',
+    entityId: data.student.id,
+    entityName: `${data.student.first_name} ${data.student.last_name}`,
+    details: 'Student viewed fee statement',
+    actorType: 'STUDENT',
+  });
 
   return (
     <div className="pb-8">

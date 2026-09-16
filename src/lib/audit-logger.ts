@@ -16,6 +16,7 @@ export async function logAudit(params: {
   details?: string;
   status?: 'success' | 'failure' | 'pending';
   errorMessage?: string;
+  actorType?: 'ADMIN' | 'STAFF' | 'STUDENT' | 'SYSTEM';
 }) {
   try {
     const supabase = await createClient();
@@ -36,6 +37,20 @@ export async function logAudit(params: {
 
     const userRole = profile?.role || 'unknown';
 
+    // Determine actor_type based on role if not provided
+    let actorType = params.actorType;
+    if (!actorType) {
+      if (userRole === 'superadmin' || userRole === 'admin') {
+        actorType = 'ADMIN';
+      } else if (userRole === 'staff' || userRole === 'teacher') {
+        actorType = 'STAFF';
+      } else if (userRole === 'student') {
+        actorType = 'STUDENT';
+      } else {
+        actorType = 'SYSTEM';
+      }
+    }
+
     // Get client IP address from headers if available
     // Note: This won't work in server components, only in server actions with request context
     const ipAddress = undefined; // Would need to be passed from request headers
@@ -44,6 +59,7 @@ export async function logAudit(params: {
     await logAuditAction({
       userId: user.id,
       userRole,
+      actorType,
       ipAddress,
       userAgent,
       ...params,
@@ -70,6 +86,7 @@ export const auditLogHelpers = {
       entityId: studentId,
       entityName: studentName,
       details,
+      actorType: 'ADMIN',
     }),
 
   studentUpdated: (studentId: string, studentName: string, previousValue: any, newValue: any, details?: string) =>
@@ -82,6 +99,7 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details,
+      actorType: 'ADMIN',
     }),
 
   studentDeleted: (studentId: string, studentName: string, details?: string) =>
@@ -92,6 +110,110 @@ export const auditLogHelpers = {
       entityId: studentId,
       entityName: studentName,
       details,
+      actorType: 'ADMIN',
+    }),
+
+  // Student activity logging
+  studentLoggedIn: (studentId: string, studentName: string) =>
+    logAudit({
+      action: 'login',
+      module: 'authentication',
+      entityType: 'user',
+      entityId: studentId,
+      entityName: studentName,
+      details: 'Student logged in',
+      actorType: 'STUDENT',
+    }),
+
+  studentLoggedOut: (studentId: string, studentName: string) =>
+    logAudit({
+      action: 'logout',
+      module: 'authentication',
+      entityType: 'user',
+      entityId: studentId,
+      entityName: studentName,
+      details: 'Student logged out',
+      actorType: 'STUDENT',
+    }),
+
+  studentViewedTimetable: (studentId: string, studentName: string) =>
+    logAudit({
+      action: 'view',
+      module: 'timetable',
+      entityType: 'timetable',
+      entityId: studentId,
+      entityName: studentName,
+      details: 'Student viewed timetable',
+      actorType: 'STUDENT',
+    }),
+
+  studentViewedFees: (studentId: string, studentName: string) =>
+    logAudit({
+      action: 'view',
+      module: 'fees',
+      entityType: 'fee_payment',
+      entityId: studentId,
+      entityName: studentName,
+      details: 'Student viewed fee statement',
+      actorType: 'STUDENT',
+    }),
+
+  studentViewedEnrollments: (studentId: string, studentName: string) =>
+    logAudit({
+      action: 'view',
+      module: 'enrollments',
+      entityType: 'enrollment',
+      entityId: studentId,
+      entityName: studentName,
+      details: 'Student viewed enrolled units',
+      actorType: 'STUDENT',
+    }),
+
+  studentOpenedLMS: (studentId: string, studentName: string) =>
+    logAudit({
+      action: 'view',
+      module: 'lms',
+      entityType: 'lms',
+      entityId: studentId,
+      entityName: studentName,
+      details: 'Student opened My Learning',
+      actorType: 'STUDENT',
+    }),
+
+  studentViewedNotes: (studentId: string, studentName: string, courseName: string, activityName: string) =>
+    logAudit({
+      action: 'view',
+      module: 'lms',
+      entityType: 'notes',
+      entityId: studentId,
+      entityName: studentName,
+      details: `Student viewed notes: ${courseName} - ${activityName}`,
+      newValue: { course: courseName, activity: activityName },
+      actorType: 'STUDENT',
+    }),
+
+  studentViewedRecordedClass: (studentId: string, studentName: string, className: string) =>
+    logAudit({
+      action: 'view',
+      module: 'lms',
+      entityType: 'recorded_class',
+      entityId: studentId,
+      entityName: studentName,
+      details: `Student viewed recorded class: ${className}`,
+      newValue: { class: className },
+      actorType: 'STUDENT',
+    }),
+
+  studentJoinedOnlineClass: (studentId: string, studentName: string, className: string) =>
+    logAudit({
+      action: 'join',
+      module: 'lms',
+      entityType: 'online_class',
+      entityId: studentId,
+      entityName: studentName,
+      details: `Student joined online class: ${className}`,
+      newValue: { class: className },
+      actorType: 'STUDENT',
     }),
 
   // Enrollment actions
@@ -103,6 +225,7 @@ export const auditLogHelpers = {
       entityId: enrollmentId,
       entityName: `${studentName} - ${courseName}`,
       details,
+      actorType: 'ADMIN',
     }),
 
   enrollmentUpdated: (enrollmentId: string, studentName: string, courseName: string, previousValue: any, newValue: any, details?: string) =>
@@ -115,6 +238,7 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details,
+      actorType: 'ADMIN',
     }),
 
   enrollmentDeregistered: (enrollmentId: string, studentName: string, courseName: string, details?: string) =>
@@ -125,6 +249,31 @@ export const auditLogHelpers = {
       entityId: enrollmentId,
       entityName: `${studentName} - ${courseName}`,
       details,
+      actorType: 'ADMIN',
+    }),
+
+  studentRegisteredUnit: (studentId: string, studentName: string, courseName: string) =>
+    logAudit({
+      action: 'create',
+      module: 'enrollments',
+      entityType: 'enrollment',
+      entityId: studentId,
+      entityName: studentName,
+      details: `Student registered unit: ${courseName}`,
+      newValue: { course: courseName },
+      actorType: 'STUDENT',
+    }),
+
+  studentDeregisteredUnit: (studentId: string, studentName: string, courseName: string) =>
+    logAudit({
+      action: 'deregister',
+      module: 'enrollments',
+      entityType: 'enrollment',
+      entityId: studentId,
+      entityName: studentName,
+      details: `Student deregistered unit: ${courseName}`,
+      newValue: { course: courseName },
+      actorType: 'STUDENT',
     }),
 
   // Fee actions
@@ -136,6 +285,7 @@ export const auditLogHelpers = {
       entityId: feeId,
       entityName: `${studentName} - ${amount}`,
       details,
+      actorType: 'ADMIN',
     }),
 
   feeUpdated: (feeId: string, studentName: string, previousValue: any, newValue: any, details?: string) =>
@@ -148,6 +298,7 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details,
+      actorType: 'ADMIN',
     }),
 
   discountApplied: (feeId: string, studentName: string, discountAmount: number, reason: string) =>
@@ -158,6 +309,7 @@ export const auditLogHelpers = {
       entityId: feeId,
       entityName: studentName,
       details: `Discount of ${discountAmount} applied: ${reason}`,
+      actorType: 'ADMIN',
     }),
 
   // Course/Program actions
@@ -169,6 +321,7 @@ export const auditLogHelpers = {
       entityId: courseId,
       entityName: courseName,
       details,
+      actorType: 'ADMIN',
     }),
 
   courseUpdated: (courseId: string, courseName: string, previousValue: any, newValue: any, details?: string) =>
@@ -181,6 +334,7 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details,
+      actorType: 'ADMIN',
     }),
 
   courseDeleted: (courseId: string, courseName: string, details?: string) =>
@@ -191,6 +345,7 @@ export const auditLogHelpers = {
       entityId: courseId,
       entityName: courseName,
       details,
+      actorType: 'ADMIN',
     }),
 
   // User/Role actions
@@ -202,6 +357,7 @@ export const auditLogHelpers = {
       entityId: userId,
       entityName: userName,
       details: `Role: ${role}`,
+      actorType: 'ADMIN',
     }),
 
   userUpdated: (userId: string, userName: string, previousValue: any, newValue: any, details?: string) =>
@@ -214,6 +370,7 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details,
+      actorType: 'ADMIN',
     }),
 
   roleChanged: (userId: string, userName: string, previousRole: string, newRole: string) =>
@@ -224,6 +381,7 @@ export const auditLogHelpers = {
       entityId: userId,
       entityName: userName,
       details: `Role changed from ${previousRole} to ${newRole}`,
+      actorType: 'ADMIN',
     }),
 
   // Settings actions
@@ -236,6 +394,7 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details: `Setting ${settingName} updated`,
+      actorType: 'ADMIN',
     }),
 
   // Authentication actions
@@ -247,6 +406,7 @@ export const auditLogHelpers = {
       entityId: userId,
       entityName: userName,
       details: 'User logged in',
+      actorType: 'STAFF',
     }),
 
   userLoggedOut: (userId: string, userName: string) =>
@@ -257,6 +417,7 @@ export const auditLogHelpers = {
       entityId: userId,
       entityName: userName,
       details: 'User logged out',
+      actorType: 'STAFF',
     }),
 
   // Timetable actions
@@ -268,6 +429,7 @@ export const auditLogHelpers = {
       entityId: timetableId,
       entityName: courseName,
       details,
+      actorType: 'ADMIN',
     }),
 
   timetableUpdated: (timetableId: string, courseName: string, previousValue: any, newValue: any, details?: string) =>
@@ -280,6 +442,7 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details,
+      actorType: 'ADMIN',
     }),
 
   // LMS actions
@@ -291,6 +454,7 @@ export const auditLogHelpers = {
       entityId: programmeId,
       entityName: programmeName,
       details,
+      actorType: 'ADMIN',
     }),
 
   lmsProgrammeUpdated: (programmeId: string, programmeName: string, previousValue: any, newValue: any, details?: string) =>
@@ -303,5 +467,6 @@ export const auditLogHelpers = {
       previousValue,
       newValue,
       details,
+      actorType: 'ADMIN',
     }),
 };

@@ -13,6 +13,7 @@ import {
   createFeeInvoiceForEnrollments,
   getUnbilledEnrollmentsForCourses,
 } from '@/lib/enrollment-fees';
+import { logAudit } from '@/lib/audit-logger';
 
 export interface UnitOption {
   id: string;
@@ -305,6 +306,23 @@ export async function enrollMyUnits(courseIds: string[]) {
     revalidatePath('/dashboard/fees');
     revalidatePath(`/dashboard/students/${student.id}`);
   });
+
+  // Log student unit registration
+  for (const courseId of toAdd) {
+    const course = validCourseMap.get(courseId);
+    if (course) {
+      await logAudit({
+        action: 'create',
+        module: 'enrollments',
+        entityType: 'enrollment',
+        entityId: student.id,
+        entityName: `${student.first_name} ${student.last_name}`,
+        details: `Student registered unit: ${course.code} - ${course.name}`,
+        newValue: { course: course.code, name: course.name },
+        actorType: 'STUDENT',
+      });
+    }
+  }
 
   const selectedCourses = normalized.map((id) => validCourseMap.get(id)!);
   const selectedTotal = selectedCourses.reduce((sum, c) => sum + Number(c.unit_fee ?? 0), 0);

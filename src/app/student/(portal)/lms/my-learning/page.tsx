@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getRoleFromMetadata } from '@/lib/auth';
 import { StudentMyLearningClient } from '@/components/lms/student-my-learning-client';
 import type { Student } from '@/lib/types';
+import { logAudit } from '@/lib/audit-logger';
 
 export default async function StudentMyLearningPage() {
   const supabase = await createClient();
@@ -25,6 +26,17 @@ export default async function StudentMyLearningPage() {
   if (!student) {
     redirect('/student/dashboard');
   }
+
+  // Log that student opened LMS
+  await logAudit({
+    action: 'view',
+    module: 'lms',
+    entityType: 'lms',
+    entityId: student.id,
+    entityName: `${student.first_name} ${student.last_name}`,
+    details: 'Student opened My Learning',
+    actorType: 'STUDENT',
+  });
 
   return <StudentMyLearningClient student={student as Student} />;
 }

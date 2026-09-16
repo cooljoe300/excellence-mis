@@ -28,6 +28,7 @@ interface AuditLogsClientProps {
     action?: string;
     module?: string;
     entityType?: string;
+    actorType?: string;
     status?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -192,6 +193,20 @@ export function AuditLogsClient({
               />
             </div>
             <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Actor Type</label>
+              <Select
+                value={filters.actorType || ''}
+                onChange={(value) => updateFilter('actorType', value)}
+                options={[
+                  { value: '', label: 'All Actors' },
+                  { value: 'ADMIN', label: 'Admin' },
+                  { value: 'STAFF', label: 'Staff' },
+                  { value: 'STUDENT', label: 'Student' },
+                  { value: 'SYSTEM', label: 'System' },
+                ]}
+              />
+            </div>
+            <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Status</label>
               <Select
                 value={filters.status || ''}
@@ -235,6 +250,7 @@ export function AuditLogsClient({
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>
                   <th className="px-6 py-3 text-left font-medium text-slate-500">Date</th>
+                  <th className="px-6 py-3 text-left font-medium text-slate-500">Actor</th>
                   <th className="px-6 py-3 text-left font-medium text-slate-500">User</th>
                   <th className="px-6 py-3 text-left font-medium text-slate-500">Action</th>
                   <th className="px-6 py-3 text-left font-medium text-slate-500">Module</th>
@@ -251,6 +267,11 @@ export function AuditLogsClient({
                       <div className="text-xs text-slate-400">
                         {new Date(log.created_at).toLocaleTimeString()}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="secondary" className="text-xs">
+                        {log.actor_type || 'SYSTEM'}
+                      </Badge>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-900">{log.user_name || 'System'}</div>

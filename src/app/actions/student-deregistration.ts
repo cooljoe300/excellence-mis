@@ -16,6 +16,7 @@ import type {
   DeregistrationRequestType,
   StudentDeregistrationRequest,
 } from '@/lib/types';
+import { logAudit } from '@/lib/audit-logger';
 
 export interface EnrolledUnitForDeregistration {
   courseId: string;
@@ -198,6 +199,18 @@ export async function submitMyDeregistrationRequest(input: {
   revalidatePath('/student/deregister');
   revalidatePath('/student/enroll');
   revalidatePath('/dashboard/enrollments');
+
+  // Log student deregistration request
+  await logAudit({
+    action: 'create',
+    module: 'enrollments',
+    entityType: 'deregistration_request',
+    entityId: student.id,
+    entityName: `${student.first_name} ${student.last_name}`,
+    details: `Student submitted ${requestType === 'full_withdrawal' ? 'full withdrawal' : 'unit deregistration'} request`,
+    newValue: { requestType, courseIds, reason },
+    actorType: 'STUDENT',
+  });
 
   return { success: true, requestType };
 }

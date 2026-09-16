@@ -14,6 +14,7 @@ export interface AuditLog {
   user_email: string | null;
   user_name: string | null;
   user_role: string | null;
+  actor_type: string | null;
   action: string;
   module: string;
   entity_type: string | null;
@@ -35,6 +36,7 @@ export interface AuditLogsFilters {
   action?: string;
   module?: string;
   entityType?: string;
+  actorType?: string;
   status?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -49,6 +51,7 @@ export async function getAuditLogs(filters: AuditLogsFilters = {}, limit = 100, 
     p_action: filters.action || null,
     p_module: filters.module || null,
     p_entity_type: filters.entityType || null,
+    p_actor_type: filters.actorType || null,
     p_status: filters.status || null,
     p_date_from: filters.dateFrom || null,
     p_date_to: filters.dateTo || null,
@@ -73,6 +76,7 @@ export async function countAuditLogs(filters: AuditLogsFilters = {}) {
     p_action: filters.action || null,
     p_module: filters.module || null,
     p_entity_type: filters.entityType || null,
+    p_actor_type: filters.actorType || null,
     p_status: filters.status || null,
     p_date_from: filters.dateFrom || null,
     p_date_to: filters.dateTo || null,
@@ -89,6 +93,7 @@ export async function countAuditLogs(filters: AuditLogsFilters = {}) {
 export async function logAuditAction(params: {
   userId?: string;
   userRole?: string;
+  actorType?: 'ADMIN' | 'STAFF' | 'STUDENT' | 'SYSTEM';
   action: string;
   module: string;
   entityType?: string;
@@ -107,6 +112,7 @@ export async function logAuditAction(params: {
   const { data, error } = await supabase.rpc('log_audit', {
     p_user_id: params.userId || null,
     p_user_role: params.userRole || null,
+    p_actor_type: params.actorType || 'STAFF',
     p_action: params.action,
     p_module: params.module,
     p_entity_type: params.entityType || null,

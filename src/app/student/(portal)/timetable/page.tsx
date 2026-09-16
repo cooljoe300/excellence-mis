@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { getStudentTimetable } from '@/app/actions/timetable';
 import { createClient } from '@/lib/supabase/server';
 import { StudentTimetableGrid } from '@/components/timetable/student-timetable-grid';
+import { logAudit } from '@/lib/audit-logger';
 
 export default async function StudentTimetablePage() {
   const supabase = await createClient();
@@ -17,6 +18,17 @@ export default async function StudentTimetablePage() {
   if (!student) {
     redirect('/student/register');
   }
+
+  // Log that student viewed timetable
+  await logAudit({
+    action: 'view',
+    module: 'timetable',
+    entityType: 'timetable',
+    entityId: student.id,
+    entityName: `${student.first_name} ${student.last_name}`,
+    details: 'Student viewed timetable',
+    actorType: 'STUDENT',
+  });
 
   return (
     <div>

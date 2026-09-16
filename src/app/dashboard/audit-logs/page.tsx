@@ -22,17 +22,18 @@ export default async function AuditLogsPage({
   const action = typeof params.action === 'string' ? params.action : undefined;
   const module = typeof params.module === 'string' ? params.module : undefined;
   const entityType = typeof params.entityType === 'string' ? params.entityType : undefined;
+  const actorType = typeof params.actorType === 'string' ? params.actorType : undefined;
   const status = typeof params.status === 'string' ? params.status : undefined;
   const dateFrom = typeof params.dateFrom === 'string' ? params.dateFrom : undefined;
   const dateTo = typeof params.dateTo === 'string' ? params.dateTo : undefined;
 
   const [auditLogs, totalCount, modules, actions, entityTypes] = await Promise.all([
     getAuditLogs(
-      { search, userId, action, module, entityType, status, dateFrom, dateTo },
+      { search, userId, action, module, entityType, actorType, status, dateFrom, dateTo },
       limit,
       offset
     ),
-    countAuditLogs({ search, userId, action, module, entityType, status, dateFrom, dateTo }),
+    countAuditLogs({ search, userId, action, module, entityType, actorType, status, dateFrom, dateTo }),
     getAuditLogModules(),
     getAuditLogActions(),
     getAuditLogEntityTypes(),
@@ -48,7 +49,7 @@ export default async function AuditLogsPage({
       totalPages={totalPages}
       limit={limit}
       pageData={{ modules, actions, entityTypes }}
-      filters={{ search, userId, action, module, entityType, status, dateFrom, dateTo }}
+      filters={{ search, userId, action, module, entityType, actorType, status, dateFrom, dateTo }}
     />
   );
 }
