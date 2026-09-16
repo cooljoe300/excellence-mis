@@ -7,6 +7,7 @@ import {
   getCurrentAcademicTermId,
   getProgramCourses,
   getStudentCourseIdsForTerm,
+  getDeregisteredCourseIdsForTerm,
 } from '@/app/actions/enrollments';
 import {
   createFeeInvoiceForEnrollments,
@@ -94,6 +95,7 @@ export async function getMyUnitEnrollmentData() {
       programName: getProgramName(student.program),
       units: [] as UnitOption[],
       enrolledUnitIds: [] as string[],
+      deregisteredUnitIds: [] as string[],
       error: 'No current academic term is set. Please contact the college.',
     };
   }
@@ -106,13 +108,15 @@ export async function getMyUnitEnrollmentData() {
       programName: null,
       units: [] as UnitOption[],
       enrolledUnitIds: [] as string[],
+      deregisteredUnitIds: [] as string[],
       error: 'Please select your program under My Details before registering units.',
     };
   }
 
-  const [units, enrolledUnitIds] = await Promise.all([
+  const [units, enrolledUnitIds, deregisteredUnitIds] = await Promise.all([
     getProgramCourses(student.program_id),
     getStudentCourseIdsForTerm(student.id, termId),
+    getDeregisteredCourseIdsForTerm(student.id, termId),
   ]);
 
   return {
@@ -122,6 +126,7 @@ export async function getMyUnitEnrollmentData() {
     programName: getProgramName(student.program),
     units: units as UnitOption[],
     enrolledUnitIds,
+    deregisteredUnitIds: deregisteredUnitIds || [],
     error: null,
   };
 }
@@ -215,9 +220,42 @@ export async function enrollMyUnits(courseIds: string[]) {
     return { error: 'You are already registered for all selected units.' };
   }
 
-  if (toAdd.length > 0) {
+  // Check if any of the courses to add were previously deregistered
+  const { data: deregisteredEnrollments } = await supabase
+    .from('enrollments')
+    .select('id, course_id')
+    .eq('student_id', student.id)
+    .eq('term_id', termId)
+    .in('course_id', toAdd)
+    .eq('status', 'deregistered');
+
+  const reactivatedIds = new Set(
+    (deregisteredEnrollments ?? []).map((e) => e.course_id as string)
+  );
+  
+  // Reactivate deregistered enrollments instead of creating new ones
+  if (reactivatedIds.size > 0) {
+    const { error: reactivateError } = await supabase
+      .from('enrollments')
+      .update({
+        status: 'active',
+        deregistered_at: null,
+        deregistered_by: null,
+        deregistration_reason: null,
+      })
+      .eq('student_id', student.id)
+      .eq('term_id', termId)
+      .in('course_id', Array.from(reactivatedIds));
+    
+    if (reactivateError) return { error: reactivateError.message };
+  }
+
+  // Only insert new enrollments for courses that weren't previously deregistered
+  const trulyNew = toAdd.filter((id) => !reactivatedIds.has(id));
+  
+  if (trulyNew.length > 0) {
     const { error: insertError } = await supabase.from('enrollments').insert(
-      toAdd.map((courseId) => ({
+      trulyNew.map((courseId) => ({
         student_id: student.id,
         term_id: termId,
         course_id: courseId,

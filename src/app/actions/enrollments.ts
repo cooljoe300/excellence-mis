@@ -71,6 +71,19 @@ export async function getStudentCourseIdsForTerm(studentId: string, termId: stri
   return (data ?? []).map((r) => r.course_id as string);
 }
 
+export async function getDeregisteredCourseIdsForTerm(studentId: string, termId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('course_id')
+    .eq('student_id', studentId)
+    .eq('term_id', termId)
+    .eq('status', 'deregistered');
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => r.course_id as string);
+}
+
 export async function setStudentEnrollmentsForTerm(
   studentId: string,
   termId: string,
@@ -100,40 +113,81 @@ export async function setStudentEnrollmentsForTerm(
   const toRemoveIds = toRemove.map((e) => e.id as string);
   const toRemoveCourseIds = toRemove.map((e) => e.course_id as string);
 
+  // Get current user for deregistration tracking
+  const { data: { user } } = await (supabase.auth as any).getUser();
+  const currentUserId = user?.id;
+
   if (toRemoveIds.length > 0) {
-    const feeResult = await adjustFeesForDroppedEnrollments(supabase, toRemoveIds);
+    const feeResult = await adjustFeesForDroppedEnrollments(
+      supabase, 
+      toRemoveIds,
+      currentUserId,
+      'Admin unit adjustment'
+    );
     if ('error' in feeResult) return { error: feeResult.error };
   }
 
   if (toRemoveCourseIds.length > 0) {
-    const { error: deleteError } = await supabase
+    // Mark enrollments as deregistered instead of deleting them
+    const { error: updateError } = await supabase
       .from('enrollments')
-      .delete()
+      .update({
+        status: 'deregistered',
+        deregistered_at: new Date().toISOString(),
+        deregistered_by: currentUserId,
+        deregistration_reason: 'Admin unit adjustment',
+      })
       .eq('student_id', studentId)
       .eq('term_id', termId)
       .in('course_id', toRemoveCourseIds);
-    if (deleteError) return { error: deleteError.message };
+    if (updateError) return { error: updateError.message };
   }
 
   if (toAdd.length > 0) {
-    // Remove stale dropped rows so UNIQUE(student_id, course_id, term_id) allows re-enrollment.
-    await supabase
+    // Check if any of the courses to add were previously deregistered
+    const { data: deregisteredEnrollments } = await supabase
       .from('enrollments')
-      .delete()
+      .select('id, course_id')
       .eq('student_id', studentId)
       .eq('term_id', termId)
       .in('course_id', toAdd)
-      .eq('status', 'dropped');
+      .eq('status', 'deregistered');
 
-    const { error: insertError } = await supabase.from('enrollments').insert(
-      toAdd.map((courseId) => ({
-        student_id: studentId,
-        term_id: termId,
-        course_id: courseId,
-        status: 'active' satisfies EnrollmentStatus,
-      }))
+    const reactivatedIds = new Set(
+      (deregisteredEnrollments ?? []).map((e) => e.course_id as string)
     );
-    if (insertError) return { error: insertError.message };
+    
+    // Reactivate deregistered enrollments instead of creating new ones
+    if (reactivatedIds.size > 0) {
+      const { error: reactivateError } = await supabase
+        .from('enrollments')
+        .update({
+          status: 'active',
+          deregistered_at: null,
+          deregistered_by: null,
+          deregistration_reason: null,
+        })
+        .eq('student_id', studentId)
+        .eq('term_id', termId)
+        .in('course_id', Array.from(reactivatedIds));
+      
+      if (reactivateError) return { error: reactivateError.message };
+    }
+
+    // Only insert new enrollments for courses that weren't previously deregistered
+    const trulyNew = toAdd.filter((id) => !reactivatedIds.has(id));
+    
+    if (trulyNew.length > 0) {
+      const { error: insertError } = await supabase.from('enrollments').insert(
+        trulyNew.map((courseId) => ({
+          student_id: studentId,
+          term_id: termId,
+          course_id: courseId,
+          status: 'active' satisfies EnrollmentStatus,
+        }))
+      );
+      if (insertError) return { error: insertError.message };
+    }
   }
 
   const unbilledEnrollments = await getUnbilledEnrollmentsForCourses(
@@ -329,10 +383,28 @@ export async function deleteEnrollment(id: string) {
     return { error: 'Cannot remove an enrollment that already has grades recorded.' };
   }
 
-  const feeResult = await adjustFeesForDroppedEnrollments(supabase, [id]);
+  // Get current user for deregistration tracking
+  const { data: { user } } = await (supabase.auth as any).getUser();
+  const currentUserId = user?.id;
+
+  const feeResult = await adjustFeesForDroppedEnrollments(
+    supabase, 
+    [id],
+    currentUserId,
+    'Admin enrollment removal'
+  );
   if ('error' in feeResult) return { error: feeResult.error };
 
-  const { error } = await supabase.from('enrollments').delete().eq('id', id);
+  // Mark as deregistered instead of deleting
+  const { error } = await supabase
+    .from('enrollments')
+    .update({
+      status: 'deregistered',
+      deregistered_at: new Date().toISOString(),
+      deregistered_by: currentUserId,
+      deregistration_reason: 'Admin enrollment removal',
+    })
+    .eq('id', id);
   if (error) return { error: error.message };
 
   revalidatePath('/dashboard/enrollments');

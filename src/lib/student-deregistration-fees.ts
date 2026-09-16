@@ -85,7 +85,9 @@ export async function recalculateFeePaymentAfterDeregistration(
 
 export async function adjustFeesForDroppedEnrollments(
   supabase: SupabaseClient,
-  enrollmentIds: string[]
+  enrollmentIds: string[],
+  deregisteredById?: string,
+  deregistrationReason?: string
 ): Promise<{ adjustedInvoiceIds: string[] } | { error: string }> {
   if (enrollmentIds.length === 0) return { adjustedInvoiceIds: [] };
 
@@ -111,6 +113,19 @@ export async function adjustFeesForDroppedEnrollments(
     if ('error' in result) return result;
   }
 
+  // Mark enrollments as deregistered instead of deleting them
+  const { error: updateError } = await supabase
+    .from('enrollments')
+    .update({
+      status: 'deregistered',
+      deregistered_at: new Date().toISOString(),
+      deregistered_by: deregisteredById || null,
+      deregistration_reason: deregistrationReason || null,
+    })
+    .in('id', enrollmentIds);
+
+  if (updateError) return { error: updateError.message };
+
   return { adjustedInvoiceIds: feePaymentIds };
 }
 
@@ -130,7 +145,9 @@ export async function rejectAllPendingSubmissionsForStudent(
 
 export async function deregisterStudentEnrollmentsAndFees(
   supabase: SupabaseClient,
-  studentId: string
+  studentId: string,
+  deregisteredById?: string,
+  deregistrationReason?: string
 ): Promise<
   | { success: true; droppedEnrollments: number; adjustedInvoiceIds: string[] }
   | { error: string }
@@ -149,13 +166,14 @@ export async function deregisterStudentEnrollmentsAndFees(
   let adjustedInvoiceIds: string[] = [];
 
   if (enrollmentIds.length > 0) {
-    const feeResult = await adjustFeesForDroppedEnrollments(supabase, enrollmentIds);
+    const feeResult = await adjustFeesForDroppedEnrollments(
+      supabase, 
+      enrollmentIds,
+      deregisteredById,
+      deregistrationReason
+    );
     if ('error' in feeResult) return feeResult;
     adjustedInvoiceIds = feeResult.adjustedInvoiceIds;
-
-    const { error: dropError } = await supabase.from('enrollments').delete().in('id', enrollmentIds);
-
-    if (dropError) return { error: dropError.message };
   }
 
   await rejectAllPendingSubmissionsForStudent(supabase, studentId);

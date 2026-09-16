@@ -29,6 +29,7 @@ import {
   Library,
   Video,
   ExternalLink,
+  Ban,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -53,6 +54,7 @@ const allNavItems: NavItem[] = [
   { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/courses', label: 'Courses', icon: BookOpen, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
+  { href: '/dashboard/deregistered-units', label: 'Deregistered Units', icon: Ban, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/timetable', label: 'Timetable', icon: Calendar, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },
   { href: '/dashboard/timetable/rooms', label: 'Rooms', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff'] as UserRole[] },
   { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[] },

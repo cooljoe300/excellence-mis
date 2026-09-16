@@ -169,6 +169,10 @@ export async function submitMyDeregistrationRequest(input: {
     }
   }
 
+  // Get current user ID for tracking
+  const { data: { user } } = await (supabase.auth as any).getUser();
+  const currentUserId = user?.id;
+
   const { error: insertError } = await supabase.from('student_deregistration_requests').insert({
     student_id: student.id,
     term_id: termId,
@@ -269,7 +273,9 @@ export async function approveDeregistrationRequest(requestId: string, reviewNote
   if (request.request_type === 'full_withdrawal') {
     const deregistration = await deregisterStudentEnrollmentsAndFees(
       supabase,
-      request.student_id as string
+      request.student_id as string,
+      user.id,
+      reviewNotes
     );
     if ('error' in deregistration) return { error: deregistration.error };
 
@@ -315,6 +321,30 @@ export async function approveDeregistrationRequest(requestId: string, reviewNote
       remaining
     );
     if (result.error) return { error: result.error };
+
+    // Mark the specific enrollments as deregistered with tracking
+    const { data: enrollmentsToDeregister } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('student_id', request.student_id as string)
+      .eq('term_id', termId)
+      .in('course_id', courseIds)
+      .in('status', ['active', 'pending']);
+
+    if (enrollmentsToDeregister && enrollmentsToDeregister.length > 0) {
+      const enrollmentIds = enrollmentsToDeregister.map((e) => e.id as string);
+      const { error: deregisterError } = await supabase
+        .from('enrollments')
+        .update({
+          status: 'deregistered',
+          deregistered_at: new Date().toISOString(),
+          deregistered_by: user.id,
+          deregistration_reason: reviewNotes || 'Admin approved deregistration request',
+        })
+        .in('id', enrollmentIds);
+      
+      if (deregisterError) return { error: deregisterError.message };
+    }
 
     if ((result.unitsRemoved ?? 0) < courseIds.length) {
       return {

@@ -54,6 +54,7 @@ export default async function StudentEnrollPage() {
         programName={data.programName}
         units={data.units}
         enrolledUnitIds={data.enrolledUnitIds}
+        deregisteredUnitIds={data.deregisteredUnitIds || []}
         termMissing={!data.termId}
       />
     </div>

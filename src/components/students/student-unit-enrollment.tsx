@@ -13,11 +13,13 @@ export function StudentUnitEnrollment({
   programName,
   units,
   enrolledUnitIds,
+  deregisteredUnitIds,
   termMissing,
 }: {
   programName: string | null;
   units: UnitOption[];
   enrolledUnitIds: string[];
+  deregisteredUnitIds: string[];
   termMissing?: boolean;
 }) {
   const router = useRouter();
@@ -149,58 +151,97 @@ export function StudentUnitEnrollment({
           ) : units.length === 0 ? (
             <p className="text-sm text-slate-600">No units are available for your program yet.</p>
           ) : (
-            <div className="space-y-1">
-              <p className="mb-3 text-xs text-slate-600">
-                Tick units to register. Each unit has its own fee. To remove a registered unit, submit a{' '}
-                <Link href="/student/deregister" className="font-medium text-blue-700 hover:underline">
-                  deregistration request
-                </Link>.
-              </p>
-              {units.map((unit) => {
-                const checked = selectedSet.has(unit.id);
-                const alreadyEnrolled = enrolledUnitIds.includes(unit.id);
-                return (
-                  <label
-                    key={unit.id}
-                    className={`flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 ${
-                      alreadyEnrolled
-                        ? 'cursor-default bg-slate-50'
-                        : 'cursor-pointer hover:border-blue-200 hover:bg-blue-50/30'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2 min-w-0">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-700 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
-                        checked={checked}
-                        disabled={alreadyEnrolled}
-                        onChange={(e) => toggleUnit(unit.id, e.target.checked)}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900 leading-tight">
-                          {unit.code}
-                          <span className="font-normal text-slate-500"> — {unit.name}</span>
-                        </p>
-                        <p className="text-[11px] text-slate-500">{unit.credits} credits</p>
-                        {alreadyEnrolled && (
-                          <p className="text-[11px] text-emerald-600">
-                            Registered —{' '}
-                            <Link
-                              href="/student/deregister"
-                              className="font-medium text-blue-700 hover:underline"
-                            >
-                              deregister
-                            </Link>
+            <div className="space-y-4">
+              <div>
+                <p className="mb-3 text-xs text-slate-600">
+                  Tick units to register. Each unit has its own fee. To remove a registered unit, submit a{' '}
+                  <Link href="/student/deregister" className="font-medium text-blue-700 hover:underline">
+                    deregistration request
+                  </Link>.
+                </p>
+                {units.map((unit) => {
+                  const checked = selectedSet.has(unit.id);
+                  const alreadyEnrolled = enrolledUnitIds.includes(unit.id);
+                  const isDeregistered = deregisteredUnitIds.includes(unit.id);
+                  
+                  // Skip deregistered units in the main list
+                  if (isDeregistered) return null;
+                  
+                  return (
+                    <label
+                      key={unit.id}
+                      className={`flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 ${
+                        alreadyEnrolled
+                          ? 'cursor-default bg-slate-50'
+                          : 'cursor-pointer hover:border-blue-200 hover:bg-blue-50/30'
+                      }`}
+                    >
+                      <div className="flex items-start gap-2 min-w-0">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-700 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-70"
+                          checked={checked}
+                          disabled={alreadyEnrolled}
+                          onChange={(e) => toggleUnit(unit.id, e.target.checked)}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-slate-900 leading-tight">
+                            {unit.code}
+                            <span className="font-normal text-slate-500"> — {unit.name}</span>
                           </p>
-                        )}
+                          <p className="text-[11px] text-slate-500">{unit.credits} credits</p>
+                          {alreadyEnrolled && (
+                            <p className="text-[11px] text-emerald-600">
+                              Registered —{' '}
+                              <Link
+                                href="/student/deregister"
+                                className="font-medium text-blue-700 hover:underline"
+                              >
+                                deregister
+                              </Link>
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <span className="shrink-0 text-xs font-semibold text-slate-900">
-                      {formatCurrency(unit.unit_fee ?? 0)}
-                    </span>
-                  </label>
-                );
-              })}
+                      <span className="shrink-0 text-xs font-semibold text-slate-900">
+                        {formatCurrency(unit.unit_fee ?? 0)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              
+              {/* Show deregistered units separately */}
+              {deregisteredUnitIds.length > 0 && (
+                <div className="border-t border-slate-200 pt-4">
+                  <p className="mb-3 text-xs font-medium text-slate-500">Previously Registered Units (Deregistered)</p>
+                  {units.map((unit) => {
+                    const isDeregistered = deregisteredUnitIds.includes(unit.id);
+                    if (!isDeregistered) return null;
+                    
+                    return (
+                      <div
+                        key={unit.id}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 opacity-75"
+                      >
+                        <div className="flex items-start gap-2 min-w-0">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-700 leading-tight">
+                              {unit.code}
+                              <span className="font-normal text-slate-500"> — {unit.name}</span>
+                            </p>
+                            <p className="text-[11px] text-slate-500">{unit.credits} credits</p>
+                            <p className="text-[11px] text-red-600">Deregistered</p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-xs font-semibold text-slate-500 line-through">
+                          {formatCurrency(unit.unit_fee ?? 0)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
