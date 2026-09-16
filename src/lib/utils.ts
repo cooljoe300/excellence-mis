@@ -143,6 +143,11 @@ export function getStatusColor(status: string): string {
     not_synced: 'bg-amber-100 text-amber-800',
     synced: 'bg-emerald-100 text-emerald-800',
     failed: 'bg-red-100 text-red-800',
+    // Audit log statuses
+    success: 'bg-emerald-100 text-emerald-800',
+    failure: 'bg-red-100 text-red-800',
+    danger: 'bg-red-100 text-red-800',
+    warning: 'bg-amber-100 text-amber-800',
   };
   return colors[status] ?? 'bg-slate-100 text-slate-600';
 }

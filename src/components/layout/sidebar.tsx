@@ -70,6 +70,7 @@ const allNavItems: NavItem[] = [
   { href: 'https://lms.excellenceonlinecollege.com', label: 'Open LMS', icon: ExternalLink, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'LMS & ONLINE LEARNING', external: true },
   // Admin navigation - ADMINISTRATION
   { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['superadmin', 'admin'] as UserRole[], section: 'ADMINISTRATION' },
+  { href: '/dashboard/audit-logs', label: 'Audit Logs', icon: FileText, roles: ['superadmin', 'admin'] as UserRole[], section: 'ADMINISTRATION' },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ADMINISTRATION' },
   // Admin navigation - legacy semesters (keeping for compatibility)
   { href: '/dashboard/semesters', label: 'Semesters', icon: CalendarDays, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
