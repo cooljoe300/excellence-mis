@@ -8,6 +8,7 @@ import {
   getUnbilledEnrollmentsForCourses,
 } from '@/lib/enrollment-fees';
 import { adjustFeesForDroppedEnrollments } from '@/lib/student-deregistration-fees';
+import { logAudit } from '@/lib/audit-logger';
 
 export async function getCurrentAcademicTermId(): Promise<string | null> {
   const supabase = await createClient();
@@ -92,6 +93,20 @@ export async function setStudentEnrollmentsForTerm(
   const supabase = await createClient();
   const normalized = Array.from(new Set(courseIds.filter(Boolean)));
 
+  // Get student and course information for audit logs
+  const { data: student } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, student_number')
+    .eq('id', studentId)
+    .single();
+
+  const { data: courses } = await supabase
+    .from('courses')
+    .select('id, code, name')
+    .in('id', normalized);
+
+  const courseMap = new Map((courses ?? []).map((c) => [c.id, c]));
+
   const { data: existing, error: existingError } = await supabase
     .from('enrollments')
     .select('id, course_id, grade, score')
@@ -119,7 +134,7 @@ export async function setStudentEnrollmentsForTerm(
 
   if (toRemoveIds.length > 0) {
     const feeResult = await adjustFeesForDroppedEnrollments(
-      supabase, 
+      supabase,
       toRemoveIds,
       currentUserId,
       'Admin unit adjustment'
@@ -141,6 +156,22 @@ export async function setStudentEnrollmentsForTerm(
       .eq('term_id', termId)
       .in('course_id', toRemoveCourseIds);
     if (updateError) return { error: updateError.message };
+
+    // Log deregistration
+    for (const courseId of toRemoveCourseIds) {
+      const course = courseMap.get(courseId);
+      if (course && student) {
+        await logAudit({
+          action: 'deregister',
+          module: 'enrollments',
+          entityType: 'enrollment',
+          entityName: `${student.first_name} ${student.last_name} - ${course.code}: ${course.name}`,
+          details: `Unit deregistered by admin: ${course.code} - ${course.name}`,
+          previousValue: { status: 'active' },
+          newValue: { status: 'deregistered' },
+        });
+      }
+    }
   }
 
   if (toAdd.length > 0) {
@@ -156,7 +187,7 @@ export async function setStudentEnrollmentsForTerm(
     const reactivatedIds = new Set(
       (deregisteredEnrollments ?? []).map((e) => e.course_id as string)
     );
-    
+
     // Reactivate deregistered enrollments instead of creating new ones
     if (reactivatedIds.size > 0) {
       const { error: reactivateError } = await supabase
@@ -170,13 +201,29 @@ export async function setStudentEnrollmentsForTerm(
         .eq('student_id', studentId)
         .eq('term_id', termId)
         .in('course_id', Array.from(reactivatedIds));
-      
+
       if (reactivateError) return { error: reactivateError.message };
+
+      // Log reactivation
+      for (const courseId of Array.from(reactivatedIds)) {
+        const course = courseMap.get(courseId);
+        if (course && student) {
+          await logAudit({
+            action: 'reactivate',
+            module: 'enrollments',
+            entityType: 'enrollment',
+            entityName: `${student.first_name} ${student.last_name} - ${course.code}: ${course.name}`,
+            details: `Unit reactivated: ${course.code} - ${course.name}`,
+            previousValue: { status: 'deregistered' },
+            newValue: { status: 'active' },
+          });
+        }
+      }
     }
 
     // Only insert new enrollments for courses that weren't previously deregistered
     const trulyNew = toAdd.filter((id) => !reactivatedIds.has(id));
-    
+
     if (trulyNew.length > 0) {
       const { error: insertError } = await supabase.from('enrollments').insert(
         trulyNew.map((courseId) => ({
@@ -187,6 +234,21 @@ export async function setStudentEnrollmentsForTerm(
         }))
       );
       if (insertError) return { error: insertError.message };
+
+      // Log new enrollments
+      for (const courseId of trulyNew) {
+        const course = courseMap.get(courseId);
+        if (course && student) {
+          await logAudit({
+            action: 'create',
+            module: 'enrollments',
+            entityType: 'enrollment',
+            entityName: `${student.first_name} ${student.last_name} - ${course.code}: ${course.name}`,
+            details: `Unit registered: ${course.code} - ${course.name}`,
+            newValue: { status: 'active' },
+          });
+        }
+      }
     }
   }
 

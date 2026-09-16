@@ -7,6 +7,7 @@ import { logWhatsAppNotification, getWhatsAppService } from '@/app/actions/whats
 import { getSystemSettings } from '@/app/actions/system-settings';
 import { whatsappService } from '@/lib/whatsapp-service';
 import { syncPendingApprovalNotifications } from '@/app/actions/notifications';
+import { logAudit } from '@/lib/audit-logger';
 
 export async function getFeePayments() {
   const supabase = await createClient();
@@ -78,6 +79,14 @@ export async function createFeePayment(formData: FormData) {
   const supabase = await createClient();
   const amount = parseFloat(formData.get('amount') as string);
   const amountPaid = parseFloat(formData.get('amount_paid') as string) || 0;
+  const studentId = formData.get('student_id') as string;
+
+  // Get student information for audit log
+  const { data: student } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, student_number')
+    .eq('id', studentId)
+    .single();
 
   let status: PaymentStatus = 'pending';
   if (amountPaid >= amount) status = 'paid';
@@ -85,8 +94,8 @@ export async function createFeePayment(formData: FormData) {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const { error } = await supabase.from('fee_payments').insert({
-    student_id: formData.get('student_id') as string,
+  const { data, error } = await supabase.from('fee_payments').insert({
+    student_id: studentId,
     term_id: (formData.get('term_id') as string) || null,
     amount,
     amount_paid: amountPaid,
@@ -98,11 +107,25 @@ export async function createFeePayment(formData: FormData) {
     payment_method: (formData.get('payment_method') as string) || null,
     reference_number: (formData.get('reference_number') as string) || null,
     description: (formData.get('description') as string) || null,
-  });
+  }).select('id').single();
+
   if (error) return { error: error.message };
+
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
+
+  // Log audit action
+  await logAudit({
+    action: 'create',
+    module: 'fees',
+    entityType: 'fee_payment',
+    entityId: data.id,
+    entityName: student ? `${student.first_name} ${student.last_name} - ${amount}` : `Unknown student - ${amount}`,
+    details: `Fee payment created: ${amount} (Paid: ${amountPaid}, Status: ${status})`,
+    newValue: { amount, amount_paid: amountPaid, status },
+  });
+
   return { success: true };
 }
 
@@ -110,6 +133,13 @@ export async function updateFeePayment(id: string, formData: FormData) {
   const supabase = await createClient();
   const amount = parseFloat(formData.get('amount') as string);
   const amountPaid = parseFloat(formData.get('amount_paid') as string) || 0;
+
+  // Get existing fee payment for audit log
+  const { data: existing } = await supabase
+    .from('fee_payments')
+    .select('*, student:students(first_name, last_name, student_number)')
+    .eq('id', id)
+    .single();
 
   let status: PaymentStatus = (formData.get('status') as PaymentStatus) || 'pending';
   if (amountPaid >= amount) status = 'paid';
@@ -130,9 +160,23 @@ export async function updateFeePayment(id: string, formData: FormData) {
     })
     .eq('id', id);
   if (error) return { error: error.message };
+
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
+
+  // Log audit action
+  await logAudit({
+    action: 'update',
+    module: 'fees',
+    entityType: 'fee_payment',
+    entityId: id,
+    entityName: existing?.student ? `${existing.student.first_name} ${existing.student.last_name} - ${amount}` : `Unknown student - ${amount}`,
+    details: `Fee payment updated: ${existing?.amount} → ${amount}, Paid: ${existing?.amount_paid} → ${amountPaid}, Status: ${existing?.status} → ${status}`,
+    previousValue: existing ? { amount: existing.amount, amount_paid: existing.amount_paid, status: existing.status } : null,
+    newValue: { amount, amount_paid: amountPaid, status },
+  });
+
   return { success: true };
 }
 

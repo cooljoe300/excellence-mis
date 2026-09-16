@@ -3,6 +3,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
+// Revalidate audit logs page after any audit action
+export async function revalidateAuditLogs() {
+  revalidatePath('/dashboard/audit-logs');
+}
+
 export interface AuditLog {
   id: string;
   user_id: string | null;

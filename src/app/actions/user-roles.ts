@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { UserRole } from '@/lib/types';
+import { logAudit } from '@/lib/audit-logger';
 
 const VALID_ROLES: UserRole[] = ['superadmin', 'admin', 'staff', 'teacher', 'student'];
 
@@ -16,19 +17,16 @@ interface RoleChangeLog {
 }
 
 async function logRoleChange(data: RoleChangeLog) {
-  const supabase = await createClient();
-  const { error } = await supabase.from('audit_logs').insert({
-    action: 'role_change',
-    entity_type: 'user',
-    entity_id: data.userId,
-    previous_value: data.previousRole,
-    new_value: data.newRole,
-    performed_by: data.changedBy,
-    reason: data.reason,
-    created_at: new Date().toISOString(),
+  // Use the centralized audit logger
+  await logAudit({
+    action: 'change_role',
+    module: 'users',
+    entityType: 'user',
+    entityId: data.userId,
+    details: `Role changed from ${data.previousRole} to ${data.newRole}${data.reason ? ': ' + data.reason : ''}`,
+    previousValue: { role: data.previousRole },
+    newValue: { role: data.newRole },
   });
-  
-  if (error) throw error;
 }
 
 function isValidRole(value: string): value is UserRole {

@@ -9,6 +9,7 @@ import {
 } from '@/lib/student-deregistration-fees';
 import type { StudentStatus } from '@/lib/types';
 import { uploadStudentPassportPhoto } from '@/lib/student-photo';
+import { logAudit } from '@/lib/audit-logger';
 
 function generateTemporaryPassword(length = 12): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -235,6 +236,25 @@ export async function createStudent(formData: FormData) {
   revalidatePath('/dashboard/students');
   revalidatePath(`/dashboard/students/${data.id}`);
   revalidatePath(`/dashboard/students/${data.id}/id-card`);
+
+  // Log audit action
+  await logAudit({
+    action: 'create',
+    module: 'students',
+    entityType: 'student',
+    entityId: data.id as string,
+    entityName: `${firstName} ${lastName} (${data.admission_number ?? data.student_number})`,
+    details: `Created student with email: ${email}, program: ${programId}`,
+    newValue: {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      phone,
+      program_id: programId,
+      status: (formData.get('status') as StudentStatus) || 'active',
+    },
+  });
+
   return {
     success: true,
     id: data.id,
@@ -305,6 +325,7 @@ export async function updateStudent(id: string, formData: FormData) {
     .update(updateData)
     .eq('id', id);
   if (error) return { error: error.message };
+
   revalidatePath('/dashboard/students');
   revalidatePath(`/dashboard/students/${id}`);
   revalidatePath(`/dashboard/students/${id}/fees`);
@@ -313,11 +334,33 @@ export async function updateStudent(id: string, formData: FormData) {
   revalidatePath('/student/fees');
   revalidatePath('/student');
   revalidatePath('/student/id-card');
+
+  // Log audit action
+  await logAudit({
+    action: 'update',
+    module: 'students',
+    entityType: 'student',
+    entityId: id,
+    entityName: `${updateData.first_name} ${updateData.last_name}`,
+    previousValue: { status: existing.status },
+    newValue: { status: newStatus },
+    details: newStatus !== existing.status ? `Status changed from ${existing.status} to ${newStatus}` : 'Student details updated',
+  });
+
   return { success: true };
 }
 
 export async function deleteStudent(id: string) {
   const supabase = await createClient();
+
+  // Get student details before deletion for audit log
+  const { data: student, error: studentError } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, student_number, admission_number')
+    .eq('id', id)
+    .single();
+
+  if (studentError) return { error: studentError.message };
 
   const { data: paidFees, error: paidFeesError } = await supabase
     .from('fee_payments')
@@ -351,8 +394,21 @@ export async function deleteStudent(id: string) {
 
   const { error } = await supabase.from('students').delete().eq('id', id);
   if (error) return { error: error.message };
+
   revalidatePath('/dashboard/students');
   revalidatePath('/dashboard/fees');
+
+  // Log audit action
+  await logAudit({
+    action: 'delete',
+    module: 'students',
+    entityType: 'student',
+    entityId: id,
+    entityName: `${student.first_name} ${student.last_name} (${student.admission_number ?? student.student_number})`,
+    details: 'Student deleted',
+    previousValue: student,
+  });
+
   return { success: true };
 }
 

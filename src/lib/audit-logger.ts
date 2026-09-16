@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { logAuditAction } from '@/app/actions/audit-logs';
+import { logAuditAction, revalidateAuditLogs } from '@/app/actions/audit-logs';
 
 /**
  * Helper function to log audit actions from server components and actions
@@ -48,6 +48,9 @@ export async function logAudit(params: {
       userAgent,
       ...params,
     });
+
+    // Revalidate audit logs page to show new entries
+    await revalidateAuditLogs();
   } catch (error) {
     console.error('Failed to log audit action:', error);
     // Don't throw - audit logging should not break the main flow
