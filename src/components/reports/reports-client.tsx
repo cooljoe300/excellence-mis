@@ -107,13 +107,20 @@ function exportTableCsv(key: ReportKey, table: ReturnType<typeof buildReportTabl
   ]);
 }
 
-export function ReportsClient({ data }: { data: ReportsBundle }) {
+export function ReportsClient({ data, initialReport, initialCategory }: { data: ReportsBundle; initialReport?: string; initialCategory?: string }) {
   const router = useRouter();
-  const [reportKey, setReportKey] = useState<ReportKey>('student-register');
+  const [reportKey, setReportKey] = useState<ReportKey>((initialReport as ReportKey) || 'student-register');
   const [draftFilters, setDraftFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [catalogQuery, setCatalogQuery] = useState('');
   const [viewingId, setViewingId] = useState<string | null>(null);
+
+  // Update report key when initialReport changes
+  useEffect(() => {
+    if (initialReport) {
+      setReportKey(initialReport as ReportKey);
+    }
+  }, [initialReport]);
 
   const table = useMemo(() => buildReportTable(reportKey, data, filters), [reportKey, data, filters]);
   const viewingStudent = data.students.find((student) => student.id === viewingId) ?? null;

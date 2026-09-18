@@ -30,6 +30,9 @@ import {
   Video,
   ExternalLink,
   Ban,
+  DollarSign,
+  Building2,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -44,6 +47,8 @@ interface NavItem {
   roles: UserRole[];
   section?: string | null;
   external?: boolean;
+  children?: NavItem[];
+  isParent?: boolean;
 }
 
 const allNavItems: NavItem[] = [
@@ -62,8 +67,96 @@ const allNavItems: NavItem[] = [
   { href: '/dashboard/attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'TIMETABLE & ATTENDANCE' },
   // Admin navigation - FINANCE
   { href: '/dashboard/fees', label: 'Fees', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'FINANCE' },
-  // Admin navigation - REPORTING
-  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'REPORTING' },
+  // Admin navigation - REPORTING (with submenus)
+  { 
+    href: '/dashboard/reports', 
+    label: 'Reports', 
+    icon: BarChart3, 
+    roles: ['superadmin', 'admin', 'staff'] as UserRole[], 
+    section: 'REPORTING',
+    isParent: true,
+    children: [
+      // Student Reports
+      {
+        href: '/dashboard/reports?category=student-reports',
+        label: 'Student Reports',
+        icon: Users,
+        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
+        section: null,
+        isParent: true,
+        children: [
+          { href: '/dashboard/reports?report=student-register', label: 'All Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=active-students', label: 'Active Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=inactive-students', label: 'Inactive Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=new-admissions', label: 'New Admissions', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=students-by-program', label: 'Students by Programme', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=students-by-intake', label: 'Students by Intake', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=students-by-status', label: 'Student Status', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=student-contact-list', label: 'Student Contact List', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=incomplete-profiles', label: 'Incomplete Profiles', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+        ]
+      },
+      // Academic Reports
+      {
+        href: '/dashboard/reports?category=academic-reports',
+        label: 'Academic Reports',
+        icon: BookOpen,
+        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
+        section: null,
+        isParent: true,
+        children: [
+          { href: '/dashboard/reports?report=enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=program-enrollment', label: 'Programme Enrollment', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=unit-enrollments', label: 'Unit / Subject Enrollment', icon: BookOpen, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=student-academic-records', label: 'Student Academic Records', icon: Award, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+        ]
+      },
+      // Finance Reports
+      {
+        href: '/dashboard/reports?category=finance-reports',
+        label: 'Finance Reports',
+        icon: DollarSign,
+        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
+        section: null,
+        isParent: true,
+        children: [
+          { href: '/dashboard/reports?report=fee-summary', label: 'Fee Payments', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=fee-ledger', label: 'Payment History', icon: FileText, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=outstanding-fees', label: 'Outstanding Fees', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=fully-paid-students', label: 'Fully Paid Students', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=students-with-balances', label: 'Students with Balances', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=zero-payment-students', label: 'Zero Payment', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=partially-paid-students', label: 'Partially Paid', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=collection-by-date', label: 'Collection by Date', icon: Calendar, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=collection-by-program', label: 'Collection by Programme', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=collection-by-method', label: 'Collection by Method', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+        ]
+      },
+      // Administrative Reports
+      {
+        href: '/dashboard/reports?category=administrative-reports',
+        label: 'Administrative Reports',
+        icon: Building2,
+        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
+        section: null,
+        isParent: true,
+        children: [
+          { href: '/dashboard/reports?report=executive-summary', label: 'Executive Summary', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=admission-statistics', label: 'Admission Statistics', icon: TrendingUp, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=intake-statistics', label: 'Intake Statistics', icon: Inbox, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=programs', label: 'Programme Statistics', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=courses', label: 'Unit Register', icon: BookOpen, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=graduated-students', label: 'Graduated Students', icon: Award, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=withdrawn-students', label: 'Withdrawn Students', icon: UserMinus, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=data-quality-students-without-programs', label: 'Students Without Programmes', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=data-quality-students-without-intake', label: 'Students Without Intake', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=data-quality-students-without-phone', label: 'Students Without Phone', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+          { href: '/dashboard/reports?report=data-quality-students-without-email', label: 'Students Without Email', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+        ]
+      },
+    ]
+  },
   // Admin navigation - LMS & ONLINE LEARNING
   { href: '/dashboard/lms/programmes', label: 'LMS Programmes', icon: Library, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'LMS & ONLINE LEARNING' },
   { href: '/dashboard/lms/online-classes', label: 'Online Classes', icon: Video, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'LMS & ONLINE LEARNING' },
@@ -113,6 +206,9 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
       ? new Set(['GENERAL', 'ACADEMICS', 'TIMETABLE & ATTENDANCE', 'FINANCE', 'REPORTING', 'LMS & ONLINE LEARNING', 'ADMINISTRATION'])
       : new Set(['Personal', 'Academic', 'Finance', 'Services'])
   );
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(
+    new Set(['Reports']) // Reports is expanded by default
+  );
 
   const portalLabel =
     userRole === 'admin'
@@ -141,6 +237,18 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
         next.delete(section);
       } else {
         next.add(section);
+      }
+      return next;
+    });
+  }
+
+  function toggleParent(label: string) {
+    setExpandedParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
       }
       return next;
     });
@@ -203,6 +311,130 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                 );
               }
               
+              // Handle parent menu items (like Reports)
+              if (item.isParent && item.children) {
+                const isParentExpanded = expandedParents.has(item.label);
+                const hasActiveChild = item.children.some(
+                  (child) =>
+                    pathname === child.href ||
+                    (child.href !== '/dashboard' && pathname.startsWith(child.href))
+                );
+                
+                return (
+                  <div key={item.href}>
+                    <button
+                      type="button"
+                      onClick={() => toggleParent(item.label)}
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                        hasActiveChild
+                          ? 'bg-accent text-white shadow-sm'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        {item.label}
+                      </div>
+                      {isParentExpanded ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </button>
+                    {isParentExpanded && (
+                      <div className="mt-1 space-y-0.5 pl-4">
+                        {item.children.map((child) => {
+                          const isChildActive =
+                            pathname === child.href ||
+                            (child.href !== '/dashboard' && pathname.startsWith(child.href));
+                          
+                          // Handle nested submenus
+                          if (child.isParent && child.children) {
+                            const isChildParentExpanded = expandedParents.has(child.label);
+                            const hasActiveGrandchild = child.children.some(
+                              (grandchild) =>
+                                pathname === grandchild.href ||
+                                (grandchild.href !== '/dashboard' && pathname.startsWith(grandchild.href))
+                            );
+                            
+                            return (
+                              <div key={child.href}>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleParent(child.label)}
+                                  className={cn(
+                                    'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                                    hasActiveGrandchild
+                                      ? 'bg-accent/50 text-white'
+                                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                  )}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <child.icon className="h-4 w-4 shrink-0" />
+                                    {child.label}
+                                  </div>
+                                  {isChildParentExpanded ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </button>
+                                {isChildParentExpanded && (
+                                  <div className="mt-1 space-y-0.5 pl-4">
+                                    {child.children.map((grandchild) => {
+                                      const isGrandchildActive =
+                                        pathname === grandchild.href ||
+                                        (grandchild.href !== '/dashboard' && pathname.startsWith(grandchild.href));
+                                      const GrandchildIcon = grandchild.icon;
+                                      
+                                      return (
+                                        <Link
+                                          key={grandchild.href}
+                                          href={grandchild.href}
+                                          onClick={handleNavClick}
+                                          className={cn(
+                                            'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                                            isGrandchildActive
+                                              ? 'bg-accent text-white shadow-sm'
+                                              : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                          )}
+                                        >
+                                          <GrandchildIcon className="h-4 w-4 shrink-0" />
+                                          {grandchild.label}
+                                        </Link>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+                          
+                          const ChildIcon = child.icon;
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={handleNavClick}
+                              className={cn(
+                                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                                isChildActive
+                                  ? 'bg-accent text-white shadow-sm'
+                                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                              )}
+                            >
+                              <ChildIcon className="h-4 w-4 shrink-0" />
+                              {child.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              
               return (
                 <Link
                   key={item.href}
@@ -226,7 +458,17 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
           const hasActiveItem = items.some(
             (item) =>
               pathname === item.href ||
-              (item.href !== '/dashboard' && pathname.startsWith(item.href))
+              (item.href !== '/dashboard' && pathname.startsWith(item.href)) ||
+              (item.children && item.children.some(
+                (child) =>
+                  pathname === child.href ||
+                  (child.href !== '/dashboard' && pathname.startsWith(child.href)) ||
+                  (child.children && child.children.some(
+                    (grandchild) =>
+                      pathname === grandchild.href ||
+                      (grandchild.href !== '/dashboard' && pathname.startsWith(grandchild.href))
+                  ))
+              ))
           );
 
           return (
@@ -256,6 +498,73 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                       (item.href !== '/dashboard' && pathname.startsWith(item.href));
                     const Icon = item.icon;
                     const isExternal = item.external;
+                    
+                    // Handle parent items within sections
+                    if (item.isParent && item.children) {
+                      const isParentExpanded = expandedParents.has(item.label);
+                      const hasActiveChild = item.children.some(
+                        (child) =>
+                          pathname === child.href ||
+                          (child.href !== '/dashboard' && pathname.startsWith(child.href)) ||
+                          (child.children && child.children.some(
+                            (grandchild) =>
+                              pathname === grandchild.href ||
+                              (grandchild.href !== '/dashboard' && pathname.startsWith(grandchild.href))
+                          ))
+                      );
+                      
+                      return (
+                        <div key={item.href}>
+                          <button
+                            type="button"
+                            onClick={() => toggleParent(item.label)}
+                            className={cn(
+                              'flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
+                              hasActiveChild
+                                ? 'bg-accent/50 text-white'
+                                : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <Icon className="h-4 w-4 shrink-0" />
+                              {item.label}
+                            </div>
+                            {isParentExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                          </button>
+                          {isParentExpanded && (
+                            <div className="mt-1 space-y-0.5 pl-4">
+                              {item.children.map((child) => {
+                                const isChildActive =
+                                  pathname === child.href ||
+                                  (child.href !== '/dashboard' && pathname.startsWith(child.href));
+                                const ChildIcon = child.icon;
+                                
+                                return (
+                                  <Link
+                                    key={child.href}
+                                    href={child.href}
+                                    onClick={handleNavClick}
+                                    className={cn(
+                                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
+                                      isChildActive
+                                        ? 'bg-accent text-white shadow-sm'
+                                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                                    )}
+                                  >
+                                    <ChildIcon className="h-4 w-4 shrink-0" />
+                                    {child.label}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
                     
                     if (isExternal) {
                       return (

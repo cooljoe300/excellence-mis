@@ -4,7 +4,15 @@ import { ReportsClient } from '@/components/reports/reports-client';
 import { ReportsRefreshButton } from '@/components/reports/reports-refresh-button';
 import { getReportsBundle } from '@/app/actions/reports';
 
-export default async function ReportsPage() {
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const report = typeof params.report === 'string' ? params.report : undefined;
+  const category = typeof params.category === 'string' ? params.category : undefined;
+
   try {
     const data = await getReportsBundle();
 
@@ -16,7 +24,7 @@ export default async function ReportsPage() {
             description="Generate, view, filter and export Excellence Online College reports."
           />
         </div>
-        <ReportsClient data={data} />
+        <ReportsClient data={data} initialReport={report} initialCategory={category} />
       </div>
     );
   } catch {
