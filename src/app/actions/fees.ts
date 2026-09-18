@@ -192,6 +192,14 @@ export async function deleteFeePayment(id: string) {
 
 export async function approveFeePaymentSubmission(submissionId: string) {
   const supabase = await createClient();
+  
+  // Get submission details before approval for audit log
+  const { data: submissionBefore } = await supabase
+    .from('fee_payment_submissions')
+    .select('*, student:students(*), fee_payment:fee_payments(*)')
+    .eq('id', submissionId)
+    .single();
+
   const { data, error } = await supabase.rpc('approve_fee_payment_submission', {
     p_submission_id: submissionId,
   });
@@ -216,6 +224,21 @@ export async function approveFeePaymentSubmission(submissionId: string) {
 
   if (result?.error) return { error: result.error };
   if (!result?.success) return { error: 'Payment could not be approved.' };
+
+  // Log approval action
+  if (submissionBefore && submissionBefore.student) {
+    await logAudit({
+      action: 'approve',
+      module: 'fees',
+      entityType: 'fee_payment_submission',
+      entityId: submissionId,
+      entityName: `${submissionBefore.student.first_name} ${submissionBefore.student.last_name} - ${submissionBefore.amount}`,
+      details: `Payment approved: ${submissionBefore.amount} via ${submissionBefore.payment_method}, Reference: ${submissionBefore.reference_number}`,
+      previousValue: { status: 'pending' },
+      newValue: { status: 'approved', amount_paid: result.amount_paid, balance: result.balance, receipt_number: result.receipt_number },
+      actorType: 'ADMIN',
+    });
+  }
 
   // Send WhatsApp notification to student about approved payment
   let whatsappNotified = false;
@@ -341,6 +364,21 @@ export async function rejectFeePaymentSubmission(submissionId: string, rejection
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Log rejection action
+  if (submission && submission.student) {
+    await logAudit({
+      action: 'reject',
+      module: 'fees',
+      entityType: 'fee_payment_submission',
+      entityId: submissionId,
+      entityName: `${submission.student.first_name} ${submission.student.last_name} - ${submission.amount}`,
+      details: `Payment rejected: ${submission.amount} via ${submission.payment_method}, Reference: ${submission.reference_number}, Reason: ${rejectionReason}`,
+      previousValue: { status: 'pending' },
+      newValue: { status: 'rejected', rejection_reason: rejectionReason },
+      actorType: 'ADMIN',
+    });
   }
 
   // Send WhatsApp notification to student about rejected payment
@@ -575,6 +613,13 @@ export async function applyFeeDiscount(
 ) {
   const supabase = await createClient();
   
+  // Get fee payment details before applying discount
+  const { data: feePaymentBefore } = await supabase
+    .from('fee_payments')
+    .select('*, student:students(*)')
+    .eq('id', feePaymentId)
+    .single();
+
   const { data, error } = await supabase.rpc('apply_fee_discount', {
     p_fee_payment_id: feePaymentId,
     p_discount_type: discountType,
@@ -601,6 +646,21 @@ export async function applyFeeDiscount(
   if (result?.error) return { error: result.error };
   if (!result?.success) return { error: 'Failed to apply discount' };
 
+  // Log discount application
+  if (feePaymentBefore && feePaymentBefore.student) {
+    await logAudit({
+      action: 'apply_discount',
+      module: 'fees',
+      entityType: 'fee_payment',
+      entityId: feePaymentId,
+      entityName: `${feePaymentBefore.student.first_name} ${feePaymentBefore.student.last_name}`,
+      details: `Fee discount applied: ${discountType === 'percentage' ? `${discountPercentage}%` : `${discountAmount}`} off, Reason: ${reason}`,
+      previousValue: { amount: result.original_amount, discount_amount: null },
+      newValue: { amount: result.adjusted_amount, discount_amount: result.discount_amount, balance: result.balance },
+      actorType: 'ADMIN',
+    });
+  }
+
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');
   revalidatePath('/student');
@@ -620,6 +680,13 @@ export async function applyFeeDiscount(
 export async function removeFeeDiscount(feePaymentId: string) {
   const supabase = await createClient();
   
+  // Get fee payment details before removing discount
+  const { data: feePaymentBefore } = await supabase
+    .from('fee_payments')
+    .select('*, student:students(*)')
+    .eq('id', feePaymentId)
+    .single();
+
   const { data, error } = await supabase.rpc('remove_fee_discount', {
     p_fee_payment_id: feePaymentId,
   });
@@ -641,6 +708,21 @@ export async function removeFeeDiscount(feePaymentId: string) {
 
   if (result?.error) return { error: result.error };
   if (!result?.success) return { error: 'Failed to remove discount' };
+
+  // Log discount removal
+  if (feePaymentBefore && feePaymentBefore.student) {
+    await logAudit({
+      action: 'remove_discount',
+      module: 'fees',
+      entityType: 'fee_payment',
+      entityId: feePaymentId,
+      entityName: `${feePaymentBefore.student.first_name} ${feePaymentBefore.student.last_name}`,
+      details: `Fee discount removed: ${result.discount_amount} discount removed`,
+      previousValue: { amount: result.adjusted_amount, discount_amount: result.discount_amount },
+      newValue: { amount: result.original_amount, discount_amount: null, balance: result.balance },
+      actorType: 'ADMIN',
+    });
+  }
 
   revalidatePath('/dashboard/fees');
   revalidatePath('/student/fees');

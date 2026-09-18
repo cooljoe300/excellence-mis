@@ -231,6 +231,20 @@ export async function cancelMyDeregistrationRequest(requestId: string) {
 
   revalidatePath('/student/deregister');
   revalidatePath('/dashboard/enrollments');
+
+  // Log deregistration request cancellation
+  await logAudit({
+    action: 'cancel',
+    module: 'enrollments',
+    entityType: 'deregistration_request',
+    entityId: requestId,
+    entityName: `Deregistration request for student ${student.id}`,
+    details: 'Student cancelled their deregistration request',
+    previousValue: { status: 'pending' },
+    newValue: { status: 'cancelled' },
+    actorType: 'STUDENT',
+  });
+
   return { success: true };
 }
 
@@ -379,6 +393,19 @@ export async function approveDeregistrationRequest(requestId: string, reviewNote
 
   if (updateError) return { error: updateError.message };
 
+  // Log deregistration approval
+  await logAudit({
+    action: 'approve',
+    module: 'enrollments',
+    entityType: 'deregistration_request',
+    entityId: requestId,
+    entityName: `Deregistration request for student ${request.student_id}`,
+    details: `Deregistration request approved: ${request.request_type === 'full_withdrawal' ? 'Full withdrawal' : 'Unit deregistration'}`,
+    previousValue: { status: 'pending', request_type: request.request_type },
+    newValue: { status: 'approved', review_notes: reviewNotes },
+    actorType: 'ADMIN',
+  });
+
   revalidatePath('/dashboard/enrollments');
   revalidatePath('/dashboard/students');
   revalidatePath('/dashboard/fees');
@@ -417,6 +444,19 @@ export async function rejectDeregistrationRequest(requestId: string, reviewNotes
 
   revalidatePath('/dashboard/enrollments');
   revalidatePath('/student/deregister');
+
+  // Log deregistration request rejection
+  await logAudit({
+    action: 'reject',
+    module: 'enrollments',
+    entityType: 'deregistration_request',
+    entityId: requestId,
+    entityName: `Deregistration request for student`,
+    details: `Deregistration request rejected: ${notes}`,
+    previousValue: { status: 'pending' },
+    newValue: { status: 'rejected', review_notes: notes },
+    actorType: 'ADMIN',
+  });
 
   return { success: true };
 }

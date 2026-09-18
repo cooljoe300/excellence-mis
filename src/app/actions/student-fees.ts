@@ -11,6 +11,7 @@ import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import { logWhatsAppNotification, getWhatsAppService } from '@/app/actions/whatsapp-notifications';
 import { getSystemSettings } from '@/app/actions/system-settings';
 import { whatsappService } from '@/lib/whatsapp-service';
+import { logAudit } from '@/lib/audit-logger';
 
 export async function getMyFeesPageData() {
   const student = await getMyStudentRecord();
@@ -105,6 +106,18 @@ export async function submitMyFeePayment(
 
   if (result?.error) return { error: result.error };
   if (!result?.success) return { error: 'Payment could not be recorded.' };
+
+  // Log payment submission for approval
+  await logAudit({
+    action: 'submit',
+    module: 'fees',
+    entityType: 'fee_payment_submission',
+    entityId: result.submission_id,
+    entityName: `${student.first_name} ${student.last_name} - ${amount}`,
+    details: `Student submitted fee payment for approval: ${amount} via ${paymentMethod}, Reference: ${referenceNumber}`,
+    newValue: { amount, payment_method: paymentMethod, reference_number: referenceNumber, status: 'pending' },
+    actorType: 'STUDENT',
+  });
 
   // Send WhatsApp notification to Finance about pending payment
   let whatsappNotified = false;
