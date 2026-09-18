@@ -122,7 +122,7 @@ export function StudentReportsDashboard({ data }: StudentReportsDashboardProps) 
   ];
 
   const navigateToReport = (reportKey: string) => {
-    router.push(`/dashboard/reports?report=${reportKey}`);
+    router.push(`/dashboard/reports?category=student-reports&report=${reportKey}`);
   };
 
   return (

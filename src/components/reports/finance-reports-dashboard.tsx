@@ -108,7 +108,7 @@ export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) 
   ];
 
   const navigateToReport = (reportKey: string) => {
-    router.push(`/dashboard/reports?report=${reportKey}`);
+    router.push(`/dashboard/reports?category=finance-reports&report=${reportKey}`);
   };
 
   return (

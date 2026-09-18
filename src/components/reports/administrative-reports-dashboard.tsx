@@ -132,7 +132,7 @@ export function AdministrativeReportsDashboard({ data }: AdministrativeReportsDa
   ];
 
   const navigateToReport = (reportKey: string) => {
-    router.push(`/dashboard/reports?report=${reportKey}`);
+    router.push(`/dashboard/reports?category=administrative-reports&report=${reportKey}`);
   };
 
   return (

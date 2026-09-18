@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { PrintDocumentButton } from '@/components/documents/print-document-button';
 import { ReportPrintDocument } from '@/components/reports/report-print-document';
 import { ReportFilterPanel } from '@/components/reports/report-filter-panel';
@@ -31,7 +30,6 @@ import {
   Download,
   FileText,
   RefreshCw,
-  Search,
   Users,
 } from 'lucide-react';
 
@@ -112,7 +110,6 @@ export function ReportsClient({ data, initialReport, initialCategory }: { data: 
   const [reportKey, setReportKey] = useState<ReportKey>((initialReport as ReportKey) || 'student-register');
   const [draftFilters, setDraftFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
-  const [catalogQuery, setCatalogQuery] = useState('');
   const [viewingId, setViewingId] = useState<string | null>(null);
 
   // Update report key when initialReport changes
@@ -125,6 +122,10 @@ export function ReportsClient({ data, initialReport, initialCategory }: { data: 
   const table = useMemo(() => buildReportTable(reportKey, data, filters), [reportKey, data, filters]);
   const viewingStudent = data.students.find((student) => student.id === viewingId) ?? null;
 
+  // Get category for the current report
+  const currentReport = REPORT_OPTIONS.find(opt => opt.key === reportKey);
+  const currentCategory = currentReport?.category;
+
   useEffect(() => {
     document.body.classList.add('print-reports');
     if (table.landscape) document.body.classList.add('print-reports-landscape');
@@ -134,17 +135,16 @@ export function ReportsClient({ data, initialReport, initialCategory }: { data: 
     };
   }, [table.landscape]);
 
-  const catalog = useMemo(() => {
-    const query = catalogQuery.trim().toLowerCase();
-    return REPORT_CATEGORIES.map((category) => ({
-      category,
-      reports: REPORT_OPTIONS.filter((option) => {
-        if (option.category !== category) return false;
-        if (!query) return true;
-        return `${option.label} ${option.description} ${option.category}`.toLowerCase().includes(query);
-      }),
-    })).filter((group) => group.reports.length > 0);
-  }, [catalogQuery]);
+  function goBackToCategory() {
+    if (initialCategory) {
+      router.push(`/dashboard/reports?category=${initialCategory}`);
+    } else if (currentCategory) {
+      const categorySlug = currentCategory.toLowerCase().replace(' ', '-');
+      router.push(`/dashboard/reports?category=${categorySlug}`);
+    } else {
+      router.push('/dashboard/reports');
+    }
+  }
 
   function applyFilters() {
     setFilters(draftFilters);
@@ -158,20 +158,18 @@ export function ReportsClient({ data, initialReport, initialCategory }: { data: 
   return (
     <div className="space-y-6">
       <div className="no-print flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative max-w-md flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="Search reports..."
-            value={catalogQuery}
-            onChange={(event) => setCatalogQuery(event.target.value)}
-            className="pl-10"
-          />
+        <div className="flex items-center gap-3">
+          {initialCategory && (
+            <Button type="button" variant="ghost" onClick={goBackToCategory}>
+              ← Back to {currentCategory || 'Reports'}
+            </Button>
+          )}
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">{table.title}</h2>
+            <p className="text-sm text-slate-500">{table.summary}</p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" onClick={() => document.getElementById('report-results')?.scrollIntoView({ behavior: 'smooth' })}>
-            <FileText className="h-4 w-4" />
-            Generate Report
-          </Button>
           <Button type="button" variant="secondary" onClick={() => exportTableCsv(reportKey, table)}>
             <Download className="h-4 w-4" />
             Export
@@ -182,66 +180,6 @@ export function ReportsClient({ data, initialReport, initialCategory }: { data: 
             Refresh
           </Button>
         </div>
-      </div>
-
-      <div className="no-print space-y-8">
-        {catalog.map((group) => {
-          const Icon = CATEGORY_ICONS[group.category];
-          return (
-            <section key={group.category}>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-600">
-                <Icon className="h-4 w-4 text-primary" />
-                {group.category}
-              </h2>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {group.reports.map((report) => {
-                  const selected = report.key === reportKey;
-                  return (
-                    <article
-                      key={report.key}
-                      className={`rounded-xl border bg-white p-4 shadow-sm transition ${
-                        selected ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <h3 className="font-semibold text-slate-900">{report.label}</h3>
-                          <p className="mt-1 text-sm text-slate-500">{report.description}</p>
-                        </div>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                          {reportCount(report.key, data, filters)}
-                        </span>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => {
-                            setReportKey(report.key);
-                            document.getElementById('report-results')?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                        >
-                          View Report
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => {
-                            setReportKey(report.key);
-                            exportTableCsv(report.key, buildReportTable(report.key, data, filters));
-                          }}
-                        >
-                          Export
-                        </Button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
       </div>
 
       <div id="report-results" className="space-y-4">
@@ -261,20 +199,6 @@ export function ReportsClient({ data, initialReport, initialCategory }: { data: 
             ))}
           </div>
         )}
-
-        <div className="no-print flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">{table.title}</h2>
-            <p className="text-sm text-slate-500">{table.summary}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="secondary" onClick={() => exportTableCsv(reportKey, table)}>
-              <Download className="h-4 w-4" />
-              Excel / CSV
-            </Button>
-            <PrintDocumentButton label="Print / PDF" documentTitle={table.title} className="hidden sm:inline-flex" />
-          </div>
-        </div>
 
         <div className="no-print">
           <ReportResultsTable key={`${reportKey}-${table.rows.length}-${table.summary}`} table={table} onViewStudent={setViewingId} onClearFilters={clearFilters} />

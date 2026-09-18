@@ -69,7 +69,7 @@ export function AcademicReportsDashboard({ data }: AcademicReportsDashboardProps
   ];
 
   const navigateToReport = (reportKey: string) => {
-    router.push(`/dashboard/reports?report=${reportKey}`);
+    router.push(`/dashboard/reports?category=academic-reports&report=${reportKey}`);
   };
 
   return (
