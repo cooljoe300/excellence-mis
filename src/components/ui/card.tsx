@@ -21,7 +21,7 @@ export function CardHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('border-b border-slate-100 px-6 py-4', className)} {...props}>
+    <div className={cn('px-6 py-4', className)} {...props}>
       {children}
     </div>
   );
@@ -36,6 +36,18 @@ export function CardTitle({
     <h3 className={cn('text-lg font-semibold text-slate-900', className)} {...props}>
       {children}
     </h3>
+  );
+}
+
+export function CardDescription({
+  className,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p className={cn('text-sm text-slate-600', className)} {...props}>
+      {children}
+    </p>
   );
 }
 

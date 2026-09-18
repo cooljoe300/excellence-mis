@@ -76,85 +76,10 @@ const allNavItems: NavItem[] = [
     section: 'REPORTING',
     isParent: true,
     children: [
-      // Student Reports
-      {
-        href: '/dashboard/reports?category=student-reports',
-        label: 'Student Reports',
-        icon: Users,
-        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
-        section: null,
-        isParent: true,
-        children: [
-          { href: '/dashboard/reports?report=student-register', label: 'All Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=active-students', label: 'Active Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=inactive-students', label: 'Inactive Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=new-admissions', label: 'New Admissions', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=students-by-program', label: 'Students by Programme', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=students-by-intake', label: 'Students by Intake', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=students-by-status', label: 'Student Status', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=student-contact-list', label: 'Student Contact List', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=incomplete-profiles', label: 'Incomplete Profiles', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-        ]
-      },
-      // Academic Reports
-      {
-        href: '/dashboard/reports?category=academic-reports',
-        label: 'Academic Reports',
-        icon: BookOpen,
-        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
-        section: null,
-        isParent: true,
-        children: [
-          { href: '/dashboard/reports?report=enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=program-enrollment', label: 'Programme Enrollment', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=unit-enrollments', label: 'Unit / Subject Enrollment', icon: BookOpen, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=student-academic-records', label: 'Student Academic Records', icon: Award, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=attendance', label: 'Attendance', icon: CalendarCheck, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-        ]
-      },
-      // Finance Reports
-      {
-        href: '/dashboard/reports?category=finance-reports',
-        label: 'Finance Reports',
-        icon: DollarSign,
-        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
-        section: null,
-        isParent: true,
-        children: [
-          { href: '/dashboard/reports?report=fee-summary', label: 'Fee Payments', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=fee-ledger', label: 'Payment History', icon: FileText, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=outstanding-fees', label: 'Outstanding Fees', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=fully-paid-students', label: 'Fully Paid Students', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=students-with-balances', label: 'Students with Balances', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=zero-payment-students', label: 'Zero Payment', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=partially-paid-students', label: 'Partially Paid', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=collection-by-date', label: 'Collection by Date', icon: Calendar, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=collection-by-program', label: 'Collection by Programme', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=collection-by-method', label: 'Collection by Method', icon: CreditCard, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-        ]
-      },
-      // Administrative Reports
-      {
-        href: '/dashboard/reports?category=administrative-reports',
-        label: 'Administrative Reports',
-        icon: Building2,
-        roles: ['superadmin', 'admin', 'staff'] as UserRole[],
-        section: null,
-        isParent: true,
-        children: [
-          { href: '/dashboard/reports?report=executive-summary', label: 'Executive Summary', icon: BarChart3, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=admission-statistics', label: 'Admission Statistics', icon: TrendingUp, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=intake-statistics', label: 'Intake Statistics', icon: Inbox, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=programs', label: 'Programme Statistics', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=courses', label: 'Unit Register', icon: BookOpen, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=graduated-students', label: 'Graduated Students', icon: Award, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=withdrawn-students', label: 'Withdrawn Students', icon: UserMinus, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=data-quality-students-without-programs', label: 'Students Without Programmes', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=data-quality-students-without-intake', label: 'Students Without Intake', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=data-quality-students-without-phone', label: 'Students Without Phone', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-          { href: '/dashboard/reports?report=data-quality-students-without-email', label: 'Students Without Email', icon: Shield, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
-        ]
-      },
+      { href: '/dashboard/reports?category=student-reports', label: 'Student Reports', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+      { href: '/dashboard/reports?category=academic-reports', label: 'Academic Reports', icon: BookOpen, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+      { href: '/dashboard/reports?category=finance-reports', label: 'Finance Reports', icon: DollarSign, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+      { href: '/dashboard/reports?category=administrative-reports', label: 'Administrative Reports', icon: Building2, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
     ]
   },
   // Admin navigation - LMS & ONLINE LEARNING
