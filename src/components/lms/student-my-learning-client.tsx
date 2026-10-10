@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { getStudentLearningHierarchy, trackRecordedClassView } from '@/app/actions/lms';
 import type { StudentLearningData, StudentLearningUnit } from '@/app/actions/lms';
 import { calculateLessonStatus } from '@/lib/lms-utils';
+import { cn } from '@/lib/utils';
 import type { Student, OnlineLesson, LmsLearningActivity } from '@/lib/types';
 import {
   BookOpen, Video, Loader2, Search, Calendar, Clock, CheckCircle2, ArrowRight, Copy, Phone,
@@ -287,16 +288,17 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     const q = searchQuery.trim().toLowerCase();
     const content = filterUnitContent(unit);
     const totalContent = content.recorded.length + content.live.length + content.materials.length;
-    if (totalContent === 0) {
-      // Only keep a unit with no matching content if the search itself matched the unit
-      if (!q) return false;
-      return (
-        unit.courseName.toLowerCase().includes(q) ||
-        unit.courseCode.toLowerCase().includes(q) ||
-        programName.toLowerCase().includes(q)
-      );
-    }
-    return true;
+    if (totalContent > 0) return true;
+
+    // No visible content: keep the unit listed only when nothing is filtered, so the
+    // student still sees enrolled units and their empty state.
+    if (!q && typeFilter === 'all') return true;
+
+    return (
+      unit.courseName.toLowerCase().includes(q) ||
+      unit.courseCode.toLowerCase().includes(q) ||
+      programName.toLowerCase().includes(q)
+    );
   }
 
   if (loading) {
@@ -425,7 +427,10 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
           <select
             value={programFilter}
             onChange={(e) => { setProgramFilter(e.target.value); setUnitFilter('all'); }}
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className={cn(
+              'h-10 w-full rounded-md border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+              programFilter !== 'all' ? 'border-primary/40 bg-primary-light/60' : 'border-slate-300 bg-white',
+            )}
           >
             <option value="all">All Programmes</option>
             {(data?.programs ?? []).map(p => (
@@ -435,7 +440,10 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
           <select
             value={unitFilter}
             onChange={(e) => setUnitFilter(e.target.value)}
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className={cn(
+              'h-10 w-full rounded-md border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+              unitFilter !== 'all' ? 'border-primary/40 bg-primary-light/60' : 'border-slate-300 bg-white',
+            )}
           >
             <option value="all">All Units</option>
             {unitFilterOptions.map(u => (
@@ -446,7 +454,10 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
-              className="h-10 w-full sm:w-48 rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className={cn(
+                'h-10 w-full sm:w-48 rounded-md border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+                typeFilter !== 'all' ? 'border-primary/40 bg-primary-light/60' : 'border-slate-300 bg-white',
+              )}
             >
               <option value="all">All Learning Types</option>
               <option value="recorded">Recorded Classes</option>
@@ -456,7 +467,10 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
             <select
               value={progressFilter}
               onChange={(e) => setProgressFilter(e.target.value as ProgressFilter)}
-              className="h-10 w-full sm:w-48 rounded-md border border-slate-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className={cn(
+                'h-10 w-full sm:w-48 rounded-md border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary',
+                progressFilter !== 'all' ? 'border-primary/40 bg-primary-light/60' : 'border-slate-300 bg-white',
+              )}
             >
               <option value="all">All Progress</option>
               <option value="not-started">Not Started</option>
@@ -496,18 +510,18 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
             const programProgress = program.units.length > 0
               ? program.units.reduce((sum, u) => sum + unitProgress(u), 0) / program.units.length
               : 0;
-            const programCompleted = program.units.filter(u => u.enrollmentStatus === 'completed').length;
+            const programCompleted = program.units.filter(u => unitStatusOf(u) === 'completed').length;
 
             return (
-              <div key={program.programId} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div key={program.programId} className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                 {/* Programme header */}
-                <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50">
+                <div className="p-4 sm:p-5 border-b border-primary/15 bg-primary-light">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h2 className="font-semibold text-primary text-base sm:text-lg">{program.programName}</h2>
                         {program.programCode && (
-                          <Badge variant="outline">{program.programCode}</Badge>
+                          <Badge variant="secondary" className="bg-accent-light text-accent hover:bg-accent-light">{program.programCode}</Badge>
                         )}
                       </div>
                       <p className="text-sm text-slate-600 mt-1">
@@ -542,16 +556,26 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                     const content = filterUnitContent(unit);
                     const totalContent = content.recorded.length + content.live.length + content.materials.length;
 
+                    const unitRowClass =
+                      status === 'in-progress'
+                        ? 'bg-primary-light/50 border-l-[3px] border-l-primary'
+                        : status === 'completed'
+                          ? 'bg-slate-50/70'
+                          : undefined;
+
                     return (
-                      <div key={unit.courseId}>
+                      <div key={unit.courseId} className={unitRowClass}>
                         <button
                           onClick={() => toggleUnit(unit.courseId)}
-                          className="w-full p-4 text-left hover:bg-slate-50 transition-colors"
+                          className={cn(
+                            'w-full p-4 text-left transition-colors',
+                            status === 'in-progress' ? 'hover:bg-primary-light/80' : 'hover:bg-slate-50',
+                          )}
                         >
                           <div className="flex items-center gap-3">
                             {isExpanded
-                              ? <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-                              : <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />}
+                              ? <ChevronDown className={`h-4 w-4 shrink-0 ${status === 'in-progress' ? 'text-primary' : 'text-slate-400'}`} />
+                              : <ChevronRight className={`h-4 w-4 shrink-0 ${status === 'in-progress' ? 'text-primary' : 'text-slate-400'}`} />}
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="font-medium text-slate-900 truncate">
@@ -561,7 +585,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                                   <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">Completed</Badge>
                                 )}
                                 {status === 'in-progress' && (
-                                  <Badge variant="default">In Progress</Badge>
+                                  <Badge variant="default" className="bg-primary/10 text-primary">In Progress</Badge>
                                 )}
                                 {status === 'not-started' && (
                                   <Badge variant="outline">Not Started</Badge>
@@ -571,30 +595,30 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                                 {unit.recordedLessons.length > 0 && (
                                   <span className="inline-flex items-center gap-1">
                                     <Video className="h-3.5 w-3.5" />
-                                    {unit.recordedLessons.length} recorded
+                                    {unit.recordedLessons.length} Recorded
                                   </span>
                                 )}
                                 {unit.liveLessons.length > 0 && (
                                   <span className="inline-flex items-center gap-1">
                                     <Calendar className="h-3.5 w-3.5" />
-                                    {unit.liveLessons.length} live
+                                    {unit.liveLessons.length} Live
                                   </span>
                                 )}
                                 {unit.materials.length > 0 && (
                                   <span className="inline-flex items-center gap-1">
                                     <FileText className="h-3.5 w-3.5" />
-                                    {unit.materials.length} materials
+                                    {unit.materials.length} {unit.materials.length === 1 ? 'Material' : 'Materials'}
                                   </span>
                                 )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-sm font-semibold text-slate-700">
+                              <span className={`text-sm font-semibold ${status === 'in-progress' ? 'text-primary' : 'text-slate-700'}`}>
                                 {Math.round(progress * 100)}%
                               </span>
                             </div>
                           </div>
-                          <div className="h-1.5 bg-slate-100 rounded-full mt-3 overflow-hidden">
+                          <div className={`h-1.5 rounded-full mt-3 overflow-hidden ${status === 'in-progress' ? 'bg-white/80' : 'bg-slate-100'}`}>
                             <div
                               className={`h-1.5 rounded-full ${status === 'completed' ? 'bg-green-500' : 'bg-primary'}`}
                               style={{ width: `${Math.round(progress * 100)}%` }}
@@ -603,7 +627,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                         </button>
 
                         {isExpanded && (
-                          <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-slate-50/50 space-y-6">
+                          <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-background border-t border-slate-200/70 space-y-6">
                             {totalContent === 0 ? (
                               <div className="bg-white border border-slate-200 rounded-lg p-6 text-center">
                                 <BookOpen className="h-8 w-8 text-slate-400 mx-auto mb-2" />
@@ -705,7 +729,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                                           >
                                             <div className="flex flex-wrap items-center gap-2 mb-1">
                                               {status === 'live' && <Badge variant="destructive">LIVE NOW</Badge>}
-                                              {status === 'upcoming' && <Badge variant="default">UPCOMING</Badge>}
+                                              {status === 'upcoming' && <Badge variant="default" className="bg-primary/10 text-primary">UPCOMING</Badge>}
                                               {status === 'completed' && <Badge variant="secondary">COMPLETED</Badge>}
                                             </div>
                                             <h4 className="font-medium text-slate-900">{lesson.title}</h4>
