@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -9,33 +9,76 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
-import { getAllOnlineLessons, createOnlineLesson, updateOnlineLesson, deleteOnlineLesson, getAllRecordedClassViewStats, getRecordedClassViewStatsMap } from '@/app/actions/lms';
+import {
+  getRecordedClassesHierarchy,
+  createOnlineLesson,
+  updateOnlineLesson,
+  deleteOnlineLesson,
+  type RecordedClassesData,
+  type RecordedClassProgramGroup,
+  type RecordedClassUnitGroup,
+  type RecordedClassLesson,
+} from '@/app/actions/lms';
 import { getCourses, getPrograms } from '@/app/actions/courses';
-import type { Course, OnlineLesson, Program } from '@/lib/types';
-import { Plus, Edit, Trash2, Video, Play, Loader2, Lock, Copy, Calendar } from 'lucide-react';
+import type { Course, Program } from '@/lib/types';
+import {
+  Plus, Edit, Trash2, Video, Play, Loader2, Lock, Copy,
+  ChevronDown, ChevronRight, Search, Eye, Users, GraduationCap, BookOpen, AlertTriangle,
+} from 'lucide-react';
+
+type SortBy = 'recent' | 'oldest' | 'views_desc' | 'views_asc' | 'title_asc' | 'title_desc';
+type StatusFilter = 'all' | 'published' | 'draft';
+
+const NO_PROGRAM_KEY = '__no_program__';
+const UNASSIGNED_KEY = '__unassigned__';
+
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+
+function sortLessons(lessons: RecordedClassLesson[], sortBy: SortBy): RecordedClassLesson[] {
+  const sorted = [...lessons];
+  switch (sortBy) {
+    case 'recent':
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      break;
+    case 'oldest':
+      sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      break;
+    case 'views_desc':
+      sorted.sort((a, b) => b.stats.totalViews - a.stats.totalViews);
+      break;
+    case 'views_asc':
+      sorted.sort((a, b) => a.stats.totalViews - b.stats.totalViews);
+      break;
+    case 'title_asc':
+      sorted.sort((a, b) => collator.compare(a.title, b.title));
+      break;
+    case 'title_desc':
+      sorted.sort((a, b) => collator.compare(b.title, a.title));
+      break;
+  }
+  return sorted;
+}
 
 export function AdminOnlineClassesClient() {
   const { success, error: toastError } = useToast();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [lessons, setLessons] = useState<OnlineLesson[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<RecordedClassesData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editingLesson, setEditingLesson] = useState<OnlineLesson | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<OnlineLesson | null>(null);
-  const [previewLesson, setPreviewLesson] = useState<OnlineLesson | null>(null);
+  const [editingLesson, setEditingLesson] = useState<RecordedClassLesson | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RecordedClassLesson | null>(null);
+  const [previewLesson, setPreviewLesson] = useState<RecordedClassLesson | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [selectedProgramId, setSelectedProgramId] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterProgramId, setFilterProgramId] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'published'>('all');
-  const [sortBy, setSortBy] = useState<'recent' | 'views' | 'title'>('recent');
-  const [summaryStats, setSummaryStats] = useState({
-    totalClasses: 0,
-    publishedClasses: 0,
-    totalViews: 0,
-    uniqueViewers: 0,
-  });
-  const [lessonViewStats, setLessonViewStats] = useState<Record<string, { totalViews: number; uniqueViewers: number; lastViewed: string | null }>>({});
+  const [filterUnitId, setFilterUnitId] = useState('');
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
+  const [sortBy, setSortBy] = useState<SortBy>('recent');
+  const [expandedPrograms, setExpandedPrograms] = useState<Set<string>>(new Set());
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
+  const initialExpansionDone = useRef(false);
   const [formData, setFormData] = useState({
     program_id: '',
     course_id: '',
@@ -52,8 +95,7 @@ export function AdminOnlineClassesClient() {
   useEffect(() => {
     loadPrograms();
     loadCourses();
-    loadLessons();
-    loadSummaryStats();
+    loadHierarchy();
   }, []);
 
   useEffect(() => {
@@ -61,10 +103,6 @@ export function AdminOnlineClassesClient() {
       loadCourses(selectedProgramId);
     }
   }, [selectedProgramId]);
-
-  useEffect(() => {
-    loadLessons();
-  }, [filterProgramId, filterStatus, sortBy]);
 
   async function loadPrograms() {
     try {
@@ -86,67 +124,38 @@ export function AdminOnlineClassesClient() {
     }
   }
 
-  async function loadLessons() {
+  async function loadHierarchy() {
     setLoading(true);
     try {
-      const data = await getAllOnlineLessons();
-      let filtered = data;
-
-      // Filter by program
-      if (filterProgramId) {
-        filtered = filtered.filter(lesson => lesson.program_id === filterProgramId);
-      }
-
-      // Filter by status
-      if (filterStatus === 'draft') {
-        filtered = filtered.filter(lesson => !lesson.is_published);
-      } else if (filterStatus === 'published') {
-        filtered = filtered.filter(lesson => lesson.is_published);
-      }
-
-      // Sort
-      if (sortBy === 'recent') {
-        filtered = filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      } else if (sortBy === 'title') {
-        filtered = filtered.sort((a, b) => a.title.localeCompare(b.title));
-      }
-
-      setLessons(filtered);
-
-      // Load view statistics for the filtered lessons
-      const lessonIds = filtered.map(lesson => lesson.id);
-      if (lessonIds.length > 0) {
-        const statsMap = await getRecordedClassViewStatsMap(lessonIds);
-        setLessonViewStats(statsMap);
-      } else {
-        setLessonViewStats({});
+      const hierarchy = await getRecordedClassesHierarchy();
+      setData(hierarchy);
+      // Expand all programmes on first load only; preserve user toggles after refetches
+      if (!initialExpansionDone.current) {
+        initialExpansionDone.current = true;
+        setExpandedPrograms(new Set(hierarchy.programs.map(p => p.programId ?? NO_PROGRAM_KEY)));
       }
     } catch (error) {
-      console.error('Error loading lessons:', error);
-      toastError('Failed to load online lessons');
+      console.error('Error loading recorded classes:', error);
+      toastError('Failed to load recorded classes');
     } finally {
       setLoading(false);
     }
   }
 
-  async function loadSummaryStats() {
-    try {
-      const data = await getAllOnlineLessons();
-      const totalClasses = data.length;
-      const publishedClasses = data.filter(l => l.is_published).length;
-      
-      // Get real view statistics
-      const viewStats = await getAllRecordedClassViewStats();
+  function toggleProgram(key: string) {
+    setExpandedPrograms(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
 
-      setSummaryStats({
-        totalClasses,
-        publishedClasses,
-        totalViews: viewStats.totalViews,
-        uniqueViewers: viewStats.uniqueViewers,
-      });
-    } catch (error) {
-      console.error('Error loading summary stats:', error);
-    }
+  function toggleUnit(key: string) {
+    setExpandedUnits(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -173,7 +182,7 @@ export function AdminOnlineClassesClient() {
           setShowForm(false);
           setEditingLesson(null);
           resetForm();
-          loadLessons();
+          loadHierarchy();
         } else {
           toastError(result.error || 'Failed to update recorded class');
         }
@@ -183,7 +192,10 @@ export function AdminOnlineClassesClient() {
           success('Recorded class published successfully');
           setShowForm(false);
           resetForm();
-          loadLessons();
+          if (formData.program_id) {
+            setExpandedPrograms(prev => new Set(prev).add(formData.program_id));
+          }
+          loadHierarchy();
         } else {
           toastError(result.error || 'Failed to publish recorded class');
         }
@@ -204,7 +216,7 @@ export function AdminOnlineClassesClient() {
       if (result.success) {
         success('Recorded class deleted successfully');
         setDeleteTarget(null);
-        loadLessons();
+        loadHierarchy();
       } else {
         toastError(result.error || 'Failed to delete recorded class');
       }
@@ -214,7 +226,7 @@ export function AdminOnlineClassesClient() {
     }
   }
 
-  function handleEdit(lesson: OnlineLesson) {
+  function handleEdit(lesson: RecordedClassLesson) {
     setEditingLesson(lesson);
     setSelectedProgramId(lesson.program_id || '');
     setFormData({
@@ -253,23 +265,107 @@ export function AdminOnlineClassesClient() {
     });
   }
 
-  function formatDate(dateStr: string | null) {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  }
-
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
     success('Passcode copied to clipboard');
   }
 
-  const totalClasses = lessons.length;
-  const recordedClasses = lessons.filter(l => l.class_type === 'recorded').length;
-  const publishedClasses = lessons.filter(l => l.is_published).length;
+  function clearFilters() {
+    setSearchQuery('');
+    setFilterProgramId('');
+    setFilterUnitId('');
+    setFilterStatus('all');
+  }
+
+  const hasActiveFilters = searchQuery !== '' || filterProgramId !== '' || filterUnitId !== '' || filterStatus !== 'all';
+
+  const programUnitOptions = useMemo(() => {
+    const groups = data?.programs || [];
+    const scoped = filterProgramId ? groups.filter(g => g.programId === filterProgramId) : groups;
+    const units = new Map<string, string>();
+    for (const group of scoped) {
+      for (const unit of group.units) {
+        if (unit.assigned && unit.courseId) units.set(unit.courseId, unit.name);
+      }
+    }
+    return Array.from(units.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => collator.compare(a.label, b.label));
+  }, [data, filterProgramId]);
+
+  const filteredGroups = useMemo(() => {
+    const groups = data?.programs || [];
+    const query = searchQuery.trim().toLowerCase();
+
+    return groups
+      .filter(group => !filterProgramId || group.programId === filterProgramId)
+      .map(group => {
+        const units: RecordedClassUnitGroup[] = [];
+        for (const unit of group.units) {
+          if (filterUnitId && unit.courseId !== filterUnitId) continue;
+          const lessons = sortLessons(
+            unit.lessons.filter(lesson => {
+              if (filterStatus === 'published' && !lesson.is_published) return false;
+              if (filterStatus === 'draft' && lesson.is_published) return false;
+              if (query) {
+                const haystack = [
+                  group.name,
+                  unit.code || '',
+                  unit.name,
+                  lesson.title,
+                  lesson.topic || '',
+                ].join(' ').toLowerCase();
+                if (!haystack.includes(query)) return false;
+              }
+              return true;
+            }),
+            sortBy,
+          );
+          if (lessons.length === 0) continue;
+          units.push({ ...unit, lessons });
+        }
+        if (units.length === 0) return null;
+        return { ...group, units } as RecordedClassProgramGroup;
+      })
+      .filter((g): g is RecordedClassProgramGroup => g !== null);
+  }, [data, filterProgramId, filterUnitId, filterStatus, searchQuery, sortBy]);
+
+  const stats = useMemo(() => {
+    if (!data) return null;
+    const lessons = filteredGroups.flatMap(g => g.units.flatMap(u => u.lessons));
+    // Per-lesson stats only carry counts, not student ids, so a filtered unique-viewer
+    // total can only sum per-lesson uniques (a student may be counted once per lesson).
+    // With no filters the exact server-side global is available.
+    const uniqueViewers = hasActiveFilters
+      ? lessons.reduce((sum, l) => sum + l.stats.uniqueViewers, 0)
+      : data.stats.uniqueViewers;
+    return {
+      totalClasses: lessons.length,
+      publishedClasses: lessons.filter(l => l.is_published).length,
+      totalViews: lessons.reduce((sum, l) => sum + l.stats.totalViews, 0),
+      uniqueViewers,
+      programCount: filteredGroups.length,
+      unitCount: filteredGroups.reduce((sum, g) => sum + g.units.filter(u => u.assigned).length, 0),
+    };
+  }, [data, filteredGroups, hasActiveFilters]);
+
+  // Course options for the form; ensure the edited lesson's current course is visible
+  // even if it is inactive and therefore missing from the programme's active course list
+  const formCourseOptions = useMemo(() => {
+    if (editingLesson?.course && !courses.some(c => c.id === editingLesson.course_id)) {
+      return [editingLesson.course, ...courses];
+    }
+    return courses;
+  }, [courses, editingLesson]);
+
+  const statCards = stats ? [
+    { label: 'Total Classes', value: stats.totalClasses },
+    { label: 'Published', value: stats.publishedClasses },
+    { label: 'Total Views', value: stats.totalViews },
+    { label: 'Unique Viewers', value: stats.uniqueViewers },
+    { label: 'Programmes', value: stats.programCount },
+    { label: 'Units', value: stats.unitCount },
+  ] : [];
 
   return (
     <div className="space-y-6">
@@ -279,7 +375,7 @@ export function AdminOnlineClassesClient() {
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Recorded Classes</h1>
           <p className="text-slate-600 mt-1 text-sm sm:text-base">Add and manage recorded lessons for your students.</p>
         </div>
-        <Button 
+        <Button
           onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}
           className="w-full sm:w-auto"
         >
@@ -289,48 +385,69 @@ export function AdminOnlineClassesClient() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-xs sm:text-sm text-slate-600">Total Classes</div>
-          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalClasses}</div>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-xs sm:text-sm text-slate-600">Published</div>
-          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.publishedClasses}</div>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-xs sm:text-sm text-slate-600">Total Views</div>
-          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.totalViews}</div>
-        </div>
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-xs sm:text-sm text-slate-600">Unique Viewers</div>
-          <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{summaryStats.uniqueViewers}</div>
-        </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+        {statCards.map(card => (
+          <div key={card.label} className="bg-white rounded-lg border border-slate-200 p-4">
+            <div className="text-xs sm:text-sm text-slate-600">{card.label}</div>
+            <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{card.value}</div>
+          </div>
+        ))}
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-slate-200 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <div className="w-full">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Programme</label>
+            <label htmlFor="search-classes" className="block text-sm font-medium text-slate-700 mb-1">Search</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Input
+                id="search-classes"
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search classes..."
+                className="pl-9"
+              />
+            </div>
+          </div>
+          <div className="w-full">
+            <label htmlFor="filter-program" className="block text-sm font-medium text-slate-700 mb-1">Programme</label>
             <select
+              id="filter-program"
               value={filterProgramId}
-              onChange={(e) => setFilterProgramId(e.target.value)}
+              onChange={(e) => { setFilterProgramId(e.target.value); setFilterUnitId(''); }}
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Programmes</option>
-              {programs.map((program) => (
-                <option key={program.id} value={program.id}>
+              {(data?.programs || []).map(program => (
+                <option key={program.programId || NO_PROGRAM_KEY} value={program.programId || ''}>
                   {program.name}
                 </option>
               ))}
             </select>
           </div>
           <div className="w-full">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+            <label htmlFor="filter-unit" className="block text-sm font-medium text-slate-700 mb-1">Unit</label>
             <select
+              id="filter-unit"
+              value={filterUnitId}
+              onChange={(e) => setFilterUnitId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+              disabled={programUnitOptions.length === 0}
+            >
+              <option value="">All Units</option>
+              {programUnitOptions.map(unit => (
+                <option key={unit.value} value={unit.value}>{unit.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="w-full">
+            <label htmlFor="filter-status" className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+            <select
+              id="filter-status"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'draft' | 'published')}
+              onChange={(e) => setFilterStatus(e.target.value as StatusFilter)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All</option>
@@ -339,31 +456,35 @@ export function AdminOnlineClassesClient() {
             </select>
           </div>
           <div className="w-full">
-            <label className="block text-sm font-medium text-slate-700 mb-1">Sort By</label>
+            <label htmlFor="sort-by" className="block text-sm font-medium text-slate-700 mb-1">Sort By</label>
             <select
+              id="sort-by"
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'recent' | 'views' | 'title')}
+              onChange={(e) => setSortBy(e.target.value as SortBy)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="recent">Most Recent</option>
-              <option value="title">Title</option>
-              <option value="views">Most Viewed</option>
+              <option value="oldest">Oldest</option>
+              <option value="views_desc">Most Viewed</option>
+              <option value="views_asc">Least Viewed</option>
+              <option value="title_asc">Class Name A–Z</option>
+              <option value="title_desc">Class Name Z–A</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* Lessons Table */}
+      {/* Hierarchy: Programme → Unit → Recorded Classes */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
-      ) : lessons.length === 0 ? (
+      ) : !data || data.stats.totalClasses === 0 ? (
         <div className="bg-white rounded-lg border border-slate-200 p-8 sm:p-12 text-center">
           <Video className="h-12 w-12 text-slate-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-slate-900 mb-2">No recorded classes yet</h3>
           <p className="text-slate-600 mb-4 text-sm sm:text-base">Get started by adding your first recorded class.</p>
-          <Button 
+          <Button
             onClick={() => { resetForm(); setEditingLesson(null); setShowForm(true); }}
             className="w-full sm:w-auto"
           >
@@ -371,177 +492,260 @@ export function AdminOnlineClassesClient() {
             Add Recorded Class
           </Button>
         </div>
+      ) : filteredGroups.length === 0 ? (
+        <div className="bg-white rounded-lg border border-slate-200 p-8 sm:p-12 text-center">
+          <Search className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-slate-900 mb-2">No recorded classes match your filters</h3>
+          <p className="text-slate-600 mb-4 text-sm sm:text-base">Try adjusting the programme, unit, status or search.</p>
+          <Button variant="secondary" onClick={clearFilters} className="w-full sm:w-auto">
+            Clear Filters
+          </Button>
+        </div>
       ) : (
-        <>
-          {/* Desktop Table */}
-          <div className="hidden lg:block bg-white rounded-lg border border-slate-200 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Programme</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Class</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Views</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lessons.map((lesson) => {
-                  const course = courses.find(c => c.id === lesson.course_id);
-                  const program = programs.find(p => p.id === lesson.program_id);
-                  return (
-                    <TableRow key={lesson.id}>
-                      <TableCell className="font-medium">
-                        {program?.name || lesson.program_id || 'Unknown'}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {course?.code || course?.name || lesson.unit_name || 'Unknown'}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{lesson.title}</div>
-                          {lesson.topic && (
-                            <div className="text-sm text-slate-600">{lesson.topic}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={lesson.class_type === 'recorded' ? 'secondary' : 'default'}>
-                          {lesson.class_type === 'recorded' ? 'RECORDED' : 'LIVE'}
+        <div className="space-y-4">
+          {filteredGroups.map(group => {
+            const programKey = group.programId || NO_PROGRAM_KEY;
+            const isProgramExpanded = expandedPrograms.has(programKey);
+            return (
+              <div key={programKey} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                {/* Programme header */}
+                <button
+                  type="button"
+                  onClick={() => toggleProgram(programKey)}
+                  aria-expanded={isProgramExpanded}
+                  className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors text-left"
+                >
+                  {isProgramExpanded ? (
+                    <ChevronDown className="h-5 w-5 shrink-0 text-slate-500" />
+                  ) : (
+                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-500" />
+                  )}
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                    <GraduationCap className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2 flex-wrap">
+                      <h2 className="font-semibold text-slate-900 text-base sm:text-lg">{group.name}</h2>
+                      {group.code && <Badge variant="outline">{group.code}</Badge>}
+                    </span>
+                    <span className="mt-1 flex items-center gap-x-2 gap-y-1 flex-wrap text-xs sm:text-sm text-slate-600">
+                      <span>{group.unitCount} {group.unitCount === 1 ? 'Unit' : 'Units'}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{group.lessonCount} Recorded {group.lessonCount === 1 ? 'Class' : 'Classes'}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{group.totalViews} {group.totalViews === 1 ? 'View' : 'Views'}</span>
+                      {group.publishedCount > 0 && (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                          {group.publishedCount} Published
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <span>👁 {lessonViewStats[lesson.id]?.totalViews || 0}</span>
-                          <span>👥 {lessonViewStats[lesson.id]?.uniqueViewers || 0}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {!lesson.is_published && (
-                            <Badge variant="outline">DRAFT</Badge>
+                      )}
+                      {group.draftCount > 0 && (
+                        <Badge variant="outline">{group.draftCount} Draft</Badge>
+                      )}
+                    </span>
+                  </span>
+                </button>
+
+                {/* Units */}
+                {isProgramExpanded && (
+                  <div className="border-t border-slate-200 bg-slate-50/70 p-3 sm:p-4 space-y-3">
+                    {group.units.map(unit => {
+                      const unitKey = `${programKey}::${unit.courseId || UNASSIGNED_KEY}`;
+                      const isUnitExpanded = expandedUnits.has(unitKey);
+                      return (
+                        <div key={unit.courseId || UNASSIGNED_KEY} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                          {/* Unit header */}
+                          <button
+                            type="button"
+                            onClick={() => toggleUnit(unitKey)}
+                            aria-expanded={isUnitExpanded}
+                            className="w-full flex items-center gap-3 px-3 sm:px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+                          >
+                            {isUnitExpanded ? (
+                              <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                            )}
+                            {unit.assigned ? (
+                              <BookOpen className="h-4 w-4 shrink-0 text-slate-400" />
+                            ) : (
+                              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+                            )}
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2 flex-wrap">
+                                <span className={`font-medium text-sm sm:text-base ${unit.assigned ? 'text-slate-900' : 'text-amber-700'}`}>
+                                  {unit.name}
+                                </span>
+                                {!unit.assigned && (
+                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200">Needs unit</Badge>
+                                )}
+                              </span>
+                              <span className="block text-xs sm:text-sm text-slate-600 mt-0.5">
+                                {unit.lessonCount} {unit.lessonCount === 1 ? 'class' : 'classes'} · {unit.totalViews} {unit.totalViews === 1 ? 'view' : 'views'}
+                              </span>
+                            </span>
+                          </button>
+
+                          {/* Lessons */}
+                          {isUnitExpanded && (
+                            <div className="border-t border-slate-200">
+                              {!unit.assigned && (
+                                <div className="flex items-start gap-2 bg-amber-50 border-b border-amber-100 px-4 py-2.5 text-sm text-amber-800">
+                                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                                  <span>
+                                    These recorded classes are not linked to a unit. Use the Edit action to assign each class to the correct unit.
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Desktop table */}
+                              <div className="hidden lg:block">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Class</TableHead>
+                                      <TableHead>Type</TableHead>
+                                      <TableHead>Views</TableHead>
+                                      <TableHead>Unique Viewers</TableHead>
+                                      <TableHead>Status</TableHead>
+                                      <TableHead className="text-right">Actions</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {unit.lessons.map(lesson => (
+                                      <TableRow key={lesson.id}>
+                                        <TableCell>
+                                          <div className="font-medium text-slate-900">{lesson.title}</div>
+                                          {lesson.topic && (
+                                            <div className="text-sm text-slate-600">{lesson.topic}</div>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          <Badge variant="secondary">RECORDED</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                          <span className="flex items-center gap-1.5 text-sm text-slate-600">
+                                            <Eye className="h-4 w-4 text-slate-400" />
+                                            {lesson.stats.totalViews}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell>
+                                          <span className="flex items-center gap-1.5 text-sm text-slate-600">
+                                            <Users className="h-4 w-4 text-slate-400" />
+                                            {lesson.stats.uniqueViewers}
+                                          </span>
+                                        </TableCell>
+                                        <TableCell>
+                                          {lesson.is_published ? (
+                                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Published</Badge>
+                                          ) : (
+                                            <Badge variant="outline">Draft</Badge>
+                                          )}
+                                        </TableCell>
+                                        <TableCell>
+                                          <div className="flex items-center justify-end gap-1">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setPreviewLesson(lesson)}
+                                              aria-label={`Preview ${lesson.title}`}
+                                            >
+                                              <Play className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleEdit(lesson)}
+                                              aria-label={`Edit ${lesson.title}`}
+                                            >
+                                              <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setDeleteTarget(lesson)}
+                                              aria-label={`Delete ${lesson.title}`}
+                                            >
+                                              <Trash2 className="h-4 w-4 text-red-600" />
+                                            </Button>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+
+                              {/* Mobile list */}
+                              <div className="lg:hidden divide-y divide-slate-100">
+                                {unit.lessons.map(lesson => (
+                                  <div key={lesson.id} className="px-4 py-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <div className="font-medium text-slate-900 text-sm">{lesson.title}</div>
+                                        {lesson.topic && (
+                                          <div className="text-xs text-slate-600 mt-0.5">{lesson.topic}</div>
+                                        )}
+                                        <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                                          <Badge variant="secondary" className="text-xs">RECORDED</Badge>
+                                          {lesson.is_published ? (
+                                            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">Published</Badge>
+                                          ) : (
+                                            <Badge variant="outline" className="text-xs">Draft</Badge>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-4 mt-1.5 text-xs text-slate-600">
+                                          <span className="flex items-center gap-1">
+                                            <Eye className="h-3.5 w-3.5 text-slate-400" />
+                                            {lesson.stats.totalViews} views
+                                          </span>
+                                          <span className="flex items-center gap-1">
+                                            <Users className="h-3.5 w-3.5 text-slate-400" />
+                                            {lesson.stats.uniqueViewers} viewers
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-0.5 shrink-0">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setPreviewLesson(lesson)}
+                                          aria-label={`Preview ${lesson.title}`}
+                                        >
+                                          <Play className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleEdit(lesson)}
+                                          aria-label={`Edit ${lesson.title}`}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setDeleteTarget(lesson)}
+                                          aria-label={`Delete ${lesson.title}`}
+                                        >
+                                          <Trash2 className="h-4 w-4 text-red-600" />
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPreviewLesson(lesson)}
-                          >
-                            <Play className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(lesson)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setDeleteTarget(lesson)}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Mobile Cards */}
-          <div className="lg:hidden space-y-4">
-            {lessons.map((lesson) => {
-              const course = courses.find(c => c.id === lesson.course_id);
-              const program = programs.find(p => p.id === lesson.program_id);
-              const stats = lessonViewStats[lesson.id] || { totalViews: 0, uniqueViewers: 0, lastViewed: null };
-              
-              return (
-                <div key={lesson.id} className="bg-white rounded-lg border border-slate-200 p-4">
-                  <div className="mb-3">
-                    <h3 className="font-semibold text-slate-900 text-base">{lesson.title}</h3>
-                    {lesson.topic && (
-                      <p className="text-sm text-slate-600 mt-1">{lesson.topic}</p>
-                    )}
+                      );
+                    })}
                   </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-start gap-2">
-                      <span className="text-slate-500 font-medium min-w-[80px]">Programme:</span>
-                      <span className="text-slate-900 break-words">{program?.name || lesson.program_id || 'Unknown'}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-slate-500 font-medium min-w-[80px]">Unit:</span>
-                      <span className="text-slate-900 break-words">{course?.code || course?.name || lesson.unit_name || 'Unknown'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500 font-medium min-w-[80px]">Type:</span>
-                      <Badge variant={lesson.class_type === 'recorded' ? 'secondary' : 'default'} className="text-xs">
-                        {lesson.class_type === 'recorded' ? 'RECORDED' : 'LIVE'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-500 font-medium min-w-[80px]">Status:</span>
-                      {lesson.is_published ? (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">Published</Badge>
-                      ) : (
-                        <Badge variant="outline">Draft</Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 pt-2">
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-600">👁</span>
-                        <span className="font-medium text-slate-900">{stats.totalViews}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-600">👥</span>
-                        <span className="font-medium text-slate-900">{stats.uniqueViewers}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-200">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setPreviewLesson(lesson)}
-                      className="flex-1"
-                    >
-                      <Play className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleEdit(lesson)}
-                      className="flex-1"
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => setDeleteTarget(lesson)}
-                      className="flex-1"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Add/Edit Modal */}
@@ -587,7 +791,7 @@ export function AdminOnlineClassesClient() {
               <option value="">
                 {!selectedProgramId ? 'Please select a programme first' : 'Select unit'}
               </option>
-              {courses.map((course) => (
+              {formCourseOptions.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.code} - {course.name}
                 </option>
@@ -747,9 +951,17 @@ export function AdminOnlineClassesClient() {
         >
           <div className="space-y-4">
             <div>
+              <label className="text-sm font-medium text-slate-700">Programme</label>
+              <p className="text-slate-900 mt-1 break-words">
+                {previewLesson.program?.name || programs.find(p => p.id === previewLesson.program_id)?.name || 'Not assigned'}
+              </p>
+            </div>
+            <div>
               <label className="text-sm font-medium text-slate-700">Unit</label>
               <p className="text-slate-900 mt-1 break-words">
-                {courses.find(c => c.id === previewLesson.course_id)?.code} - {courses.find(c => c.id === previewLesson.course_id)?.name}
+                {previewLesson.course
+                  ? `${previewLesson.course.code} - ${previewLesson.course.name}`
+                  : previewLesson.unit_name || 'Unit not assigned'}
               </p>
             </div>
             <div>

@@ -352,6 +352,183 @@ export async function getAllOnlineLessons() {
   return data as OnlineLesson[];
 }
 
+export interface RecordedClassLessonStats {
+  totalViews: number;
+  uniqueViewers: number;
+}
+
+export interface RecordedClassLesson extends OnlineLesson {
+  stats: RecordedClassLessonStats;
+}
+
+export interface RecordedClassUnitGroup {
+  courseId: string | null;
+  code: string | null;
+  name: string;
+  assigned: boolean;
+  lessonCount: number;
+  totalViews: number;
+  publishedCount: number;
+  lessons: RecordedClassLesson[];
+}
+
+export interface RecordedClassProgramGroup {
+  programId: string | null;
+  code: string | null;
+  name: string;
+  unitCount: number;
+  lessonCount: number;
+  totalViews: number;
+  publishedCount: number;
+  draftCount: number;
+  units: RecordedClassUnitGroup[];
+}
+
+export interface RecordedClassesData {
+  programs: RecordedClassProgramGroup[];
+  stats: {
+    totalClasses: number;
+    publishedClasses: number;
+    totalViews: number;
+    uniqueViewers: number;
+    programCount: number;
+    unitCount: number;
+  };
+}
+
+export async function getRecordedClassesHierarchy(): Promise<RecordedClassesData> {
+  const supabase = await createClient();
+
+  const emptyStats = {
+    totalClasses: 0,
+    publishedClasses: 0,
+    totalViews: 0,
+    uniqueViewers: 0,
+    programCount: 0,
+    unitCount: 0,
+  };
+
+  const { data: lessons, error } = await supabase
+    .from('online_lessons')
+    .select(`
+      *,
+      course:courses(*),
+      program:programs(*)
+    `)
+    .eq('class_type', 'recorded')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching recorded classes:', error);
+    return { programs: [], stats: emptyStats };
+  }
+
+  const typedLessons = (lessons || []) as OnlineLesson[];
+
+  // Single query for all view stats (avoids N+1 per lesson)
+  const views: { online_lesson_id: string; student_id: string }[] = [];
+  if (typedLessons.length > 0) {
+    const { data: viewData } = await supabase
+      .from('recorded_class_views')
+      .select('online_lesson_id, student_id')
+      .in('online_lesson_id', typedLessons.map(l => l.id));
+    if (viewData) views.push(...viewData);
+  }
+
+  const viewsByLesson = new Map<string, { totalViews: number; viewers: Set<string> }>();
+  const allViewers = new Set<string>();
+  for (const view of views) {
+    allViewers.add(view.student_id);
+    const entry = viewsByLesson.get(view.online_lesson_id) || { totalViews: 0, viewers: new Set<string>() };
+    entry.totalViews++;
+    entry.viewers.add(view.student_id);
+    viewsByLesson.set(view.online_lesson_id, entry);
+  }
+
+  const programMap = new Map<string, RecordedClassProgramGroup>();
+
+  for (const lesson of typedLessons) {
+    const viewStats = viewsByLesson.get(lesson.id) || { totalViews: 0, viewers: new Set<string>() };
+
+    const programKey = lesson.program_id || '__no_program__';
+    let programGroup = programMap.get(programKey);
+    if (!programGroup) {
+      programGroup = {
+        programId: lesson.program_id,
+        code: lesson.program?.code ?? null,
+        name: lesson.program?.name ?? 'Unknown Programme',
+        unitCount: 0,
+        lessonCount: 0,
+        totalViews: 0,
+        publishedCount: 0,
+        draftCount: 0,
+        units: [],
+      };
+      programMap.set(programKey, programGroup);
+    }
+
+    const course = lesson.course ?? null;
+    const unitKey = course?.id ?? '__unassigned__';
+    let unitGroup = programGroup.units.find(u => (u.courseId ?? '__unassigned__') === unitKey);
+    if (!unitGroup) {
+      unitGroup = {
+        courseId: course?.id ?? null,
+        code: course?.code ?? null,
+        name: course ? (course.code && course.name !== course.code ? `${course.code} – ${course.name}` : course.code || course.name) : 'Unit Not Assigned',
+        assigned: !!course,
+        lessonCount: 0,
+        totalViews: 0,
+        publishedCount: 0,
+        lessons: [],
+      };
+      programGroup.units.push(unitGroup);
+    }
+
+    unitGroup.lessons.push({
+      ...lesson,
+      stats: { totalViews: viewStats.totalViews, uniqueViewers: viewStats.viewers.size },
+    });
+  }
+
+  // Aggregate counts and sort groups alphabetically
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  const programs = Array.from(programMap.values())
+    .sort((a, b) => collator.compare(a.name, b.name))
+    .map(programGroup => {
+      programGroup.units.sort((a, b) => {
+        if (!a.assigned) return 1;
+        if (!b.assigned) return -1;
+        return collator.compare(a.code || a.name, b.code || b.name);
+      });
+
+      for (const unitGroup of programGroup.units) {
+        unitGroup.lessonCount = unitGroup.lessons.length;
+        unitGroup.totalViews = unitGroup.lessons.reduce((sum, l) => sum + l.stats.totalViews, 0);
+        unitGroup.publishedCount = unitGroup.lessons.filter(l => l.is_published).length;
+
+        programGroup.lessonCount += unitGroup.lessonCount;
+        programGroup.totalViews += unitGroup.totalViews;
+        programGroup.publishedCount += unitGroup.publishedCount;
+      }
+      programGroup.draftCount = programGroup.lessonCount - programGroup.publishedCount;
+      programGroup.unitCount = programGroup.units.filter(u => u.assigned).length;
+
+      return programGroup;
+    });
+
+  return {
+    programs,
+    stats: {
+      totalClasses: typedLessons.length,
+      publishedClasses: typedLessons.filter(l => l.is_published).length,
+      totalViews: views.length,
+      uniqueViewers: allViewers.size,
+      programCount: programs.length,
+      unitCount: programs.reduce((sum, p) => sum + p.unitCount, 0),
+    },
+  };
+}
+
 export async function createOnlineLesson(formData: FormData) {
   const supabase = await createClient();
   
@@ -378,11 +555,12 @@ export async function createOnlineLesson(formData: FormData) {
   const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
 
-  // Get program_id and unit_name from course if not provided
+  // Get program_id and unit_name from the selected course (source of truth),
+  // falling back to the explicitly selected programme if the course lookup fails
   let finalProgramId = programId;
   let unitName = null;
   
-  if (courseId && !finalProgramId) {
+  if (courseId) {
     const { data: course } = await supabase
       .from('courses')
       .select('program_id, name')
@@ -390,7 +568,7 @@ export async function createOnlineLesson(formData: FormData) {
       .single();
     
     if (course) {
-      finalProgramId = course.program_id;
+      finalProgramId = course.program_id ?? programId;
       unitName = course.name;
     }
   }
@@ -489,11 +667,12 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   const classType = formData.get('class_type') as 'live' | 'recorded' | null;
   const isPublished = formData.get('is_published') === 'true';
 
-  // Get program_id and unit_name from course if not provided
+  // Get program_id and unit_name from the selected course (source of truth),
+  // falling back to the explicitly selected programme if the course lookup fails
   let finalProgramId = programId;
   let unitName = null;
   
-  if (courseId && !finalProgramId) {
+  if (courseId) {
     const { data: course } = await supabase
       .from('courses')
       .select('program_id, name')
@@ -501,7 +680,7 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
       .single();
     
     if (course) {
-      finalProgramId = course.program_id;
+      finalProgramId = course.program_id ?? programId;
       unitName = course.name;
     }
   }
