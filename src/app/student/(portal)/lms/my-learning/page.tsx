@@ -19,7 +19,7 @@ export default async function StudentMyLearningPage() {
   // Get student data
   const { data: student } = await supabase
     .from('students')
-    .select('*, profile:profiles(*)')
+    .select('*, profile:profiles(*), program:programs(*), intake:intakes(*)')
     .eq('profile_id', user.id)
     .single();
 

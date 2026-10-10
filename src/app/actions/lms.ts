@@ -947,3 +947,187 @@ export async function getStudentOnlineLessonsByCourse(studentId: string, courseI
 
   return data as OnlineLesson[];
 }
+
+export interface StudentLearningUnit {
+  courseId: string;
+  courseName: string;
+  courseCode: string;
+  enrollmentStatus: 'active' | 'completed';
+  recordedLessons: OnlineLesson[];
+  liveLessons: OnlineLesson[];
+  materials: LmsLearningActivity[];
+  viewedLessonIds: string[];
+  progress: number; // 0..1
+  progressStatus: 'not-started' | 'in-progress' | 'completed';
+}
+
+export interface StudentLearningProgram {
+  programId: string; // UNASSIGNED_PROGRAM_KEY when the unit has no programme
+  programName: string;
+  programCode: string;
+  units: StudentLearningUnit[];
+  unitCount: number;
+  completedUnits: number;
+  pendingUnits: number;
+  progress: number; // mean of unit progress, 0..1
+}
+
+export interface StudentLearningData {
+  programs: StudentLearningProgram[];
+  totalUnits: number;
+  totalCompletedUnits: number;
+  totalRecorded: number;
+  totalViewed: number;
+}
+
+const UNASSIGNED_PROGRAM_KEY = '__unassigned__';
+
+export async function getStudentLearningHierarchy(studentId: string): Promise<StudentLearningData> {
+  const supabase = await createClient();
+
+  // 1. Enrollments (completed wins over active when a unit has rows for multiple terms)
+  const { data: enrollments, error: enrollmentError } = await supabase
+    .from('enrollments')
+    .select('course_id, status, course:courses(*, program:programs(*))')
+    .eq('student_id', studentId)
+    .in('status', ['active', 'completed']);
+
+  if (enrollmentError) {
+    console.error('Error fetching enrollments:', enrollmentError);
+    return { programs: [], totalUnits: 0, totalCompletedUnits: 0, totalRecorded: 0, totalViewed: 0 };
+  }
+
+  const unitMap = new Map<string, { course: Course; status: 'active' | 'completed' }>();
+  for (const row of enrollments ?? []) {
+    const course = (Array.isArray(row.course) ? row.course[0] : row.course) as Course | null;
+    if (!course) continue;
+    const status = row.status === 'completed' ? 'completed' : 'active';
+    const existing = unitMap.get(row.course_id);
+    if (!existing || (status === 'completed' && existing.status !== 'completed')) {
+      unitMap.set(row.course_id, { course, status });
+    }
+  }
+
+  const courseIds = Array.from(unitMap.keys());
+  const empty: StudentLearningData = { programs: [], totalUnits: 0, totalCompletedUnits: 0, totalRecorded: 0, totalViewed: 0 };
+  if (courseIds.length === 0) return empty;
+
+  // 2-4. Lessons, activities, and this student's recorded-class views.
+  // RLS only exposes lesson/activity rows for courses with an ACTIVE enrollment,
+  // which matches what the student is actually allowed to open.
+  const [lessonsRes, activitiesRes, viewsRes] = await Promise.all([
+    supabase
+      .from('online_lessons')
+      .select('*, course:courses(*)')
+      .in('course_id', courseIds)
+      .eq('is_published', true)
+      .order('scheduled_date', { ascending: true, nullsFirst: false })
+      .order('start_time', { ascending: true }),
+    supabase
+      .from('lms_learning_activities')
+      .select('*, course:courses(*)')
+      .in('course_id', courseIds)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('recorded_class_views')
+      .select('online_lesson_id')
+      .eq('student_id', studentId),
+  ]);
+
+  if (lessonsRes.error) console.error('Error fetching lessons:', lessonsRes.error);
+  if (activitiesRes.error) console.error('Error fetching activities:', activitiesRes.error);
+  if (viewsRes.error) console.error('Error fetching recorded views:', viewsRes.error);
+
+  const viewedIds = new Set((viewsRes.data ?? []).map(v => v.online_lesson_id));
+  const lessonsByCourse = new Map<string, OnlineLesson[]>();
+  for (const lesson of (lessonsRes.data ?? []) as OnlineLesson[]) {
+    const list = lessonsByCourse.get(lesson.course_id) ?? [];
+    list.push(lesson);
+    lessonsByCourse.set(lesson.course_id, list);
+  }
+  const activitiesByCourse = new Map<string, LmsLearningActivity[]>();
+  for (const activity of (activitiesRes.data ?? []) as LmsLearningActivity[]) {
+    const list = activitiesByCourse.get(activity.course_id) ?? [];
+    list.push(activity);
+    activitiesByCourse.set(activity.course_id, list);
+  }
+
+  // Group units under their course's programme — never mixed across programmes
+  const programGroups = new Map<string, StudentLearningProgram>();
+
+  for (const [courseId, { course, status }] of unitMap) {
+    const lessons = lessonsByCourse.get(courseId) ?? [];
+    const recordedLessons = lessons.filter(l => l.class_type === 'recorded' && l.recording_url);
+    const liveLessons = lessons.filter(l => l.class_type !== 'recorded');
+    const materials = activitiesByCourse.get(courseId) ?? [];
+    const unitViewed = recordedLessons.filter(l => viewedIds.has(l.id)).length;
+
+    const progress = status === 'completed'
+      ? 1
+      : recordedLessons.length > 0
+        ? unitViewed / recordedLessons.length
+        : 0;
+    const progressStatus: StudentLearningUnit['progressStatus'] =
+      status === 'completed' || progress === 1
+        ? 'completed'
+        : progress === 0
+          ? 'not-started'
+          : 'in-progress';
+
+    const unit: StudentLearningUnit = {
+      courseId,
+      courseName: course.name,
+      courseCode: course.code ?? '',
+      enrollmentStatus: status,
+      recordedLessons,
+      liveLessons,
+      materials,
+      viewedLessonIds: recordedLessons.filter(l => viewedIds.has(l.id)).map(l => l.id),
+      progress,
+      progressStatus,
+    };
+
+    const programId = course.program_id ?? UNASSIGNED_PROGRAM_KEY;
+    let group = programGroups.get(programId);
+    if (!group) {
+      group = {
+        programId,
+        programName: course.program?.name ?? 'Other Units',
+        programCode: course.program?.code ?? '',
+        units: [],
+        unitCount: 0,
+        completedUnits: 0,
+        pendingUnits: 0,
+        progress: 0,
+      };
+      programGroups.set(programId, group);
+    }
+    group.units.push(unit);
+  }
+
+  const collator = new Intl.Collator('en', { sensitivity: 'base', numeric: true });
+  const programs = Array.from(programGroups.values())
+    .map(group => {
+      group.units.sort((a, b) =>
+        collator.compare(a.courseCode || a.courseName, b.courseCode || b.courseName) ||
+        collator.compare(a.courseName, b.courseName));
+      group.unitCount = group.units.length;
+      group.completedUnits = group.units.filter(u => u.enrollmentStatus === 'completed').length;
+      group.pendingUnits = group.unitCount - group.completedUnits;
+      group.progress = group.units.length > 0
+        ? group.units.reduce((sum, u) => sum + u.progress, 0) / group.units.length
+        : 0;
+      return group;
+    })
+    .sort((a, b) => collator.compare(a.programName, b.programName));
+
+  const allUnits = programs.flatMap(p => p.units);
+  return {
+    programs,
+    totalUnits: allUnits.length,
+    totalCompletedUnits: allUnits.filter(u => u.enrollmentStatus === 'completed').length,
+    totalRecorded: allUnits.reduce((sum, u) => sum + u.recordedLessons.length, 0),
+    totalViewed: allUnits.reduce((sum, u) => sum + u.viewedLessonIds.length, 0),
+  };
+}
