@@ -355,6 +355,7 @@ export async function getAllOnlineLessons() {
 export interface RecordedClassLessonStats {
   totalViews: number;
   uniqueViewers: number;
+  viewerIds: string[];
 }
 
 export interface RecordedClassLesson extends OnlineLesson {
@@ -486,7 +487,7 @@ export async function getRecordedClassesHierarchy(): Promise<RecordedClassesData
 
     unitGroup.lessons.push({
       ...lesson,
-      stats: { totalViews: viewStats.totalViews, uniqueViewers: viewStats.viewers.size },
+      stats: { totalViews: viewStats.totalViews, uniqueViewers: viewStats.viewers.size, viewerIds: Array.from(viewStats.viewers) },
     });
   }
 
