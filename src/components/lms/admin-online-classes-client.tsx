@@ -277,8 +277,6 @@ export function AdminOnlineClassesClient() {
     setFilterStatus('all');
   }
 
-  const hasActiveFilters = searchQuery !== '' || filterProgramId !== '' || filterUnitId !== '' || filterStatus !== 'all';
-
   const programUnitOptions = useMemo(() => {
     const groups = data?.programs || [];
     const scoped = filterProgramId ? groups.filter(g => g.programId === filterProgramId) : groups;
@@ -333,12 +331,9 @@ export function AdminOnlineClassesClient() {
   const stats = useMemo(() => {
     if (!data) return null;
     const lessons = filteredGroups.flatMap(g => g.units.flatMap(u => u.lessons));
-    // Per-lesson stats only carry counts, not student ids, so a filtered unique-viewer
-    // total can only sum per-lesson uniques (a student may be counted once per lesson).
-    // With no filters the exact server-side global is available.
-    const uniqueViewers = hasActiveFilters
-      ? lessons.reduce((sum, l) => sum + l.stats.uniqueViewers, 0)
-      : data.stats.uniqueViewers;
+    // Union of per-lesson viewer ids gives an exact distinct-viewer count for any
+    // filter combination; equals data.stats.uniqueViewers when nothing is filtered.
+    const uniqueViewers = new Set(lessons.flatMap(l => l.stats.viewerIds)).size;
     return {
       totalClasses: lessons.length,
       publishedClasses: lessons.filter(l => l.is_published).length,
@@ -347,7 +342,7 @@ export function AdminOnlineClassesClient() {
       programCount: filteredGroups.length,
       unitCount: filteredGroups.reduce((sum, g) => sum + g.units.filter(u => u.assigned).length, 0),
     };
-  }, [data, filteredGroups, hasActiveFilters]);
+  }, [data, filteredGroups]);
 
   // Course options for the form; ensure the edited lesson's current course is visible
   // even if it is inactive and therefore missing from the programme's active course list
@@ -372,7 +367,7 @@ export function AdminOnlineClassesClient() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Recorded Classes</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-primary">Recorded Classes</h1>
           <p className="text-slate-600 mt-1 text-sm sm:text-base">Add and manage recorded lessons for your students.</p>
         </div>
         <Button
@@ -506,6 +501,13 @@ export function AdminOnlineClassesClient() {
           {filteredGroups.map(group => {
             const programKey = group.programId || NO_PROGRAM_KEY;
             const isProgramExpanded = expandedPrograms.has(programKey);
+            // Derive counts from the filtered units so headers always match what is shown
+            const groupLessons = group.units.flatMap(u => u.lessons);
+            const groupLessonCount = groupLessons.length;
+            const groupViews = groupLessons.reduce((sum, l) => sum + l.stats.totalViews, 0);
+            const groupPublished = groupLessons.filter(l => l.is_published).length;
+            const groupDrafts = groupLessonCount - groupPublished;
+            const groupUnitCount = group.units.filter(u => u.assigned).length;
             return (
               <div key={programKey} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                 {/* Programme header */}
@@ -525,22 +527,22 @@ export function AdminOnlineClassesClient() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-semibold text-slate-900 text-base sm:text-lg">{group.name}</h2>
+                      <h2 className="font-semibold text-primary text-base sm:text-lg">{group.name}</h2>
                       {group.code && <Badge variant="outline">{group.code}</Badge>}
                     </span>
                     <span className="mt-1 flex items-center gap-x-2 gap-y-1 flex-wrap text-xs sm:text-sm text-slate-600">
-                      <span>{group.unitCount} {group.unitCount === 1 ? 'Unit' : 'Units'}</span>
+                      <span>{groupUnitCount} {groupUnitCount === 1 ? 'Unit' : 'Units'}</span>
                       <span aria-hidden="true">·</span>
-                      <span>{group.lessonCount} Recorded {group.lessonCount === 1 ? 'Class' : 'Classes'}</span>
+                      <span>{groupLessonCount} Recorded {groupLessonCount === 1 ? 'Class' : 'Classes'}</span>
                       <span aria-hidden="true">·</span>
-                      <span>{group.totalViews} {group.totalViews === 1 ? 'View' : 'Views'}</span>
-                      {group.publishedCount > 0 && (
+                      <span>{groupViews} {groupViews === 1 ? 'View' : 'Views'}</span>
+                      {groupPublished > 0 && (
                         <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                          {group.publishedCount} Published
+                          {groupPublished} Published
                         </Badge>
                       )}
-                      {group.draftCount > 0 && (
-                        <Badge variant="outline">{group.draftCount} Draft</Badge>
+                      {groupDrafts > 0 && (
+                        <Badge variant="outline">{groupDrafts} Draft</Badge>
                       )}
                     </span>
                   </span>
@@ -552,6 +554,7 @@ export function AdminOnlineClassesClient() {
                     {group.units.map(unit => {
                       const unitKey = `${programKey}::${unit.courseId || UNASSIGNED_KEY}`;
                       const isUnitExpanded = expandedUnits.has(unitKey);
+                      const unitViews = unit.lessons.reduce((sum, l) => sum + l.stats.totalViews, 0);
                       return (
                         <div key={unit.courseId || UNASSIGNED_KEY} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
                           {/* Unit header */}
@@ -581,7 +584,7 @@ export function AdminOnlineClassesClient() {
                                 )}
                               </span>
                               <span className="block text-xs sm:text-sm text-slate-600 mt-0.5">
-                                {unit.lessonCount} {unit.lessonCount === 1 ? 'class' : 'classes'} · {unit.totalViews} {unit.totalViews === 1 ? 'view' : 'views'}
+                                {unit.lessons.length} {unit.lessons.length === 1 ? 'class' : 'classes'} · {unitViews} {unitViews === 1 ? 'view' : 'views'}
                               </span>
                             </span>
                           </button>
