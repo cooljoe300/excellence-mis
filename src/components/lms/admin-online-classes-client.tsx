@@ -511,42 +511,44 @@ export function AdminOnlineClassesClient() {
             return (
               <div key={programKey} className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                 {/* Programme header */}
-                <button
-                  type="button"
-                  onClick={() => toggleProgram(programKey)}
-                  aria-expanded={isProgramExpanded}
-                  className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors text-left"
-                >
-                  {isProgramExpanded ? (
-                    <ChevronDown className="h-5 w-5 shrink-0 text-slate-500" />
-                  ) : (
-                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-500" />
-                  )}
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                    <GraduationCap className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-semibold text-primary text-base sm:text-lg">{group.name}</h2>
-                      {group.code && <Badge variant="outline">{group.code}</Badge>}
+                <div className="p-3 sm:p-4">
+                  <button
+                    type="button"
+                    onClick={() => toggleProgram(programKey)}
+                    aria-expanded={isProgramExpanded}
+                    className="w-full flex items-center gap-3 rounded-lg bg-accent px-4 py-3.5 text-left text-white shadow-sm transition-colors hover:bg-accent-hover"
+                  >
+                    {isProgramExpanded ? (
+                      <ChevronDown className="h-5 w-5 shrink-0 text-white/90" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 shrink-0 text-white/90" />
+                    )}
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white">
+                      <GraduationCap className="h-5 w-5" />
                     </span>
-                    <span className="mt-1 flex items-center gap-x-2 gap-y-1 flex-wrap text-xs sm:text-sm text-slate-600">
-                      <span>{groupUnitCount} {groupUnitCount === 1 ? 'Unit' : 'Units'}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{groupLessonCount} Recorded {groupLessonCount === 1 ? 'Class' : 'Classes'}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{groupViews} {groupViews === 1 ? 'View' : 'Views'}</span>
-                      {groupPublished > 0 && (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                          {groupPublished} Published
-                        </Badge>
-                      )}
-                      {groupDrafts > 0 && (
-                        <Badge variant="outline">{groupDrafts} Draft</Badge>
-                      )}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 flex-wrap">
+                        <h2 className="font-semibold text-white text-base sm:text-lg">{group.name}</h2>
+                        {group.code && <Badge className="bg-white/25 text-white">{group.code}</Badge>}
+                      </span>
+                      <span className="mt-1 flex items-center gap-x-2 gap-y-1 flex-wrap text-xs sm:text-sm text-white/80">
+                        <span>{groupUnitCount} {groupUnitCount === 1 ? 'Unit' : 'Units'}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{groupLessonCount} Recorded {groupLessonCount === 1 ? 'Class' : 'Classes'}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{groupViews} {groupViews === 1 ? 'View' : 'Views'}</span>
+                        {groupPublished > 0 && (
+                          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+                            {groupPublished} Published
+                          </Badge>
+                        )}
+                        {groupDrafts > 0 && (
+                          <Badge className="bg-white/25 text-white">{groupDrafts} Draft</Badge>
+                        )}
+                      </span>
                     </span>
-                  </span>
-                </button>
+                  </button>
+                </div>
 
                 {/* Units */}
                 {isProgramExpanded && (
