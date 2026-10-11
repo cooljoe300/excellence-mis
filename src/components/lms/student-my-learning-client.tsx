@@ -548,7 +548,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                 </div>
 
                 {/* Units */}
-                <div className="divide-y divide-slate-200">
+                <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                   {program.units.map(unit => {
                     const isExpanded = expandedUnits.has(unit.courseId);
                     const progress = unitProgress(unit);
@@ -556,42 +556,32 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                     const content = filterUnitContent(unit);
                     const totalContent = content.recorded.length + content.live.length + content.materials.length;
 
-                    const unitRowClass =
-                      status === 'in-progress'
-                        ? 'bg-primary-light/50 border-l-[3px] border-l-primary'
-                        : status === 'completed'
-                          ? 'bg-slate-50/70'
-                          : undefined;
-
                     return (
-                      <div key={unit.courseId} className={unitRowClass}>
+                      <div key={unit.courseId}>
                         <button
                           onClick={() => toggleUnit(unit.courseId)}
-                          className={cn(
-                            'w-full p-4 text-left transition-colors',
-                            status === 'in-progress' ? 'hover:bg-primary-light/80' : 'hover:bg-slate-50',
-                          )}
+                          className="w-full rounded-lg bg-accent px-4 py-3.5 text-left text-white shadow-sm transition-colors hover:bg-accent-hover"
                         >
                           <div className="flex items-center gap-3">
                             {isExpanded
-                              ? <ChevronDown className={`h-4 w-4 shrink-0 ${status === 'in-progress' ? 'text-primary' : 'text-slate-400'}`} />
-                              : <ChevronRight className={`h-4 w-4 shrink-0 ${status === 'in-progress' ? 'text-primary' : 'text-slate-400'}`} />}
+                              ? <ChevronDown className="h-4 w-4 shrink-0 text-white/90" />
+                              : <ChevronRight className="h-4 w-4 shrink-0 text-white/90" />}
                             <div className="flex-1 min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-medium text-slate-900 truncate">
+                                <span className="font-medium text-white truncate">
                                   {unit.courseCode} {unit.courseName}
                                 </span>
                                 {status === 'completed' && (
-                                  <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">Completed</Badge>
+                                  <Badge className="bg-white/25 text-white">Completed</Badge>
                                 )}
                                 {status === 'in-progress' && (
-                                  <Badge variant="default" className="bg-primary/10 text-primary">In Progress</Badge>
+                                  <Badge className="bg-white text-accent">In Progress</Badge>
                                 )}
                                 {status === 'not-started' && (
-                                  <Badge variant="outline">Not Started</Badge>
+                                  <Badge className="bg-white/25 text-white">Not Started</Badge>
                                 )}
                               </div>
-                              <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
+                              <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-white/80">
                                 {unit.recordedLessons.length > 0 && (
                                   <span className="inline-flex items-center gap-1">
                                     <Video className="h-3.5 w-3.5" />
@@ -613,21 +603,21 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className={`text-sm font-semibold ${status === 'in-progress' ? 'text-primary' : 'text-slate-700'}`}>
+                              <span className="text-sm font-semibold text-white">
                                 {Math.round(progress * 100)}%
                               </span>
                             </div>
                           </div>
-                          <div className={`h-1.5 rounded-full mt-3 overflow-hidden ${status === 'in-progress' ? 'bg-white/80' : 'bg-slate-100'}`}>
+                          <div className="h-1.5 bg-white/30 rounded-full mt-3 overflow-hidden">
                             <div
-                              className={`h-1.5 rounded-full ${status === 'completed' ? 'bg-green-500' : 'bg-primary'}`}
+                              className="h-1.5 bg-white rounded-full"
                               style={{ width: `${Math.round(progress * 100)}%` }}
                             />
                           </div>
                         </button>
 
                         {isExpanded && (
-                          <div className="px-4 pb-4 sm:px-6 sm:pb-6 bg-background border-t border-slate-200/70 space-y-6">
+                          <div className="mt-3 rounded-lg border border-slate-200 bg-background p-4 sm:p-6 space-y-6">
                             {totalContent === 0 ? (
                               <div className="bg-white border border-slate-200 rounded-lg p-6 text-center">
                                 <BookOpen className="h-8 w-8 text-slate-400 mx-auto mb-2" />
