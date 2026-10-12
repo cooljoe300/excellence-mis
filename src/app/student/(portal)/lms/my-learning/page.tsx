@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { getRoleFromMetadata } from '@/lib/auth';
 import { StudentMyLearningClient } from '@/components/lms/student-my-learning-client';
+import { OnlineClassesLocked } from '@/components/lms/online-classes-locked';
+import { hasOnlineClassesAccess } from '@/app/actions/lms';
 import type { Student } from '@/lib/types';
 import { logAudit } from '@/lib/audit-logger';
 
@@ -25,6 +27,11 @@ export default async function StudentMyLearningPage() {
 
   if (!student) {
     redirect('/student/dashboard');
+  }
+
+  // Payment-based access: students with no confirmed payments cannot use Online Classes.
+  if (!(await hasOnlineClassesAccess(student.id))) {
+    return <OnlineClassesLocked />;
   }
 
   // Log that student opened LMS

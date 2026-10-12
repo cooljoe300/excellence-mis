@@ -33,6 +33,7 @@ import {
   DollarSign,
   Building2,
   TrendingUp,
+  Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -119,9 +120,10 @@ interface SidebarProps {
   userRole: UserRole;
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  lockedOnlineClasses?: boolean;
 }
 
-export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: SidebarProps) {
+export function Sidebar({ userName, userRole, mobileOpen, onMobileClose, lockedOnlineClasses = false }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const navItems = getNavItems(userRole);
@@ -134,6 +136,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
   const [expandedParents, setExpandedParents] = useState<Set<string>>(
     new Set(['Reports']) // Reports is expanded by default
   );
+  const [lockedMessageFor, setLockedMessageFor] = useState<string | null>(null);
 
   const portalLabel =
     userRole === 'admin'
@@ -179,6 +182,60 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
     });
   }
 
+  const onlineClassesHrefs = new Set([
+    '/student/lms/my-learning',
+    'https://lms.excellenceonlinecollege.com',
+  ]);
+
+  function isLockedItem(item: NavItem) {
+    return (
+      lockedOnlineClasses &&
+      userRole === 'student' &&
+      onlineClassesHrefs.has(item.href)
+    );
+  }
+
+  function renderLockedItem(item: NavItem, compact = false) {
+    const Icon = item.icon;
+    return (
+      <div key={item.href}>
+        <button
+          type="button"
+          onClick={() =>
+            setLockedMessageFor((cur) => (cur === item.href ? null : item.href))
+          }
+          className={cn(
+            'flex w-full items-center gap-3 rounded-lg px-3 text-sm font-medium transition-all duration-150',
+            compact ? 'py-2' : 'py-2.5',
+            'cursor-not-allowed text-slate-500 hover:bg-white/5'
+          )}
+        >
+          <Icon className="h-4 w-4 shrink-0" />
+          {item.label}
+          <Lock className="h-3 w-3 shrink-0 opacity-70" />
+        </button>
+        {lockedMessageFor === item.href && (
+          <div className="mt-1 rounded-lg bg-accent px-3 py-2.5 text-xs text-white shadow-sm">
+            <p className="flex items-center gap-1.5 font-semibold">
+              <Lock className="h-3 w-3 shrink-0" />
+              Online Classes Locked
+            </p>
+            <p className="mt-1 text-white/90">
+              You need to make a payment before you can access online classes.
+            </p>
+            <Link
+              href="/student/fees"
+              onClick={handleNavClick}
+              className="mt-1.5 inline-block font-semibold underline underline-offset-2"
+            >
+              Make a Payment
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const groupedNavItems = navItems.reduce((acc, item) => {
     const section = item.section || 'main';
     if (!acc[section]) {
@@ -215,7 +272,11 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                 (item.href !== '/dashboard' && pathname.startsWith(item.href));
               const Icon = item.icon;
               const isExternal = item.external;
-              
+
+              if (isLockedItem(item)) {
+                return renderLockedItem(item);
+              }
+
               if (isExternal) {
                 return (
                   <a
@@ -423,7 +484,11 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose }: Sideb
                       (item.href !== '/dashboard' && pathname.startsWith(item.href));
                     const Icon = item.icon;
                     const isExternal = item.external;
-                    
+
+                    if (isLockedItem(item)) {
+                      return renderLockedItem(item, true);
+                    }
+
                     // Handle parent items within sections
                     if (item.isParent && item.children) {
                       const isParentExpanded = expandedParents.has(item.label);

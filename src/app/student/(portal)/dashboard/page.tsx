@@ -48,11 +48,12 @@ export default async function StudentDashboardPage() {
         enrollments={dashboardData.currentEnrollments}
       />
       
-      <QuickServices />
-      
-      <LMSAccess 
+      <QuickServices onlineClassesLocked={dashboardData.summary.onlineClassesLocked} />
+
+      <LMSAccess
         lmsSynced={dashboardData.summary.lmsSynced}
         lmsUsername={dashboardData.student.lms_username}
+        onlineClassesLocked={dashboardData.summary.onlineClassesLocked}
       />
       
       <StudentSupport />

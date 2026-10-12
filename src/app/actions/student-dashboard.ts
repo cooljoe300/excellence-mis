@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentAcademicTermId } from '@/app/actions/enrollments';
+import { hasOnlineClassesAccess } from '@/app/actions/lms';
 import type { Student, Enrollment, FeePayment, AcademicTerm, Program, Intake } from '@/lib/types';
 
 export interface StudentDashboardData {
@@ -25,6 +26,7 @@ export interface StudentDashboardData {
     lmsFailed: boolean;
     idCardReady: boolean;
     profileComplete: number;
+    onlineClassesLocked: boolean;
   };
   actions: DashboardAction[];
 }
@@ -67,6 +69,7 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
         lmsFailed: false,
         idCardReady: false,
         profileComplete: 0,
+        onlineClassesLocked: false,
       },
       actions: [],
     };
@@ -101,6 +104,7 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
         lmsFailed: false,
         idCardReady: false,
         profileComplete: 0,
+        onlineClassesLocked: false,
       },
       actions: [],
     };
@@ -195,6 +199,7 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
       lmsFailed: student.lms_sync_status === 'failed',
       idCardReady: !!student.id_card_issued_at && !!student.photo_url,
       profileComplete,
+      onlineClassesLocked: !(await hasOnlineClassesAccess(student.id)),
     },
     actions,
   };

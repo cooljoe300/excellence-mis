@@ -11,9 +11,11 @@ import { InstallAppPrompt } from '@/components/student/install-app-prompt';
 export function StudentShell({
   children,
   userName,
+  onlineClassesLocked = false,
 }: {
   children: React.ReactNode;
   userName: string;
+  onlineClassesLocked?: boolean;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const userRole: UserRole = 'student';
@@ -25,6 +27,7 @@ export function StudentShell({
         userRole={userRole}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
+        lockedOnlineClasses={onlineClassesLocked}
       />
 
       <div className="flex flex-1 flex-col min-w-0">

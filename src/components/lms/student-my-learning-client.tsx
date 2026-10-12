@@ -55,7 +55,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     let cancelled = false;
     (async () => {
       try {
-        const hierarchy = await getStudentLearningHierarchy(student.id);
+        const hierarchy = await getStudentLearningHierarchy();
         if (!cancelled) setData(hierarchy);
       } catch (error) {
         console.error('Error loading learning data:', error);
@@ -168,7 +168,7 @@ export function StudentMyLearningClient({ student }: { student: Student }) {
     const url = lesson.class_type === 'recorded' ? lesson.recording_url : lesson.zoom_url;
     if (!url) return;
     if (lesson.class_type === 'recorded' && student.id) {
-      trackRecordedClassView(lesson.id, student.id)
+      trackRecordedClassView(lesson.id)
         .then(() => {
           setData(prev => {
             if (!prev) return prev;

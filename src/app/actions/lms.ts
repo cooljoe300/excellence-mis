@@ -3,6 +3,58 @@
 import { createClient } from '@/lib/supabase/server';
 import type { LmsLearningActivity, Course, OnlineLesson } from '@/lib/types';
 
+// Every confirmed payment path (admin recording, approved submissions, completed
+// M-Pesa/PesaPal transactions) increments fee_payments.amount_paid with status
+// 'paid'/'partial'. Pending, failed, cancelled, rejected and waived records never
+// qualify, so this sum is the source of truth for payment-based Online Classes access.
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+async function getConfirmedPaymentsTotal(
+  supabase: SupabaseServerClient,
+  studentId: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('fee_payments')
+    .select('amount_paid')
+    .eq('student_id', studentId)
+    .in('status', ['paid', 'partial']);
+
+  if (error) {
+    console.error('Error checking confirmed payments:', error);
+    return 0;
+  }
+
+  return (data ?? []).reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0);
+}
+
+export async function hasOnlineClassesAccess(studentId: string): Promise<boolean> {
+  const supabase = await createClient();
+  return (await getConfirmedPaymentsTotal(supabase, studentId)) > 0;
+}
+
+// Resolves the authenticated student and denies access when they have no confirmed
+// payments. Student-facing LMS actions call this so the lock cannot be bypassed via
+// direct action invocation with someone else's student id.
+async function assertOnlineClassesAccess(
+  supabase: SupabaseServerClient,
+  userId: string,
+): Promise<string> {
+  const { data: student } = await supabase
+    .from('students')
+    .select('id')
+    .eq('profile_id', userId)
+    .maybeSingle();
+
+  if (!student) throw new Error('Student record not found.');
+
+  const total = await getConfirmedPaymentsTotal(supabase, student.id);
+  if (total <= 0) {
+    throw new Error('Online Classes locked: a confirmed payment is required before accessing online classes.');
+  }
+
+  return student.id;
+}
+
 export async function getLearningActivitiesByCourse(courseId: string) {
   const supabase = await createClient();
   
@@ -50,7 +102,7 @@ export async function createLearningActivity(formData: FormData) {
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -104,7 +156,7 @@ export async function updateLearningActivity(activityId: string, formData: FormD
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -157,7 +209,7 @@ export async function deleteLearningActivity(activityId: string) {
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -181,29 +233,19 @@ export async function getStudentLearningActivities() {
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return [];
   }
 
-  // Get student's enrolled courses
-  const { data: studentData, error: studentError } = await supabase
-    .from('students')
-    .select('id, program_id')
-    .eq('profile_id', user.id)
-    .single();
-
-  if (studentError || !studentData) {
-    console.error('Error fetching student:', studentError);
-    return [];
-  }
+  const studentId = await assertOnlineClassesAccess(supabase, user.id);
 
   // Get active enrollments
   const { data: enrollments, error: enrollmentError } = await supabase
     .from('enrollments')
     .select('course_id, course:courses(*)')
-    .eq('student_id', studentData.id)
+    .eq('student_id', studentId)
     .eq('status', 'active');
 
   if (enrollmentError) {
@@ -241,27 +283,18 @@ export async function getStudentLearningActivitiesByCourse(courseId: string) {
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return [];
   }
 
-  // Verify student is enrolled in this course
-  const { data: studentData, error: studentError } = await supabase
-    .from('students')
-    .select('id')
-    .eq('profile_id', user.id)
-    .single();
-
-  if (studentError || !studentData) {
-    return [];
-  }
+  const studentId = await assertOnlineClassesAccess(supabase, user.id);
 
   const { data: enrollment, error: enrollmentError } = await supabase
     .from('enrollments')
     .select('id')
-    .eq('student_id', studentData.id)
+    .eq('student_id', studentId)
     .eq('course_id', courseId)
     .eq('status', 'active')
     .single();
@@ -535,7 +568,7 @@ export async function createOnlineLesson(formData: FormData) {
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -647,7 +680,7 @@ export async function updateOnlineLesson(lessonId: string, formData: FormData) {
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -750,7 +783,7 @@ export async function deleteOnlineLesson(lessonId: string) {
   
   const {
     data: { user },
-  } = await (supabase.auth as any).getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return { success: false, error: 'Unauthorized' };
@@ -769,8 +802,18 @@ export async function deleteOnlineLesson(lessonId: string) {
   return { success: true };
 }
 
-export async function trackRecordedClassView(lessonId: string, studentId: string) {
+export async function trackRecordedClassView(lessonId: string) {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated.' };
+  }
+
+  const studentId = await assertOnlineClassesAccess(supabase, user.id);
   
   const { data, error } = await supabase
     .from('recorded_class_views')
@@ -877,8 +920,18 @@ export async function getRecordedClassViewStatsMap(lessonIds: string[]) {
 }
 
 // Student actions - get lessons for enrolled courses only
-export async function getStudentOnlineLessons(studentId: string) {
+export async function getStudentOnlineLessons() {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const authenticatedStudentId = await assertOnlineClassesAccess(supabase, user.id);
   
   const { data, error } = await supabase
     .from('online_lessons')
@@ -900,7 +953,7 @@ export async function getStudentOnlineLessons(studentId: string) {
   const { data: enrollments } = await supabase
     .from('enrollments')
     .select('course_id')
-    .eq('student_id', studentId)
+    .eq('student_id', authenticatedStudentId)
     .eq('status', 'active');
 
   if (!enrollments) {
@@ -913,8 +966,18 @@ export async function getStudentOnlineLessons(studentId: string) {
   );
 }
 
-export async function getStudentOnlineLessonsByCourse(studentId: string, courseId: string) {
+export async function getStudentOnlineLessonsByCourse(courseId: string) {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return [];
+  }
+
+  const studentId = await assertOnlineClassesAccess(supabase, user.id);
   
   // Verify enrollment
   const { data: enrollment } = await supabase
@@ -982,8 +1045,18 @@ export interface StudentLearningData {
 
 const UNASSIGNED_PROGRAM_KEY = '__unassigned__';
 
-export async function getStudentLearningHierarchy(studentId: string): Promise<StudentLearningData> {
+export async function getStudentLearningHierarchy(): Promise<StudentLearningData> {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { programs: [], totalUnits: 0, totalCompletedUnits: 0, totalRecorded: 0, totalViewed: 0 };
+  }
+
+  const studentId = await assertOnlineClassesAccess(supabase, user.id);
 
   // 1. Enrollments (completed wins over active when a unit has rows for multiple terms)
   const { data: enrollments, error: enrollmentError } = await supabase

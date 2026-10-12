@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getRoleFromMetadata } from '@/lib/auth';
 import { StudentShell } from '@/components/layout/student-shell';
 import { RegisterStudentServiceWorker } from '@/components/student/register-student-sw';
+import { hasOnlineClassesAccess } from '@/app/actions/lms';
 
 export const metadata: Metadata = {
   title: 'Student Portal | Excellence Online College',
@@ -55,10 +56,22 @@ export default async function StudentPortalLayout({
 
   const userName = profile?.full_name ?? user.email ?? 'Student';
 
+  const { data: studentRow } = await supabase
+    .from('students')
+    .select('id')
+    .eq('profile_id', user.id)
+    .maybeSingle();
+
+  const onlineClassesLocked = studentRow
+    ? !(await hasOnlineClassesAccess(studentRow.id))
+    : false;
+
   return (
     <>
       <RegisterStudentServiceWorker />
-      <StudentShell userName={userName}>{children}</StudentShell>
+      <StudentShell userName={userName} onlineClassesLocked={onlineClassesLocked}>
+        {children}
+      </StudentShell>
     </>
   );
 }

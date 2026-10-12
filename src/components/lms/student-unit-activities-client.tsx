@@ -30,7 +30,7 @@ export function StudentUnitActivitiesClient({
     try {
       const [activitiesData, lessonsData] = await Promise.all([
         getStudentLearningActivitiesByCourse(course.id),
-        getStudentOnlineLessonsByCourse(student.id, course.id)
+        getStudentOnlineLessonsByCourse(course.id)
       ]);
       setActivities(activitiesData);
       setOnlineLessons(lessonsData);
