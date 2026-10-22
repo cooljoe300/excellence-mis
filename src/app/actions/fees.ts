@@ -14,17 +14,41 @@ export async function getFeePayments() {
   const { data, error } = await supabase
     .from('fee_payments')
     .select(
-      '*, student:students(*), term:academic_terms(*), submissions:fee_payment_submissions(*), items:fee_payment_items(*, course:courses(code, name))'
+      '*, student:students(*, program:programs(*)), term:academic_terms(*), submissions:fee_payment_submissions(*), items:fee_payment_items(*, course:courses(code, name))'
     )
     .order('created_at', { ascending: false });
 
   if (error) {
     const fallback = await supabase
       .from('fee_payments')
-      .select('*, student:students(*), term:academic_terms(*)')
+      .select('*, student:students(*, program:programs(*)), term:academic_terms(*)')
       .order('created_at', { ascending: false });
     if (fallback.error) throw new Error(fallback.error.message);
     return fallback.data ?? [];
+  }
+
+  // Attach intakes to students in fee payments
+  const studentIds = [...new Set(data?.map(f => f.student_id) || [])];
+  const { data: studentIntakes, error: intakesError } = await supabase
+    .from('student_intakes')
+    .select('student_id, intake:intakes(*)')
+    .in('student_id', studentIds);
+  
+  if (!intakesError && studentIntakes) {
+    const intakesByStudent = new Map<string, any[]>();
+    studentIntakes.forEach(si => {
+      if (!intakesByStudent.has(si.student_id)) {
+        intakesByStudent.set(si.student_id, []);
+      }
+      intakesByStudent.get(si.student_id)?.push(si.intake);
+    });
+
+    // Attach intakes to each fee payment's student
+    data?.forEach(fee => {
+      if (fee.student) {
+        (fee.student as any).intakes = intakesByStudent.get(fee.student_id) || [];
+      }
+    });
   }
 
   return data ?? [];

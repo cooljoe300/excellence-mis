@@ -190,16 +190,30 @@ export async function syncPendingApprovalNotifications() {
     pendingSubmissions.map((s: any) => `fee_submission_${s.id}`)
   );
 
-  const { error: deleteError } = await supabase
-    .from('user_notifications')
-    .delete()
-    .eq('user_id', user.id)
-    .eq('type', 'warning')
-    .like('title', 'Pending Fee Approval%')
-    .not('reference_id', 'in', Array.from(currentRefIds));
+  if (currentRefIds.size > 0) {
+    const { error: deleteError } = await supabase
+      .from('user_notifications')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('type', 'warning')
+      .like('title', 'Pending Fee Approval%')
+      .not('reference_id', 'in', `(${Array.from(currentRefIds).join(',')})`);
 
-  if (deleteError) {
-    console.error('Error cleaning up old notifications:', deleteError);
+    if (deleteError) {
+      console.error('Error cleaning up old notifications:', deleteError);
+    }
+  } else {
+    // If no pending submissions, delete all pending fee approval notifications
+    const { error: deleteError } = await supabase
+      .from('user_notifications')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('type', 'warning')
+      .like('title', 'Pending Fee Approval%');
+
+    if (deleteError) {
+      console.error('Error cleaning up old notifications:', deleteError);
+    }
   }
 
   revalidatePath('/dashboard');

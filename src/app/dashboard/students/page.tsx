@@ -144,6 +144,7 @@ Excellence Online College`;
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Name</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Email</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Program</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Intake(s)</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Source</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">LMS</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Status</th>
@@ -162,6 +163,19 @@ Excellence Online College`;
                   <td className="px-4 py-2 text-slate-600">{student.email}</td>
                   <td className="px-4 py-2 text-slate-600">
                     {student.program && typeof student.program === 'object' && 'name' in student.program ? (student.program as { name: string }).name : '—'}
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">
+                    {student.intakes && Array.isArray(student.intakes) && student.intakes.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {student.intakes.map((intake: any) => (
+                          <Badge key={intake.id} status="pending" variant="outline">
+                            {intake.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="px-4 py-2">
                     <Badge

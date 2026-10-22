@@ -42,9 +42,11 @@ async function applyPhotoFromForm(
 
 export async function getStudents(search?: string) {
   const supabase = await createClient();
+  
+  // Get unique students with their programs
   let query = supabase
     .from('students')
-    .select('*, program:programs(*), intake:intakes(*)')
+    .select('*, program:programs(*)')
     .order('created_at', { ascending: false });
 
   if (search) {
@@ -53,20 +55,63 @@ export async function getStudents(search?: string) {
     );
   }
 
-  const { data, error } = await query;
-  if (error) throw new Error(error.message);
-  return data;
+  const { data: students, error: studentsError } = await query;
+  if (studentsError) throw new Error(studentsError.message);
+
+  // Get all student intakes
+  const studentIds = students.map(s => s.id);
+  const { data: studentIntakes, error: intakesError } = await supabase
+    .from('student_intakes')
+    .select('student_id, intake:intakes(*)')
+    .in('student_id', studentIds);
+  
+  if (intakesError) throw new Error(intakesError.message);
+
+  // Group intakes by student_id
+  const intakesByStudent = new Map<string, any[]>();
+  studentIntakes?.forEach(si => {
+    if (!intakesByStudent.has(si.student_id)) {
+      intakesByStudent.set(si.student_id, []);
+    }
+    intakesByStudent.get(si.student_id)?.push(si.intake);
+  });
+
+  // Attach intakes to each student
+  const studentsWithIntakes = students.map(student => ({
+    ...student,
+    intakes: intakesByStudent.get(student.id) || []
+  }));
+
+  return studentsWithIntakes;
 }
 
 export async function getStudent(id: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const { data: student, error: studentError } = await supabase
     .from('students')
-    .select('*, program:programs(*), intake:intakes(*)')
+    .select('*, program:programs(*)')
     .eq('id', id)
     .single();
-  if (error) throw new Error(error.message);
-  return data;
+  
+  if (studentError) throw new Error(studentError.message);
+
+  // Get student intakes
+  const { data: studentIntakes, error: intakesError } = await supabase
+    .from('student_intakes')
+    .select('student_id, intake:intakes(*), is_primary, enrollment_date, status')
+    .eq('student_id', id);
+  
+  if (intakesError) throw new Error(intakesError.message);
+
+  return {
+    ...student,
+    intakes: studentIntakes?.map(si => ({
+      ...si.intake,
+      is_primary: si.is_primary,
+      enrollment_date: si.enrollment_date,
+      status: si.status
+    })) || []
+  };
 }
 
 export async function createStudent(formData: FormData) {
@@ -194,7 +239,6 @@ export async function createStudent(formData: FormData) {
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: programId,
-      intake_id: (formData.get('intake_id') as string) || null,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||
         new Date().toISOString().split('T')[0],
@@ -216,6 +260,25 @@ export async function createStudent(formData: FormData) {
       };
     }
     return { error: error.message };
+  }
+
+  // Create student_intakes record for the selected intake
+  const intakeId = (formData.get('intake_id') as string) || null;
+  if (intakeId) {
+    const { error: intakeError } = await supabase
+      .from('student_intakes')
+      .insert({
+        student_id: data.id,
+        intake_id: intakeId,
+        is_primary: true,
+        enrollment_date: (formData.get('enrollment_date') as string) || new Date().toISOString().split('T')[0],
+        status: (formData.get('status') as StudentStatus) || 'active',
+      });
+    
+    if (intakeError) {
+      console.warn('Failed to create student_intakes record:', intakeError.message);
+      // Don't fail the entire registration - just log the error
+    }
   }
 
   // Handle passport photo upload if provided
@@ -310,7 +373,6 @@ export async function updateStudent(id: string, formData: FormData) {
     emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
     emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
     program_id: (formData.get('program_id') as string) || null,
-    intake_id: (formData.get('intake_id') as string) || null,
     status: newStatus,
     notes: (formData.get('notes') as string) || null,
   };
@@ -325,6 +387,46 @@ export async function updateStudent(id: string, formData: FormData) {
     .update(updateData)
     .eq('id', id);
   if (error) return { error: error.message };
+
+  // Update student_intakes if intake_id changed
+  const newIntakeId = (formData.get('intake_id') as string) || null;
+  if (newIntakeId) {
+    // Check if student already has this intake
+    const { data: existingIntake } = await supabase
+      .from('student_intakes')
+      .select('id')
+      .eq('student_id', id)
+      .eq('intake_id', newIntakeId)
+      .maybeSingle();
+    
+    if (!existingIntake) {
+      // Add new intake
+      const { error: intakeInsertError } = await supabase
+        .from('student_intakes')
+        .insert({
+          student_id: id,
+          intake_id: newIntakeId,
+          is_primary: true,
+          enrollment_date: (formData.get('enrollment_date') as string) || new Date().toISOString().split('T')[0],
+          status: newStatus,
+        });
+      
+      if (intakeInsertError) {
+        console.warn('Failed to add student_intakes record:', intakeInsertError.message);
+      }
+    } else {
+      // Update existing intake status
+      const { error: intakeUpdateError } = await supabase
+        .from('student_intakes')
+        .update({ status: newStatus })
+        .eq('student_id', id)
+        .eq('intake_id', newIntakeId);
+      
+      if (intakeUpdateError) {
+        console.warn('Failed to update student_intakes record:', intakeUpdateError.message);
+      }
+    }
+  }
 
   revalidatePath('/dashboard/students');
   revalidatePath(`/dashboard/students/${id}`);

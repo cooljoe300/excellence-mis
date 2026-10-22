@@ -440,6 +440,7 @@ export function FeesClient({
               <tr>
                 <th className="px-6 py-3 text-left font-medium text-slate-500 w-12">S/N</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Student</th>
+                <th className="px-6 py-3 text-left font-medium text-slate-500">Intake(s)</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Description</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Amount</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Paid</th>
@@ -483,6 +484,19 @@ export function FeesClient({
                     <td className="px-6 py-4 text-slate-600">{index + 1}</td>
                     <td className="px-6 py-4 font-medium">
                       {(fee.student as Student)?.first_name} {(fee.student as Student)?.last_name}
+                    </td>
+                    <td className="px-6 py-4 text-slate-600">
+                      {((fee.student as any)?.intakes) && Array.isArray(((fee.student as any).intakes)) && ((fee.student as any).intakes).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {((fee.student as any).intakes).map((intake: any) => (
+                            <Badge key={intake.id} status="pending" variant="outline" className="text-xs">
+                              {intake.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-6 py-4 text-slate-600">
                       <p>{fee.description ?? '—'}</p>
