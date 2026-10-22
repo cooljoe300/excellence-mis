@@ -338,8 +338,12 @@ export async function getEnrollmentsWithFees() {
   
   // Group enrollments by student_id:term_id to calculate total required fees from course unit_fees
   // This is used as fallback when no fee_payment records exist
+  // Exclude deregistered enrollments from fee calculations
   const enrollmentsByStudentTerm = new Map();
   enrollments?.forEach((enrollment: any) => {
+    // Skip deregistered enrollments in fee calculation
+    if (enrollment.status === 'deregistered') return;
+    
     const key = `${enrollment.student_id}:${enrollment.term_id}`;
     if (!enrollmentsByStudentTerm.has(key)) {
       enrollmentsByStudentTerm.set(key, []);
