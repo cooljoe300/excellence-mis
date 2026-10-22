@@ -1,21 +1,76 @@
-import { notFound } from 'next/navigation';
-import { getEnrollmentsForStudent } from '@/app/actions/enrollments';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getEnrollmentsForStudent, deleteEnrollment } from '@/app/actions/enrollments';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Modal } from '@/components/ui/modal';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { AcademicTerm, Course, Enrollment } from '@/lib/types';
+import { X } from 'lucide-react';
 
-export default async function StudentEnrollmentPage({
+export default function StudentEnrollmentPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  let enrollments;
-  try {
-    enrollments = await getEnrollmentsForStudent(id);
-  } catch {
-    notFound();
+  const router = useRouter();
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deregisterModalOpen, setDeregisterModalOpen] = useState(false);
+  const [enrollmentToDeregister, setEnrollmentToDeregister] = useState<Enrollment | null>(null);
+  const [deregisterLoading, setDeregisterLoading] = useState(false);
+  const [deregisterError, setDeregisterError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      const { id } = await params;
+      try {
+        const data = await getEnrollmentsForStudent(id);
+        setEnrollments(data);
+      } catch {
+        router.push('/dashboard/students');
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [params, router]);
+
+  function openDeregisterModal(enrollment: Enrollment) {
+    setEnrollmentToDeregister(enrollment);
+    setDeregisterError(null);
+    setDeregisterModalOpen(true);
+  }
+
+  async function handleDeregister() {
+    if (!enrollmentToDeregister) return;
+    setDeregisterLoading(true);
+    setDeregisterError(null);
+
+    const response = await deleteEnrollment(enrollmentToDeregister.id);
+
+    if (response.error) {
+      setDeregisterError(response.error);
+      setDeregisterLoading(false);
+      return;
+    }
+
+    setDeregisterModalOpen(false);
+    setEnrollmentToDeregister(null);
+    setDeregisterLoading(false);
+    setEnrollments((prev) => prev.filter((e) => e.id !== enrollmentToDeregister.id));
+    router.refresh();
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-slate-500">Loading...</p>
+      </div>
+    );
   }
 
   const byTerm = new Map<
@@ -76,6 +131,7 @@ export default async function StudentEnrollmentPage({
                     <th className="pb-2 font-medium">Enrolled</th>
                     <th className="pb-2 font-medium">Grade</th>
                     <th className="pb-2 text-right font-medium">Fee</th>
+                    <th className="pb-2 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -95,12 +151,26 @@ export default async function StudentEnrollmentPage({
                       <td className="py-3 text-right font-medium">
                         {formatCurrency(course.unit_fee ?? 0)}
                       </td>
+                      <td className="py-3 text-right">
+                        {(enrollment.status === 'active' || enrollment.status === 'pending') && 
+                         enrollment.grade == null && enrollment.score == null && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openDeregisterModal(enrollment)}
+                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            title="Deregister Unit"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={4} className="pt-3 text-right font-semibold text-slate-700">
+                    <td colSpan={5} className="pt-3 text-right font-semibold text-slate-700">
                       Term total
                     </td>
                     <td className="pt-3 text-right font-bold text-blue-700">
@@ -113,6 +183,44 @@ export default async function StudentEnrollmentPage({
           </CardContent>
         </Card>
       ))}
+
+      {/* Deregister Confirmation Modal */}
+      <Modal
+        open={deregisterModalOpen}
+        onClose={() => setDeregisterModalOpen(false)}
+        title="Deregister Unit?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Are you sure you want to deregister <strong>{enrollmentToDeregister?.course?.code} — {enrollmentToDeregister?.course?.name}</strong> for this student?
+          </p>
+          <p className="text-xs text-slate-500">
+            This will mark the enrollment as deregistered and process fee adjustments according to college policy.
+          </p>
+          {deregisterError && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {deregisterError}
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setDeregisterModalOpen(false)}
+              disabled={deregisterLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeregister}
+              disabled={deregisterLoading}
+              variant="danger"
+            >
+              {deregisterLoading ? 'Deregistering...' : 'Deregister Unit'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
