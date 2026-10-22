@@ -139,6 +139,7 @@ Excellence Online College`;
           <table className="w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
+                <th className="px-6 py-3 text-left font-medium text-slate-500 w-16">S/N</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Admission #</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Name</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Email</th>
@@ -151,8 +152,9 @@ Excellence Online College`;
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {students.map((student) => (
+              {students.map((student, index) => (
                 <tr key={student.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 text-slate-600">{index + 1}</td>
                   <td className="px-6 py-4 font-mono text-xs">{getAdmissionNumber(student)}</td>
                   <td className="px-6 py-4 font-medium text-slate-900">
                     {student.first_name} {student.last_name}
