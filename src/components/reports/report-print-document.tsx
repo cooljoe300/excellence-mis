@@ -24,6 +24,7 @@ export function ReportPrintDocument({ table }: { table: ReportTable }) {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-slate-800 bg-slate-50">
+                <th className="px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-slate-700 w-12">S/N</th>
                 {table.headers.map((header) => (
                   <th
                     key={header}
@@ -37,6 +38,7 @@ export function ReportPrintDocument({ table }: { table: ReportTable }) {
             <tbody>
               {table.rows.map((row, rowIndex) => (
                 <tr key={rowIndex} className="border-b border-slate-200">
+                  <td className="px-2 py-1.5 text-[11px] text-slate-600">{rowIndex + 1}</td>
                   {row.map((cell, cellIndex) => (
                     <td key={cellIndex} className="px-2 py-1.5 text-[11px] text-slate-800">
                       {cell}

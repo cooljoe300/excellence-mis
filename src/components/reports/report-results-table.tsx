@@ -85,6 +85,7 @@ export function ReportResultsTable({
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-600 w-12">S/N</th>
               {table.headers.map((header, index) => (
                 <th key={`${header}-${index}`} className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
                   <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort(index)}>
@@ -102,8 +103,10 @@ export function ReportResultsTable({
           </thead>
           <tbody>
             {pageRows.map(({ row, index: sortedIndex, studentId }) => {
+              const serialNumber = currentPage * PAGE_SIZE + sortedIndex + 1;
               return (
                 <tr key={`${sortedIndex}-${studentId || ''}`} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="whitespace-nowrap px-3 py-2.5 text-slate-600">{serialNumber}</td>
                   {row.map((cell, cellIndex) => {
                     const header = table.headers[cellIndex] ?? '';
                     return (

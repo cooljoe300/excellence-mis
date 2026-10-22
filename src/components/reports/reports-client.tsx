@@ -100,8 +100,8 @@ function exportTableCsv(key: ReportKey, table: ReturnType<typeof buildReportTabl
     ['Generated', new Date().toISOString()],
     ...(table.appliedFilters?.length ? [['Filters', table.appliedFilters.join('; ')]] : []),
     [],
-    table.headers,
-    ...table.rows,
+    ['S/N', ...table.headers],
+    ...table.rows.map((row, index) => [String(index + 1), ...row]),
   ]);
 }
 
