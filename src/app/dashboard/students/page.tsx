@@ -139,38 +139,38 @@ Excellence Online College`;
           <table className="w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left font-medium text-slate-500 w-16">S/N</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Admission #</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Name</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Email</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Program</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Source</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">LMS</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Status</th>
-                <th className="px-6 py-3 text-left font-medium text-slate-500">Enrolled</th>
-                <th className="px-6 py-3 text-right font-medium text-slate-500">Actions</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500 w-16">S/N</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Admission #</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Name</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Email</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Program</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Source</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">LMS</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Status</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Enrolled</th>
+                <th className="px-4 py-2 text-right font-medium text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {students.map((student, index) => (
                 <tr key={student.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 text-slate-600">{index + 1}</td>
-                  <td className="px-6 py-4 font-mono text-xs">{getAdmissionNumber(student)}</td>
-                  <td className="px-6 py-4 font-medium text-slate-900">
+                  <td className="px-4 py-2 text-slate-600">{index + 1}</td>
+                  <td className="px-4 py-2 font-mono text-xs">{getAdmissionNumber(student)}</td>
+                  <td className="px-4 py-2 font-medium text-slate-900">
                     {student.first_name} {student.last_name}
                   </td>
-                  <td className="px-6 py-4 text-slate-600">{student.email}</td>
-                  <td className="px-6 py-4 text-slate-600">
+                  <td className="px-4 py-2 text-slate-600">{student.email}</td>
+                  <td className="px-4 py-2 text-slate-600">
                     {student.program && typeof student.program === 'object' && 'name' in student.program ? (student.program as { name: string }).name : '—'}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-2">
                     <Badge
                       status={student.registration_source === 'self_registered' ? 'pending' : 'active'}
                     >
                       {getRegistrationSourceLabel(student.registration_source)}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-2">
                     <Badge
                       status={
                         student.lms_sync_status === 'synced'
@@ -187,11 +187,11 @@ Excellence Online College`;
                           : 'Pending'}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-4 py-2">
                     <Badge status={student.status}>{student.status}</Badge>
                   </td>
-                  <td className="px-6 py-4 text-slate-500">{formatDate(student.enrollment_date)}</td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-2 text-slate-500">{formatDate(student.enrollment_date)}</td>
+                  <td className="px-4 py-2 text-right">
                     <div className="flex justify-end gap-2">
                       {student.profile_id && (
                         <Button
