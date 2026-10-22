@@ -241,6 +241,37 @@ export default async function DashboardPage() {
         {/* Primary KPI Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KPICard 
+            title="Total Expected Fees" 
+            value={formatCurrency(stats.totalExpectedFees)} 
+            subtitle="All student fees"
+            icon={Wallet}
+            trend="KES"
+          />
+          <KPICard 
+            title="Fees Collected" 
+            value={formatCurrency(stats.feesCollected)} 
+            icon={CreditCard}
+            trend="KES"
+          />
+          <KPICard 
+            title="Outstanding Balance" 
+            value={formatCurrency(stats.outstandingFees)} 
+            subtitle={`${stats.studentsWithOutstanding} students`}
+            icon={AlertCircle}
+            trendPositive={false}
+          />
+          <KPICard 
+            title="Credit Balance" 
+            value={formatCurrency(stats.creditBalance)} 
+            subtitle={`${stats.studentsWithCredits} students`}
+            icon={Wallet}
+            trendPositive={true}
+          />
+        </div>
+
+        {/* Student Statistics */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <KPICard 
             title="Total Students" 
             value={stats.totalStudents} 
             subtitle={`${stats.activeStudents} active`}
@@ -254,15 +285,15 @@ export default async function DashboardPage() {
             icon={UserPlus}
           />
           <KPICard 
-            title="Fees Collected" 
-            value={formatCurrency(stats.feesCollected)} 
-            icon={Wallet}
-            trend="KES"
+            title="Pending Fees" 
+            value={stats.pendingFees} 
+            subtitle="Awaiting payment"
+            icon={Clock}
           />
           <KPICard 
-            title="Outstanding Fees" 
-            value={formatCurrency(stats.outstandingFees)} 
-            subtitle={`${stats.studentsWithOutstanding} students`}
+            title="Overdue Fees" 
+            value={stats.overdueFees} 
+            subtitle="Past due date"
             icon={AlertCircle}
             trendPositive={false}
           />

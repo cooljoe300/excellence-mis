@@ -15,9 +15,12 @@ export interface EnhancedDashboardStats extends DashboardStats {
   newAdmissionsThisMonth: number;
   studentsByProgram: { programName: string; count: number }[];
   studentsByStatus: { status: string; count: number }[];
+  totalExpectedFees: number;
   feesCollected: number;
   outstandingFees: number;
+  creditBalance: number;
   studentsWithOutstanding: number;
+  studentsWithCredits: number;
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -160,10 +163,17 @@ export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStat
     };
   });
 
+  const totalExpectedFees = fees.reduce((sum, f) => sum + (f.amount ?? 0), 0);
   const feesCollected = fees.reduce((sum, f) => sum + (f.amount_paid ?? 0), 0);
-  const outstandingFees = fees.reduce((sum, f) => sum + ((f.amount ?? 0) - (f.amount_paid ?? 0)), 0);
+  const outstandingFees = fees.reduce((sum, f) => sum + Math.max(0, (f.amount ?? 0) - (f.amount_paid ?? 0)), 0);
+  const creditBalance = fees.reduce((sum, f) => sum + Math.max(0, (f.amount_paid ?? 0) - (f.amount ?? 0)), 0);
+  
   const studentsWithOutstanding = new Set(
     fees.filter(f => (f.amount ?? 0) > (f.amount_paid ?? 0)).map(f => f.student_id)
+  ).size;
+  
+  const studentsWithCredits = new Set(
+    fees.filter(f => (f.amount_paid ?? 0) > (f.amount ?? 0)).map(f => f.student_id)
   ).size;
 
   return {
@@ -171,9 +181,12 @@ export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStat
     newAdmissionsThisMonth: newAdmissionsRes.count ?? 0,
     studentsByProgram,
     studentsByStatus,
+    totalExpectedFees,
     feesCollected,
     outstandingFees,
+    creditBalance,
     studentsWithOutstanding,
+    studentsWithCredits,
   };
 }
 
