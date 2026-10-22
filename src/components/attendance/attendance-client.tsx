@@ -115,6 +115,7 @@ export function AttendanceClient({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">S/N</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead>Course</TableHead>
@@ -123,13 +124,14 @@ export function AttendanceClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {attendance.map((record) => {
+              {attendance.map((record, index) => {
                 const enrollment = record.enrollment as Enrollment & {
                   student?: { first_name: string; last_name: string };
                   course?: { code: string; name: string };
                 };
                 return (
                   <TableRow key={record.id}>
+                    <TableCell className="text-slate-600">{index + 1}</TableCell>
                     <TableCell className="text-muted">{formatDate(record.date)}</TableCell>
                     <TableCell className="font-medium">
                       {enrollment?.student?.first_name} {enrollment?.student?.last_name}

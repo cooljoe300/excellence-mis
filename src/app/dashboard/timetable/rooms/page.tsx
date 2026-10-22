@@ -73,6 +73,7 @@ export default async function RoomsPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 text-left font-medium text-slate-700 w-12">S/N</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Room Name</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Building</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Capacity</th>
@@ -84,15 +85,16 @@ export default async function RoomsPage() {
             <tbody className="divide-y divide-slate-100 bg-white">
               {rooms.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
                     No rooms found. Add your first room to get started.
                   </td>
                 </tr>
               ) : (
-                rooms.map((room) => {
+                rooms.map((room, index) => {
                   const Icon = roomTypeIcons[room.type] || Building2;
                   return (
                     <tr key={room.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-slate-600">{index + 1}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Icon className="h-4 w-4 text-slate-400" />

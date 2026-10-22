@@ -43,6 +43,7 @@ export function LmsProgrammeUnitsClient({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">S/N</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Credits</TableHead>
@@ -51,8 +52,8 @@ export function LmsProgrammeUnitsClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {courses.map((course) => (
-                <CourseRow key={course.id} course={course} />
+              {courses.map((course, index) => (
+                <CourseRow key={course.id} course={course} index={index} />
               ))}
             </TableBody>
           </Table>
@@ -62,7 +63,7 @@ export function LmsProgrammeUnitsClient({
   );
 }
 
-function CourseRow({ course }: { course: Course }) {
+function CourseRow({ course, index }: { course: Course; index: number }) {
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [activityCount, setActivityCount] = useState<number | null>(null);
 
@@ -82,6 +83,7 @@ function CourseRow({ course }: { course: Course }) {
 
   return (
     <TableRow>
+      <TableCell className="text-slate-600">{index + 1}</TableCell>
       <TableCell className="font-mono text-xs font-medium">{course.code}</TableCell>
       <TableCell className="font-medium text-slate-900">{course.name}</TableCell>
       <TableCell className="text-muted">{course.credits}</TableCell>

@@ -236,6 +236,7 @@ export function CoursesClient({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">S/N</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Program</TableHead>
@@ -246,9 +247,10 @@ export function CoursesClient({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCourses.map((course) => (
+              {filteredCourses.map((course, index) => (
                 <TableRow key={course.id}>
-                  <TableCell className="font-mono text-xs">{course.code}</TableCell>
+                  <TableCell className="text-slate-600">{index + 1}</TableCell>
+                  <TableCell className="font-mono text-xs font-medium">{course.code}</TableCell>
                   <TableCell className="font-medium">{course.name}</TableCell>
                   <TableCell className="text-muted">
                     {(course.program as { name: string } | null)?.name ?? 'Unassigned'}

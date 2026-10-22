@@ -57,6 +57,7 @@ export function ProgramsClient({ programs }: { programs: Program[] }) {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">S/N</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Admission prefix</TableHead>
                 <TableHead>Name</TableHead>
@@ -67,8 +68,9 @@ export function ProgramsClient({ programs }: { programs: Program[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {programs.map((program) => (
+              {programs.map((program, index) => (
                 <TableRow key={program.id}>
+                  <TableCell className="text-slate-600">{index + 1}</TableCell>
                   <TableCell className="font-mono text-xs font-medium">{program.code}</TableCell>
                   <TableCell className="font-mono text-xs text-blue-700">
                     {(program.admission_prefix || program.code).toUpperCase()}

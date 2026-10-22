@@ -28,6 +28,7 @@ export function LmsProgrammesClient({ programs }: { programs: Program[] }) {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">S/N</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Duration</TableHead>
@@ -37,8 +38,9 @@ export function LmsProgrammesClient({ programs }: { programs: Program[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {programs.map((program) => (
+              {programs.map((program, index) => (
                 <TableRow key={program.id}>
+                  <TableCell className="text-slate-600">{index + 1}</TableCell>
                   <TableCell className="font-mono text-xs font-medium">{program.code}</TableCell>
                   <TableCell className="font-medium text-slate-900">{program.name}</TableCell>
                   <TableCell className="text-muted">{program.duration_months} months</TableCell>

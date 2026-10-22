@@ -367,6 +367,7 @@ export function FeesClient({
             <table className="w-full text-sm">
               <thead className="border-b border-amber-200/80 bg-amber-100/50 text-left text-amber-900">
                 <tr>
+                  <th className="px-6 py-3 font-medium w-12">S/N</th>
                   <th className="px-6 py-3 font-medium">Student</th>
                   <th className="px-6 py-3 font-medium">Invoice</th>
                   <th className="px-6 py-3 font-medium">Amount</th>
@@ -378,8 +379,9 @@ export function FeesClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-200/60">
-                {pendingApprovals.map(({ submission, fee, student }) => (
+                {pendingApprovals.map(({ submission, fee, student }, index) => (
                   <tr key={submission.id} className="bg-white/70">
+                    <td className="px-6 py-4 text-slate-600">{index + 1}</td>
                     <td className="px-6 py-4 font-medium text-slate-900">
                       {student?.first_name} {student?.last_name}
                     </td>
@@ -436,6 +438,7 @@ export function FeesClient({
           <table className="w-full text-sm">
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
+                <th className="px-6 py-3 text-left font-medium text-slate-500 w-12">S/N</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Student</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Description</th>
                 <th className="px-6 py-3 text-left font-medium text-slate-500">Amount</th>
@@ -447,7 +450,7 @@ export function FeesClient({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {fees.map((fee) => {
+              {fees.map((fee, index) => {
                 const balance = getFeeBalance(fee);
                 const pendingSubmissions = pendingByFeeId.get(fee.id) ?? [];
                 const submissions = [...((fee.submissions ?? []) as FeePaymentSubmission[])].sort(
@@ -477,6 +480,7 @@ export function FeesClient({
                 
                 return (
                   <tr key={fee.id} className="align-top hover:bg-slate-50">
+                    <td className="px-6 py-4 text-slate-600">{index + 1}</td>
                     <td className="px-6 py-4 font-medium">
                       {(fee.student as Student)?.first_name} {(fee.student as Student)?.last_name}
                     </td>

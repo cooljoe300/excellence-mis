@@ -61,6 +61,7 @@ export default async function TimeSlotsPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="px-4 py-3 text-left font-medium text-slate-700 w-12">S/N</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">Start Time</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-700">End Time</th>
@@ -73,12 +74,12 @@ export default async function TimeSlotsPage() {
             <tbody className="divide-y divide-slate-100 bg-white">
               {timeSlots.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
                     No time slots found. Add your first time slot to get started.
                   </td>
                 </tr>
               ) : (
-                timeSlots.map((slot) => {
+                timeSlots.map((slot, index) => {
                   const startTime = new Date(`2000-01-01T${slot.start_time}`);
                   const endTime = new Date(`2000-01-01T${slot.end_time}`);
                   const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
@@ -86,6 +87,7 @@ export default async function TimeSlotsPage() {
 
                   return (
                     <tr key={slot.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-slate-600">{index + 1}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-slate-400" />

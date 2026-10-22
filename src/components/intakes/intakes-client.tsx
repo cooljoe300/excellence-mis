@@ -57,6 +57,7 @@ export function IntakesClient({ intakes }: { intakes: Intake[] }) {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
+                <TableHead className="w-12">S/N</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Start</TableHead>
@@ -67,8 +68,9 @@ export function IntakesClient({ intakes }: { intakes: Intake[] }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {intakes.map((intake) => (
+              {intakes.map((intake, index) => (
                 <TableRow key={intake.id}>
+                  <TableCell className="text-slate-600">{index + 1}</TableCell>
                   <TableCell className="font-mono text-xs font-medium">{intake.code}</TableCell>
                   <TableCell className="font-medium text-slate-900">{intake.name}</TableCell>
                   <TableCell className="text-muted">{formatDate(intake.start_date)}</TableCell>

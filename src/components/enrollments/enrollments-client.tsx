@@ -286,6 +286,7 @@ export function EnrollmentsClient({
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
+                    <th className="px-3 py-2.5 text-left font-semibold text-slate-700 w-12">S/N</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Admission #</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Student</th>
                     <th className="px-3 py-2.5 text-left font-semibold text-slate-700">Program</th>
@@ -302,6 +303,7 @@ export function EnrollmentsClient({
                 <tbody className="divide-y divide-slate-100">
                   {filteredGroups.map((group, index) => (
                     <tr key={group.key} className={`hover:bg-slate-50 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
+                      <td className="px-3 py-2.5 text-slate-600">{index + 1}</td>
                       <td className="px-3 py-2.5 font-mono text-slate-600">
                         {getAdmissionNumber(group.student)}
                       </td>

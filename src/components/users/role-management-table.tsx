@@ -179,6 +179,7 @@ export function RoleManagementTable({
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50">
             <tr className="text-left text-slate-600">
+              <th className="px-4 py-3 font-medium w-12">S/N</th>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Current role</th>
@@ -189,7 +190,7 @@ export function RoleManagementTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 bg-white">
-            {users.map((user) => {
+            {users.map((user, index) => {
               const draftRole = roleDrafts[user.id] ?? user.role;
               const isBusy = busyUserId === user.id;
               const isCurrentUser = user.id === currentUserId;
@@ -197,6 +198,7 @@ export function RoleManagementTable({
 
               return (
                 <tr key={user.id}>
+                  <td className="px-4 py-3 text-slate-600">{index + 1}</td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-slate-900">{user.full_name ?? 'No name'}</p>
                     {isCurrentUser && <p className="text-xs text-blue-700">You</p>}

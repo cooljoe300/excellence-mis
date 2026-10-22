@@ -240,6 +240,7 @@ export function DeregisteredUnitsClient({
             <table className="w-full text-sm">
               <thead className="border-b border-slate-100 bg-slate-50">
                 <tr>
+                  <th className="px-6 py-3 text-left font-medium text-slate-500 w-12">S/N</th>
                   <th className="px-6 py-3 text-left font-medium text-slate-500">Student</th>
                   <th className="px-6 py-3 text-left font-medium text-slate-500">Program</th>
                   <th className="px-6 py-3 text-left font-medium text-slate-500">Intake</th>
@@ -253,8 +254,9 @@ export function DeregisteredUnitsClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {deregisteredUnits.map((unit) => (
+                {deregisteredUnits.map((unit, index) => (
                   <tr key={unit.enrollment_id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 text-slate-600">{(currentPage - 1) * limit + index + 1}</td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-900">{unit.student_name}</div>
                       <div className="text-xs text-slate-500">{unit.student_number}</div>
