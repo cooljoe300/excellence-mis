@@ -53,7 +53,7 @@ export function LmsProgrammeUnitsClient({
             </TableHeader>
             <TableBody>
               {courses.map((course, index) => (
-                <CourseRow key={course.id} course={course} index={index} />
+                <CourseRow key={course.id} course={course} serialNumber={index + 1} />
               ))}
             </TableBody>
           </Table>
@@ -63,7 +63,7 @@ export function LmsProgrammeUnitsClient({
   );
 }
 
-function CourseRow({ course, index }: { course: Course; index: number }) {
+function CourseRow({ course, serialNumber }: { course: Course; serialNumber: number }) {
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [activityCount, setActivityCount] = useState<number | null>(null);
 
@@ -83,7 +83,7 @@ function CourseRow({ course, index }: { course: Course; index: number }) {
 
   return (
     <TableRow>
-      <TableCell className="text-slate-600">{index + 1}</TableCell>
+      <TableCell className="text-slate-600">{serialNumber}</TableCell>
       <TableCell className="font-mono text-xs font-medium">{course.code}</TableCell>
       <TableCell className="font-medium text-slate-900">{course.name}</TableCell>
       <TableCell className="text-muted">{course.credits}</TableCell>
