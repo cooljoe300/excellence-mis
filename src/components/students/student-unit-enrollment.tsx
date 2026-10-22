@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/modal';
 import { formatCurrency } from '@/lib/utils';
-import { enrollMyUnits, type UnitOption } from '@/app/actions/student-enrollment';
-import { BookOpen, CheckCircle2 } from 'lucide-react';
+import { enrollMyUnits, deregisterMyUnit, type UnitOption } from '@/app/actions/student-enrollment';
+import { BookOpen, CheckCircle2, X } from 'lucide-react';
 
 export function StudentUnitEnrollment({
   programName,
@@ -32,6 +33,10 @@ export function StudentUnitEnrollment({
     feePaymentId: string | null;
     units: { code: string; name: string; unit_fee: number }[];
   } | null>(null);
+  const [deregisterModalOpen, setDeregisterModalOpen] = useState(false);
+  const [unitToDeregister, setUnitToDeregister] = useState<UnitOption | null>(null);
+  const [deregisterLoading, setDeregisterLoading] = useState(false);
+  const [deregisterError, setDeregisterError] = useState<string | null>(null);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -89,6 +94,32 @@ export function StudentUnitEnrollment({
       units: response.units ?? [],
     });
     setLoading(false);
+    router.refresh();
+  }
+
+  function openDeregisterModal(unit: UnitOption) {
+    setUnitToDeregister(unit);
+    setDeregisterError(null);
+    setDeregisterModalOpen(true);
+  }
+
+  async function handleDeregister() {
+    if (!unitToDeregister) return;
+    setDeregisterLoading(true);
+    setDeregisterError(null);
+
+    const response = await deregisterMyUnit(unitToDeregister.id);
+
+    if (response.error) {
+      setDeregisterError(response.error);
+      setDeregisterLoading(false);
+      return;
+    }
+
+    setDeregisterModalOpen(false);
+    setUnitToDeregister(null);
+    setDeregisterLoading(false);
+    setSelectedIds((prev) => prev.filter((id) => id !== unitToDeregister.id));
     router.refresh();
   }
 
@@ -193,12 +224,13 @@ export function StudentUnitEnrollment({
                           {alreadyEnrolled && (
                             <p className="text-[11px] text-emerald-600">
                               Registered —{' '}
-                              <Link
-                                href="/student/deregister"
+                              <button
+                                type="button"
+                                onClick={() => openDeregisterModal(unit)}
                                 className="font-medium text-blue-700 hover:underline"
                               >
                                 deregister
-                              </Link>
+                              </button>
                             </p>
                           )}
                         </div>
@@ -277,6 +309,44 @@ export function StudentUnitEnrollment({
           Cancel
         </Button>
       </div>
+
+      {/* Deregister Confirmation Modal */}
+      <Modal
+        open={deregisterModalOpen}
+        onClose={() => setDeregisterModalOpen(false)}
+        title="Deregister Unit?"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Are you sure you want to deregister from <strong>{unitToDeregister?.code} — {unitToDeregister?.name}</strong>?
+          </p>
+          <p className="text-xs text-slate-500">
+            This will remove the unit from your current registration. Fee adjustments will be processed according to college policy.
+          </p>
+          {deregisterError && (
+            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {deregisterError}
+            </div>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setDeregisterModalOpen(false)}
+              disabled={deregisterLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeregister}
+              disabled={deregisterLoading}
+              variant="danger"
+            >
+              {deregisterLoading ? 'Deregistering...' : 'Deregister Unit'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </form>
   );
 }

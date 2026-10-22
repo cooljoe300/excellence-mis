@@ -13,6 +13,7 @@ import {
   createFeeInvoiceForEnrollments,
   getUnbilledEnrollmentsForCourses,
 } from '@/lib/enrollment-fees';
+import { adjustFeesForDroppedEnrollments } from '@/lib/student-deregistration-fees';
 import { logAudit } from '@/lib/audit-logger';
 
 export interface UnitOption {
@@ -378,4 +379,123 @@ export async function getMyEnrollmentsWithFees() {
     .limit(5);
 
   return { enrollments: enrollments ?? [], fees: fees ?? [] };
+}
+
+export async function deregisterMyUnit(courseId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await (supabase.auth as any).getUser();
+  if (!user) return { error: 'You must be signed in.' };
+
+  let student;
+  let studentError;
+
+  // Find student by profile_id
+  const { data: studentByProfile, error: profileError } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, status')
+    .eq('profile_id', user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    studentError = profileError;
+  } else {
+    student = studentByProfile;
+  }
+
+  // Fallback: Try to find student by email
+  if (!student && user.email) {
+    const { data: studentByEmail, error: emailError } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, status')
+      .eq('email', user.email)
+      .maybeSingle();
+
+    if (emailError) {
+      studentError = emailError;
+    } else {
+      student = studentByEmail;
+    }
+  }
+
+  if (studentError) return { error: studentError.message };
+  if (!student) return { error: 'Student record not found.' };
+
+  // Check student status
+  if (student.status !== 'active') {
+    return { error: 'Your account is not active. Contact the college administration.' };
+  }
+
+  const termId = await getCurrentAcademicTermId();
+  if (!termId) return { error: 'No current academic term is set. Contact the college.' };
+
+  // Get the enrollment record
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('enrollments')
+    .select('id, course_id, grade, score, course:courses(code, name)')
+    .eq('student_id', student.id)
+    .eq('term_id', termId)
+    .eq('course_id', courseId)
+    .in('status', ['active', 'pending'])
+    .maybeSingle();
+
+  if (enrollmentError) return { error: enrollmentError.message };
+  if (!enrollment) return { error: 'This unit is not on your current registration.' };
+
+  // Check if grades are recorded
+  if (enrollment.grade != null || enrollment.score != null) {
+    return { error: 'Units with grades recorded cannot be deregistered. Contact the college administration.' };
+  }
+
+  // Get current user ID for tracking
+  const currentUserId = user?.id;
+
+  // Adjust fees before deregistering
+  const feeResult = await adjustFeesForDroppedEnrollments(
+    supabase,
+    [enrollment.id as string],
+    currentUserId,
+    'Student self-deregistration'
+  );
+  if ('error' in feeResult) return { error: feeResult.error };
+
+  // Mark enrollment as deregistered
+  const { error: updateError } = await supabase
+    .from('enrollments')
+    .update({
+      status: 'deregistered',
+      deregistered_at: new Date().toISOString(),
+      deregistered_by: currentUserId,
+      deregistration_reason: 'Student self-deregistration',
+    })
+    .eq('id', enrollment.id);
+
+  if (updateError) return { error: updateError.message };
+
+  // Log the deregistration
+  const course = enrollment.course as { code: string; name: string } | { code: string; name: string }[] | null;
+  const courseData = Array.isArray(course) ? course[0] : course;
+  if (courseData) {
+    await logAudit({
+      action: 'deregister',
+      module: 'enrollments',
+      entityType: 'enrollment',
+      entityId: enrollment.id,
+      entityName: `${student.first_name} ${student.last_name} - ${courseData.code}: ${courseData.name}`,
+      details: `Student self-deregistered unit: ${courseData.code} - ${courseData.name}`,
+      previousValue: { status: 'active' },
+      newValue: { status: 'deregistered' },
+      actorType: 'STUDENT',
+    });
+  }
+
+  revalidatePath('/student');
+  revalidatePath('/student/enroll');
+  revalidatePath('/student/fees');
+  revalidatePath('/dashboard/enrollments');
+  revalidatePath('/dashboard/fees');
+  revalidatePath(`/dashboard/students/${student.id}`);
+
+  return { success: true };
 }
