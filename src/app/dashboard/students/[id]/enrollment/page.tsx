@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { getEnrollmentsForStudent, deleteEnrollment } from '@/app/actions/enrollments';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,10 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import type { AcademicTerm, Course, Enrollment } from '@/lib/types';
 import { X } from 'lucide-react';
 
-export default function StudentEnrollmentPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function StudentEnrollmentPage() {
   const router = useRouter();
+  const params = useParams();
+  const studentId = params.id as string;
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [deregisterModalOpen, setDeregisterModalOpen] = useState(false);
@@ -26,9 +24,8 @@ export default function StudentEnrollmentPage({
 
   useEffect(() => {
     async function loadData() {
-      const { id } = await params;
       try {
-        const data = await getEnrollmentsForStudent(id);
+        const data = await getEnrollmentsForStudent(studentId);
         setEnrollments(data);
       } catch {
         router.push('/dashboard/students');
@@ -37,7 +34,7 @@ export default function StudentEnrollmentPage({
       }
     }
     loadData();
-  }, [params, router]);
+  }, [studentId, router]);
 
   function openDeregisterModal(enrollment: Enrollment) {
     setEnrollmentToDeregister(enrollment);
