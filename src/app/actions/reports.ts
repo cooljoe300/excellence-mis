@@ -114,7 +114,7 @@ export async function getReportsBundle(): Promise<ReportsBundle> {
         getIntakes(),
         supabase
           .from('fee_payments')
-          .select('*, student:students(*), term:academic_terms(*)')
+          .select('*, student:students(*), term:academic_terms(*), items:fee_payment_items(*)')
           .order('created_at', { ascending: false }),
         supabase
           .from('enrollments')
@@ -141,10 +141,34 @@ export async function getReportsBundle(): Promise<ReportsBundle> {
 
     const studentsById = new Map(students.map((student) => [student.id, student]));
 
-    const fees = asList<FeePayment>(feesResult.data).map((fee) => ({
-      ...fee,
-      student: mergeStudent(fee.student, studentsById.get(fee.student_id)),
-    }));
+    // Get all deregistered enrollment IDs to exclude from fee calculations
+    const { data: deregisteredEnrollments } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('status', 'deregistered');
+
+    const deregisteredEnrollmentIds = new Set(
+      (deregisteredEnrollments ?? []).map((e) => e.id as string)
+    );
+
+    const fees = asList<FeePayment>(feesResult.data).map((fee) => {
+      // Filter fee payment items to exclude those linked to deregistered enrollments
+      const filteredItems = fee.items?.filter((item: any) => 
+        !item.enrollment_id || !deregisteredEnrollmentIds.has(item.enrollment_id)
+      ) || [];
+
+      // Recalculate fee amount based on active items only
+      const activeItemsTotal = filteredItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const adjustedAmount = activeItemsTotal > 0 ? activeItemsTotal : fee.amount;
+
+      return {
+        ...fee,
+        items: filteredItems,
+        amount: adjustedAmount,
+        student: mergeStudent(fee.student, studentsById.get(fee.student_id)),
+        deregisteredEnrollmentIds,
+      };
+    });
 
     const enrollments = asList<Enrollment>(enrollmentsResult.data).map((enrollment) => ({
       ...enrollment,
