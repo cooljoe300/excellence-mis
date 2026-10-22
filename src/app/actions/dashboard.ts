@@ -36,10 +36,35 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     supabase.from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('courses').select('id', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('fee_payments').select('amount, amount_paid, status'),
+    supabase.from('fee_payments').select('amount, amount_paid, status, items:fee_payment_items(*)'),
   ]);
 
-  const fees = feesRes.data ?? [];
+  // Get all deregistered enrollment IDs to exclude from fee calculations
+  const { data: deregisteredEnrollments } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('status', 'deregistered');
+
+  const deregisteredEnrollmentIds = new Set(
+    (deregisteredEnrollments ?? []).map((e) => e.id as string)
+  );
+
+  const fees = (feesRes.data ?? []).map((fee: any) => {
+    // Filter fee payment items to exclude those linked to deregistered enrollments
+    const filteredItems = fee.items?.filter((item: any) => 
+      !item.enrollment_id || !deregisteredEnrollmentIds.has(item.enrollment_id)
+    ) || [];
+
+    // Recalculate fee amount based on active items only
+    const activeItemsTotal = filteredItems.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+    const adjustedAmount = activeItemsTotal > 0 ? activeItemsTotal : fee.amount;
+
+    return {
+      ...fee,
+      amount: adjustedAmount,
+    };
+  });
+
   const pendingFees = fees.filter((f) => f.status === 'pending' || f.status === 'partial').length;
   const overdueFees = fees.filter((f) => f.status === 'overdue').length;
   const totalRevenue = fees.reduce((sum, f) => sum + (f.amount_paid ?? 0), 0);
@@ -82,7 +107,7 @@ export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStat
       .select('status'),
     supabase
       .from('fee_payments')
-      .select('amount, amount_paid, status, student_id')
+      .select('amount, amount_paid, status, student_id, items:fee_payment_items(*)')
   ]);
 
   // Process program distribution
@@ -108,8 +133,33 @@ export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStat
     .map(([status, count]) => ({ status, count }))
     .sort((a, b) => b.count - a.count);
 
+  // Get all deregistered enrollment IDs to exclude from fee calculations
+  const { data: deregisteredEnrollments } = await supabase
+    .from('enrollments')
+    .select('id')
+    .eq('status', 'deregistered');
+
+  const deregisteredEnrollmentIds = new Set(
+    (deregisteredEnrollments ?? []).map((e) => e.id as string)
+  );
+
   // Process financial data
-  const fees = feesWithStudentsRes.data ?? [];
+  const fees = (feesWithStudentsRes.data ?? []).map((fee: any) => {
+    // Filter fee payment items to exclude those linked to deregistered enrollments
+    const filteredItems = fee.items?.filter((item: any) => 
+      !item.enrollment_id || !deregisteredEnrollmentIds.has(item.enrollment_id)
+    ) || [];
+
+    // Recalculate fee amount based on active items only
+    const activeItemsTotal = filteredItems.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
+    const adjustedAmount = activeItemsTotal > 0 ? activeItemsTotal : fee.amount;
+
+    return {
+      ...fee,
+      amount: adjustedAmount,
+    };
+  });
+
   const feesCollected = fees.reduce((sum, f) => sum + (f.amount_paid ?? 0), 0);
   const outstandingFees = fees.reduce((sum, f) => sum + ((f.amount ?? 0) - (f.amount_paid ?? 0)), 0);
   const studentsWithOutstanding = new Set(
