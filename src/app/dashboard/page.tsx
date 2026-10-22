@@ -214,7 +214,7 @@ export default async function DashboardPage() {
 
   const quickActions = [
     { label: 'Add Student', href: '/dashboard/students/new', icon: UserPlusIcon },
-    { label: 'Record Payment', href: '/dashboard/payments', icon: CreditCard },
+    { label: 'Record Payment', href: '/dashboard/fees', icon: CreditCard },
     { label: 'Add Program', href: '/dashboard/programs', icon: GraduationCap },
     { label: 'Add Course', href: '/dashboard/courses', icon: BookOpen },
     { label: 'Generate Report', href: '/dashboard/reports', icon: FileText },
