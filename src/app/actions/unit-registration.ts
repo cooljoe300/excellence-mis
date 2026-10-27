@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserRole } from '@/lib/auth';
+import { describeDatabaseError } from '@/lib/db-errors';
 import { getCurrentAcademicTermId, setStudentEnrollmentsForTerm } from '@/app/actions/enrollments';
 import {
   findInvalidCurriculumUnits,
@@ -124,6 +125,17 @@ export async function searchStudentsForUnitRegistration(query?: string) {
 }
 
 export async function getUnitRegistrationContext(
+  studentId: string,
+  options?: { semester?: number; termId?: string }
+): Promise<UnitRegistrationContext | { error: string }> {
+  try {
+    return await loadUnitRegistrationContext(studentId, options);
+  } catch (error) {
+    return { error: describeDatabaseError(error, 'getUnitRegistrationContext') };
+  }
+}
+
+async function loadUnitRegistrationContext(
   studentId: string,
   options?: { semester?: number; termId?: string }
 ): Promise<UnitRegistrationContext | { error: string }> {
@@ -294,6 +306,19 @@ export async function getUnitRegistrationContext(
 }
 
 export async function saveUnitRegistration(input: {
+  studentId: string;
+  termId: string;
+  semester: number;
+  courseIds: string[];
+}) {
+  try {
+    return await applyUnitRegistration(input);
+  } catch (error) {
+    return { error: describeDatabaseError(error, 'saveUnitRegistration') };
+  }
+}
+
+async function applyUnitRegistration(input: {
   studentId: string;
   termId: string;
   semester: number;

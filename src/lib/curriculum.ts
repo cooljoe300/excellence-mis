@@ -43,7 +43,6 @@ export interface StudentCurriculumContext {
 
 const CURRICULUM_UNITS_SELECT = `
   id,
-  curriculum_id,
   program_id,
   name,
   academic_year,

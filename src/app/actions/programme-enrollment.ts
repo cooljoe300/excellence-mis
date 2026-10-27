@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserRole } from '@/lib/auth';
+import { describeDatabaseError } from '@/lib/db-errors';
 import {
   getActiveCurriculaForProgramIds,
   type CurriculumWithUnits,
@@ -118,6 +119,16 @@ export async function searchStudentsForEnrollment(query?: string) {
 }
 
 export async function getProgrammeEnrollmentContext(
+  studentId: string
+): Promise<ProgrammeEnrollmentContext | { error: string }> {
+  try {
+    return await loadProgrammeEnrollmentContext(studentId);
+  } catch (error) {
+    return { error: describeDatabaseError(error, 'getProgrammeEnrollmentContext') };
+  }
+}
+
+async function loadProgrammeEnrollmentContext(
   studentId: string
 ): Promise<ProgrammeEnrollmentContext | { error: string }> {
   const auth = await requireManager();

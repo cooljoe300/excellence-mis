@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserRole } from '@/lib/auth';
 import { logAudit } from '@/lib/audit-logger';
+import { describeDatabaseError } from '@/lib/db-errors';
 import {
   getCurriculaForProgramIds,
   getCurriculumUnitOptions,
@@ -37,6 +38,14 @@ function refreshCurriculumPaths() {
 }
 
 export async function getCurriculumConfiguration() {
+  try {
+    return await loadCurriculumConfiguration();
+  } catch (error) {
+    return { error: describeDatabaseError(error, 'getCurriculumConfiguration') };
+  }
+}
+
+async function loadCurriculumConfiguration() {
   const auth = await requireManager();
   if ('error' in auth) return auth;
 
@@ -77,6 +86,17 @@ export async function getCurriculumConfiguration() {
  * lists are hard-coded.
  */
 export async function getDefaultCurriculumUnits(
+  programId: string,
+  semester?: number
+) {
+  try {
+    return await loadDefaultCurriculumUnits(programId, semester);
+  } catch (error) {
+    return { error: describeDatabaseError(error, 'getDefaultCurriculumUnits') };
+  }
+}
+
+async function loadDefaultCurriculumUnits(
   programId: string,
   semester?: number
 ) {
