@@ -5,10 +5,13 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import {
   getCurrentAcademicTermId,
-  getProgramCourses,
   getStudentCourseIdsForTerm,
   getDeregisteredCourseIdsForTerm,
 } from '@/app/actions/enrollments';
+import {
+  getCurriculumUnitOptions,
+  resolveStudentCurriculum,
+} from '@/lib/curriculum';
 import {
   createFeeInvoiceForEnrollments,
   getUnbilledEnrollmentsForCourses,
@@ -115,8 +118,33 @@ export async function getMyUnitEnrollmentData() {
     };
   }
 
+  const curriculumContext = await resolveStudentCurriculum(supabase, student.id);
+  const curriculum = curriculumContext?.curriculum;
+
+  if (!curriculum || curriculum.semesters.length === 0) {
+    return {
+      needsRegistration: false as const,
+      student,
+      termId,
+      programName: getProgramName(student.program),
+      curriculumName: curriculum?.name ?? null,
+      semester: null,
+      semesters: [] as number[],
+      units: [] as UnitOption[],
+      enrolledUnitIds: [] as string[],
+      deregisteredUnitIds: [] as string[],
+      error:
+        'No curriculum is configured for your programme yet. Please contact the college administration.',
+    };
+  }
+
+  const currentSemester = Number(curriculumContext?.student.current_semester ?? 1);
+  const semester = curriculum.semesters.includes(currentSemester)
+    ? currentSemester
+    : curriculum.semesters[0];
+
   const [units, enrolledUnitIds, deregisteredUnitIds] = await Promise.all([
-    getProgramCourses(student.program_id),
+    getCurriculumUnitOptions(supabase, curriculum.id, semester),
     getStudentCourseIdsForTerm(student.id, termId),
     getDeregisteredCourseIdsForTerm(student.id, termId),
   ]);
@@ -126,6 +154,9 @@ export async function getMyUnitEnrollmentData() {
     student,
     termId,
     programName: getProgramName(student.program),
+    curriculumName: curriculum.name,
+    semester,
+    semesters: curriculum.semesters,
     units: units as UnitOption[],
     enrolledUnitIds,
     deregisteredUnitIds: deregisteredUnitIds || [],
@@ -180,18 +211,34 @@ export async function enrollMyUnits(courseIds: string[]) {
 
   const normalized = Array.from(new Set(courseIds.filter(Boolean)));
 
-  const { data: programCourses, error: coursesError } = await supabase
-    .from('courses')
-    .select('id, code, name, unit_fee')
-    .eq('program_id', student.program_id)
-    .eq('is_active', true);
+  const curriculumContext = await resolveStudentCurriculum(supabase, student.id);
+  const curriculum = curriculumContext?.curriculum;
 
-  if (coursesError) return { error: coursesError.message };
+  if (!curriculum || curriculum.semesters.length === 0) {
+    return {
+      error:
+        'No curriculum is configured for your programme yet. Please contact the college administration.',
+    };
+  }
 
-  const validCourseMap = new Map((programCourses ?? []).map((c) => [c.id as string, c]));
+  const currentSemester = Number(curriculumContext?.student.current_semester ?? 1);
+  const semester = curriculum.semesters.includes(currentSemester)
+    ? currentSemester
+    : curriculum.semesters[0];
+
+  const curriculumUnits = await getCurriculumUnitOptions(supabase, curriculum.id, semester);
+  const validCourseMap = new Map(
+    curriculumUnits.map((unit) => [
+      unit.id,
+      { id: unit.id, code: unit.code, name: unit.name, unit_fee: unit.unit_fee },
+    ])
+  );
+
   const invalid = normalized.filter((id) => !validCourseMap.has(id));
   if (invalid.length > 0) {
-    return { error: 'One or more selected units are not valid for your program.' };
+    return {
+      error: `One or more selected units are not part of semester ${semester} in your curriculum.`,
+    };
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -208,8 +255,13 @@ export async function enrollMyUnits(courseIds: string[]) {
 
   const toAdd = normalized.filter((id) => !existingByCourse.has(id));
 
+  // Only compare against units in the student's current curriculum semester.
+  // Enrollments carried over from another semester or a previous programme are
+  // preserved and must not be treated as attempted deregistrations.
+  const currentSemesterCourseIds = new Set(validCourseMap.keys());
   const attemptedRemoval = (existing ?? [])
     .filter((e) => !desiredSet.has(e.course_id as string))
+    .filter((e) => currentSemesterCourseIds.has(e.course_id as string))
     .map((e) => e.course_id as string);
 
   if (attemptedRemoval.length > 0) {

@@ -261,8 +261,8 @@ export function LmsUnitActivitiesClient({
             <Checkbox
               id="display_description"
               checked={formData.display_description}
-              onCheckedChange={(checked) => 
-                setFormData({ ...formData, display_description: checked as boolean })
+              onCheckedChange={(checked: boolean | 'indeterminate') =>
+                setFormData({ ...formData, display_description: checked === true })
               }
             />
             <Label htmlFor="display_description" className="text-sm">

@@ -56,8 +56,21 @@ const allNavItems: NavItem[] = [
   // Admin navigation - GENERAL
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'GENERAL' },
   // Admin navigation - ACADEMICS
-  { href: '/dashboard/students', label: 'Students', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
+  {
+    href: '/dashboard/students',
+    label: 'Students',
+    icon: Users,
+    roles: ['superadmin', 'admin', 'staff'] as UserRole[],
+    section: 'ACADEMICS',
+    isParent: true,
+    children: [
+      { href: '/dashboard/students', label: 'Student List', icon: Users, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+      { href: '/dashboard/students/programme-enrollment', label: 'Programme Enrollment', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+      { href: '/dashboard/students/unit-registration', label: 'Unit Registration', icon: BookOpen, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: null },
+    ],
+  },
   { href: '/dashboard/programs', label: 'Programs', icon: GraduationCap, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
+  { href: '/dashboard/curriculum', label: 'Curricula', icon: Library, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
   { href: '/dashboard/courses', label: 'Courses / Units', icon: BookOpen, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'ACADEMICS' },
   { href: '/dashboard/intakes', label: 'Intakes', icon: Inbox, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
   { href: '/dashboard/enrollments', label: 'Enrollments', icon: ClipboardList, roles: ['superadmin', 'admin', 'staff', 'teacher'] as UserRole[], section: 'ACADEMICS' },
@@ -134,7 +147,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose, lockedO
       : new Set(['Personal', 'Academic', 'Finance', 'Services'])
   );
   const [expandedParents, setExpandedParents] = useState<Set<string>>(
-    new Set(['Reports']) // Reports is expanded by default
+    new Set(['Reports', 'Students']) // Reports and Students are expanded by default
   );
   const [lockedMessageFor, setLockedMessageFor] = useState<string | null>(null);
 
@@ -193,6 +206,14 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose, lockedO
       userRole === 'student' &&
       onlineClassesHrefs.has(item.href)
     );
+  }
+
+  function isNavChildActive(href: string) {
+    const [path] = href.split('?');
+    if (path === '/dashboard/students') {
+      return pathname === path;
+    }
+    return pathname === path || pathname.startsWith(`${path}/`);
   }
 
   function renderLockedItem(item: NavItem, compact = false) {
@@ -331,9 +352,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose, lockedO
                     {isParentExpanded && (
                       <div className="mt-1 space-y-0.5 pl-4">
                         {item.children.map((child) => {
-                          const isChildActive =
-                            pathname === child.href ||
-                            (child.href !== '/dashboard' && pathname.startsWith(child.href));
+                          const isChildActive = isNavChildActive(child.href);
                           
                           // Handle nested submenus
                           if (child.isParent && child.children) {
@@ -528,9 +547,7 @@ export function Sidebar({ userName, userRole, mobileOpen, onMobileClose, lockedO
                           {isParentExpanded && (
                             <div className="mt-1 space-y-0.5 pl-4">
                               {item.children.map((child) => {
-                                const isChildActive =
-                                  pathname === child.href ||
-                                  (child.href !== '/dashboard' && pathname.startsWith(child.href));
+                                const isChildActive = isNavChildActive(child.href);
                                 const ChildIcon = child.icon;
                                 
                                 return (

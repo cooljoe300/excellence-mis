@@ -239,6 +239,8 @@ export async function createStudent(formData: FormData) {
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: programId,
+      intake_id: (formData.get('intake_id') as string) || null,
+      study_mode: (formData.get('study_mode') as string)?.trim() || null,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||
         new Date().toISOString().split('T')[0],
@@ -337,11 +339,21 @@ export async function updateStudent(id: string, formData: FormData) {
 
   const { data: existing, error: existingError } = await supabase
     .from('students')
-    .select('status')
+    .select('status, program_id')
     .eq('id', id)
     .single();
 
   if (existingError) return { error: existingError.message };
+
+  const requestedProgramId = (formData.get('program_id') as string) || null;
+  if (requestedProgramId && requestedProgramId !== existing.program_id) {
+    return {
+      error:
+        'Programme changes must be made through Student → Programme Enrollment so that the admission number and history are updated safely.',
+    };
+  }
+
+  const newIntakeId = (formData.get('intake_id') as string) || null;
 
   const becomingRestricted =
     isRestrictedStudentStatus(newStatus) && !isRestrictedStudentStatus(existing.status);
@@ -372,7 +384,9 @@ export async function updateStudent(id: string, formData: FormData) {
     country: (formData.get('country') as string) || 'Kenya',
     emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
     emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
-    program_id: (formData.get('program_id') as string) || null,
+    // programme changes are intentionally excluded here; they go through the
+    // Programme Enrollment workflow.
+    intake_id: newIntakeId,
     status: newStatus,
     notes: (formData.get('notes') as string) || null,
   };
@@ -389,7 +403,6 @@ export async function updateStudent(id: string, formData: FormData) {
   if (error) return { error: error.message };
 
   // Update student_intakes if intake_id changed
-  const newIntakeId = (formData.get('intake_id') as string) || null;
   if (newIntakeId) {
     // Check if student already has this intake
     const { data: existingIntake } = await supabase

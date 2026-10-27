@@ -53,6 +53,7 @@ export function StudentSelfForm({
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
   const [selectedProgramId, setSelectedProgramId] = useState(existingStudent?.program_id ?? '');
+  const [selectedStudyMode, setSelectedStudyMode] = useState(existingStudent?.study_mode ?? '');
   const [selectedTermId, setSelectedTermId] = useState<string>('');
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
@@ -62,6 +63,9 @@ export function StudentSelfForm({
   const [existingEnrollments, setExistingEnrollments] = useState<any[]>([]);
   const [termId, setTermId] = useState<string | null>(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [curriculumName, setCurriculumName] = useState<string | null>(null);
+  const [unitsSemester, setUnitsSemester] = useState<number | null>(null);
+  const [unitsError, setUnitsError] = useState<string | null>(null);
   const [studentCreated, setStudentCreated] = useState(false);
   const [enrollmentCompleted, setEnrollmentCompleted] = useState(false);
   const [feesData, setFeesData] = useState<any>(null);
@@ -70,6 +74,7 @@ export function StudentSelfForm({
   const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
   const currentStepId = STEPS[currentStep].id;
+  const studyModeOptions = programs.find((program) => program.id === selectedProgramId)?.study_modes ?? [];
 
   // Sync selectedProgramId with existing student's program
   useEffect(() => {
@@ -84,10 +89,14 @@ export function StudentSelfForm({
       setAvailableUnits([]);
       setSelectedUnitIds([]);
       setExistingEnrollments([]);
+      setCurriculumName(null);
+      setUnitsSemester(null);
+      setUnitsError(null);
       return;
     }
     
     setLoadingUnits(true);
+    setUnitsError(null);
     try {
       const response = await fetch('/api/enrollments/program-units', {
         method: 'POST',
@@ -100,13 +109,20 @@ export function StudentSelfForm({
         setAvailableUnits(data.units || []);
         setTermId(data.termId || null);
         setSelectedUnitIds([]);
+        setCurriculumName(data.curriculumName ?? null);
+        setUnitsSemester(data.semester ?? null);
+        setUnitsError(data.error ?? null);
         
         // Track which units are already enrolled
         const enrolledUnits = (data.units || []).filter((u: any) => u.isEnrolled);
         setExistingEnrollments(enrolledUnits);
+      } else {
+        const data = await response.json().catch(() => null);
+        setUnitsError(data?.error || 'Failed to load curriculum units.');
       }
     } catch (error) {
       console.error('Failed to load units:', error);
+      setUnitsError('Failed to load curriculum units.');
     } finally {
       setLoadingUnits(false);
     }
@@ -253,13 +269,13 @@ export function StudentSelfForm({
 
           console.log('createMyStudentRecord result:', createResult);
 
-          if (createResult?.error) {
+          if ('error' in createResult && createResult.error) {
             setError(createResult.error);
             setLoading(false);
             return;
           }
 
-          const newStudentId = createResult?.id;
+          const newStudentId = 'id' in createResult ? createResult.id : undefined;
           console.log('Extracted student ID from result:', newStudentId);
 
           if (newStudentId) {
@@ -406,14 +422,14 @@ export function StudentSelfForm({
       ? await updateMyStudentRecord(existingStudent.id, formData)
       : await createMyStudentRecord(formData);
 
-    if (result?.error) {
+    if ('error' in result && result.error) {
       setError(result.error);
       setLoading(false);
       return;
     }
 
     // Enroll in selected units
-    const studentId = existingStudent?.id || (result as any)?.id;
+    const studentId = existingStudent?.id || ('id' in result ? result.id : undefined);
     if (studentId && selectedUnitIds.length > 0) {
       try {
         const enrollResponse = await fetch('/api/enrollments/enroll-units', {
@@ -648,7 +664,14 @@ export function StudentSelfForm({
                   id="program_id"
                   defaultValue={existingStudent?.program_id ?? ''}
                   options={programOptions}
-                  onChange={(value) => setSelectedProgramId(value)}
+                  onChange={(value) => {
+                    setSelectedProgramId(value);
+                    const modes =
+                      programs.find((program) => program.id === value)?.study_modes ?? [];
+                    setSelectedStudyMode((prev) =>
+                      prev && modes.includes(prev) ? prev : modes.length === 1 ? modes[0] : ''
+                    );
+                  }}
                   required
                   disabled={!!existingStudent?.program_id}
                   completed={!!existingStudent?.program_id}
@@ -670,8 +693,31 @@ export function StudentSelfForm({
                   completed={!!selectedTermId}
                 />
               </div>
+              {!existingStudent && studyModeOptions.length > 0 && (
+                <div>
+                  <label htmlFor="study_mode" className="block text-sm font-medium text-slate-700">
+                    Study mode
+                  </label>
+                  <Select
+                    name="study_mode"
+                    id="study_mode"
+                    value={selectedStudyMode}
+                    options={[
+                      { value: '', label: 'Select study mode' },
+                      ...studyModeOptions.map((mode) => ({
+                        value: mode,
+                        label: mode.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+                      })),
+                    ]}
+                    onChange={(value) => setSelectedStudyMode(value)}
+                    required
+                    completed={!!selectedStudyMode}
+                  />
+                </div>
+              )}
               <p className="sm:col-span-2 text-[11px] text-slate-500 -mt-2">
-                Your admission number is generated from your program (e.g. EOC/CIFA/001/26).
+                Your admission number is generated automatically from the selected programme&apos;s
+                admission-number configuration.
               </p>
               <Input
                 name="enrollment_date"
@@ -688,13 +734,24 @@ export function StudentSelfForm({
             <div className="border-t border-slate-200 pt-4">
               <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-blue-700" />
-                Unit Enrollment
+                Unit Registration
               </h3>
-              {loadingUnits ? (
+              {(curriculumName || unitsSemester) && (
+                <p className="mb-2 text-[11px] font-medium text-slate-600">
+                  {curriculumName ? `Curriculum: ${curriculumName}` : ''}
+                  {curriculumName && unitsSemester ? ' · ' : ''}
+                  {unitsSemester ? `Semester ${unitsSemester}` : ''}
+                </p>
+              )}
+              {unitsError ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  {unitsError}
+                </div>
+              ) : loadingUnits ? (
                 <p className="text-xs text-slate-500">Loading available units...</p>
               ) : availableUnits.length === 0 ? (
                 <p className="text-xs text-slate-500">
-                  {selectedProgramId ? 'No units are available for this program yet.' : 'Please select a program above to see available units.'}
+                  {selectedProgramId ? 'No units are configured for this programme curriculum yet.' : 'Please select a program above to see available units.'}
                 </p>
               ) : (
                 <div className="space-y-2">

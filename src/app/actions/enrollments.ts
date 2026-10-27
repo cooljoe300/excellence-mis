@@ -46,19 +46,6 @@ export async function getCurrentAcademicTermId(): Promise<string | null> {
   return latest?.id ?? null;
 }
 
-export async function getProgramCourses(programId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('courses')
-    .select('id, code, name, unit_fee, credits')
-    .eq('program_id', programId)
-    .eq('is_active', true)
-    .order('name');
-
-  if (error) throw new Error(error.message);
-  return data ?? [];
-}
-
 export async function getStudentCourseIdsForTerm(studentId: string, termId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -88,10 +75,14 @@ export async function getDeregisteredCourseIdsForTerm(studentId: string, termId:
 export async function setStudentEnrollmentsForTerm(
   studentId: string,
   termId: string,
-  courseIds: string[]
+  courseIds: string[],
+  options?: { removalCourseIds?: string[] }
 ) {
   const supabase = await createClient();
   const normalized = Array.from(new Set(courseIds.filter(Boolean)));
+  const removalScope = options?.removalCourseIds
+    ? new Set(options.removalCourseIds.filter(Boolean))
+    : null;
 
   // Get student and course information for audit logs
   const { data: student } = await supabase
@@ -122,6 +113,11 @@ export async function setStudentEnrollmentsForTerm(
   const toAdd = normalized.filter((id) => !existingCourseIds.has(id));
   const toRemove = (existing ?? [])
     .filter((e) => !desiredCourseIds.has(e.course_id as string))
+    // When a curriculum scope is supplied, only units in that scope may be
+    // removed. Units from a previous programme or another semester are kept.
+    .filter((e) =>
+      removalScope ? removalScope.has(e.course_id as string) : true
+    )
     // Don't remove anything that already has grades/scores entered.
     .filter((e) => e.grade == null && e.score == null);
 

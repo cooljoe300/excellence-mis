@@ -302,6 +302,8 @@ export async function createMyStudentRecord(formData: FormData) {
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: programId,
+      intake_id: (formData.get('intake_id') as string) || null,
+      study_mode: (formData.get('study_mode') as string)?.trim() || null,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||
         new Date().toISOString().split('T')[0],

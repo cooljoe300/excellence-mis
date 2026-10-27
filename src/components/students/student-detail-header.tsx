@@ -5,7 +5,7 @@ import { DeleteStudentButton } from '@/components/students/delete-student-button
 import { formatDate, getAdmissionNumber } from '@/lib/utils';
 import { isSelfRegisteredStudent } from '@/lib/auth';
 import type { Student } from '@/lib/types';
-import { ChevronLeft, CreditCard } from 'lucide-react';
+import { BookOpen, ChevronLeft, CreditCard, Repeat } from 'lucide-react';
 
 export function StudentDetailHeader({
   student,
@@ -40,6 +40,18 @@ export function StudentDetailHeader({
 
         {!hideActions && (
           <div className="flex flex-wrap gap-2">
+            <Link href={`/dashboard/students/unit-registration?studentId=${student.id}`}>
+              <Button variant="secondary" size="sm">
+                <BookOpen className="h-4 w-4" />
+                Units
+              </Button>
+            </Link>
+            <Link href={`/dashboard/students/programme-enrollment?studentId=${student.id}`}>
+              <Button variant="secondary" size="sm">
+                <Repeat className="h-4 w-4" />
+                Change programme
+              </Button>
+            </Link>
             <Link href={`/dashboard/students/${student.id}/id-card`} target="_blank">
               <Button variant="secondary" size="sm">
                 <CreditCard className="h-4 w-4" />

@@ -9,14 +9,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
 import { createStudent, updateStudent } from '@/app/actions/students';
+import { getCurrentAcademicTermId } from '@/app/actions/enrollments';
+import { getDefaultCurriculumUnits } from '@/app/actions/curriculum';
 import {
-  getCurrentAcademicTermId,
-  getProgramCourses,
-  getStudentCourseIdsForTerm,
-  setStudentEnrollmentsForTerm,
-} from '@/app/actions/enrollments';
+  getUnitRegistrationContext,
+  saveUnitRegistration,
+} from '@/app/actions/unit-registration';
 import type { Program, Student, Intake } from '@/lib/types';
-import { UserPlus, Info, Copy, Mail, Download, CheckCircle2, MessageCircle } from 'lucide-react';
+import { UserPlus, Info, Copy, Mail, CheckCircle2, MessageCircle } from 'lucide-react';
+import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils';
 import { PassportPhotoUpload } from './student-id-card-preview';
 
@@ -62,6 +63,7 @@ export function StudentForm({
   const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
 
   const [programId, setProgramId] = useState(student?.program_id ?? '');
+  const [studyMode, setStudyMode] = useState(student?.study_mode ?? '');
   const [termId, setTermId] = useState<string | null>(null);
   const [availableCourses, setAvailableCourses] = useState<
     { id: string; code: string; name: string; unit_fee: number }[]
@@ -69,8 +71,16 @@ export function StudentForm({
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [coursesError, setCoursesError] = useState('');
+  const [semester, setSemester] = useState<number | null>(null);
+  const [semesters, setSemesters] = useState<number[]>([]);
+  const [curriculumName, setCurriculumName] = useState<string | null>(null);
+  const [registrationTermId, setRegistrationTermId] = useState<string | null>(null);
 
   const selectedSet = useMemo(() => new Set(selectedCourseIds), [selectedCourseIds]);
+  const studyModeOptions = useMemo(() => {
+    const program = programs.find((item) => item.id === programId);
+    return program?.study_modes ?? [];
+  }, [programs, programId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,44 +93,67 @@ export function StudentForm({
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  async function loadUnits(nextSemester?: number | null) {
+    setCoursesError('');
 
-    async function loadCourses() {
-      setCoursesError('');
-      if (!programId) {
-        setAvailableCourses([]);
-        setSelectedCourseIds([]);
-        return;
-      }
-
-      setCoursesLoading(true);
-      try {
-        const courses = await getProgramCourses(programId);
-        if (cancelled) return;
-        setAvailableCourses(courses);
-
-        // If editing an existing student, preload currently enrolled courses for the current term.
-        if (student?.id && termId) {
-          const enrolled = await getStudentCourseIdsForTerm(student.id, termId);
-          if (cancelled) return;
-          setSelectedCourseIds(enrolled);
-        } else {
-          // default: none selected
-          setSelectedCourseIds([]);
-        }
-      } catch (e) {
-        if (cancelled) return;
-        setCoursesError('Failed to load courses for this program.');
-      } finally {
-        if (!cancelled) setCoursesLoading(false);
-      }
+    if (!programId) {
+      setAvailableCourses([]);
+      setSelectedCourseIds([]);
+      setSemester(null);
+      setSemesters([]);
+      setCurriculumName(null);
+      setRegistrationTermId(null);
+      return;
     }
 
-    void loadCourses();
-    return () => {
-      cancelled = true;
-    };
+    setCoursesLoading(true);
+    try {
+      if (student?.id) {
+        const result = await getUnitRegistrationContext(student.id, {
+          semester: nextSemester ?? semester ?? undefined,
+        });
+
+        if ('error' in result) {
+          setAvailableCourses([]);
+          setCoursesError(result.error);
+          return;
+        }
+
+        setAvailableCourses(result.units);
+        setSelectedCourseIds(result.selected_course_ids);
+        setSemester(result.semester);
+        setSemesters(result.semesters);
+        setCurriculumName(result.curriculum.name);
+        setRegistrationTermId(result.termId);
+      } else {
+        const result = await getDefaultCurriculumUnits(
+          programId,
+          nextSemester ?? semester ?? undefined
+        );
+
+        if ('error' in result) {
+          setAvailableCourses([]);
+          setCoursesError(result.error);
+          return;
+        }
+
+        setAvailableCourses(result.units);
+        setSelectedCourseIds([]);
+        setSemester(result.semester);
+        setSemesters(result.semesters);
+        setCurriculumName(result.curriculum.name);
+        setRegistrationTermId(null);
+      }
+    } catch {
+      setCoursesError('Failed to load the programme curriculum.');
+    } finally {
+      setCoursesLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadUnits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [programId, student?.id, termId]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -165,10 +198,20 @@ export function StudentForm({
 
     let feePaymentId: string | null = null;
 
-    if (studentId && termId) {
-      const enrollResult = await setStudentEnrollmentsForTerm(studentId, termId, selectedCourseIds);
-      if (enrollResult && 'error' in enrollResult && enrollResult.error) {
-        setError(enrollResult.error);
+    const effectiveTermId = registrationTermId ?? termId;
+    const shouldSaveUnits =
+      Boolean(studentId && effectiveTermId && semester) && (Boolean(student) || selectedCourseIds.length > 0);
+
+    if (studentId && effectiveTermId && semester && shouldSaveUnits) {
+      const enrollResult = await saveUnitRegistration({
+        studentId,
+        termId: effectiveTermId,
+        semester,
+        courseIds: selectedCourseIds,
+      });
+
+      if ('error' in enrollResult) {
+        setError(enrollResult.error ?? 'Unable to save unit registration.');
         setLoading(false);
         return;
       }
@@ -374,16 +417,35 @@ Excellence Online College`;
               name="program_id"
               id="program_id"
               value={programId}
-              onChange={(value) => setProgramId(value)}
+              onChange={(value) => {
+                setProgramId(value);
+                setSemester(null);
+                const modes = programs.find((item) => item.id === value)?.study_modes ?? [];
+                setStudyMode((prev) =>
+                  prev && modes.includes(prev) ? prev : modes.length === 1 ? modes[0] : ''
+                );
+              }}
               options={programOptions}
               required={!student}
+              disabled={Boolean(student)}
             />
+            {student ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Programme changes must be made through{' '}
+                <Link
+                  href={`/dashboard/students/programme-enrollment?studentId=${student.id}`}
+                  className="font-medium text-blue-700 hover:underline"
+                >
+                  Programme Enrollment
+                </Link>{' '}
+                so the admission number and history stay correct.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-slate-500">
+                The admission number is generated from the programme&apos;s configured format.
+              </p>
+            )}
           </div>
-          {!student && (
-            <p className="sm:col-span-2 text-xs text-slate-500 -mt-2">
-              Admission number is generated from the program (e.g. EOC/CIFA/001/26).
-            </p>
-          )}
           <div>
             <label htmlFor="intake_id" className="block text-sm font-medium text-slate-700">Intake</label>
             <Select
@@ -393,6 +455,40 @@ Excellence Online College`;
               options={intakeOptions}
             />
           </div>
+          {!student && (
+            <div>
+              <label htmlFor="study_mode" className="block text-sm font-medium text-slate-700">
+                Study mode
+              </label>
+              {studyModeOptions.length > 0 ? (
+                <Select
+                  name="study_mode"
+                  id="study_mode"
+                  value={studyMode}
+                  options={[
+                    { value: '', label: 'Select study mode' },
+                    ...studyModeOptions.map((mode) => ({
+                      value: mode,
+                      label: mode.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+                    })),
+                  ]}
+                  onChange={setStudyMode}
+                  required
+                />
+              ) : (
+                <Input
+                  name="study_mode"
+                  id="study_mode"
+                  value={studyMode}
+                  onChange={(e) => setStudyMode(e.target.value)}
+                  placeholder="e.g. Full-time"
+                />
+              )}
+              <p className="mt-1 text-xs text-slate-500">
+                Study modes come from the programme configuration.
+              </p>
+            </div>
+          )}
           <Input name="enrollment_date" label="Enrollment date" type="date" defaultValue={student?.enrollment_date ?? new Date().toISOString().split('T')[0]} />
           <div>
             <label htmlFor="status" className="block text-sm font-medium text-slate-700">Status</label>
@@ -412,12 +508,17 @@ Excellence Online College`;
           </div>
 
           <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-900">Course registration</p>
+                <p className="text-sm font-semibold text-slate-900">Unit registration</p>
                 <p className="mt-1 text-xs text-slate-600">
-                  Select the courses to register for the current term.
+                  Units come from the programme curriculum for the selected semester.
                 </p>
+                {curriculumName && (
+                  <p className="mt-1 text-xs font-medium text-slate-700">
+                    Curriculum: {curriculumName}
+                  </p>
+                )}
               </div>
               {!termId && (
                 <span className="text-xs text-amber-700">No current term set</span>
@@ -425,48 +526,74 @@ Excellence Online College`;
             </div>
 
             {!programId ? (
-              <p className="mt-3 text-sm text-slate-600">Select a program to see its courses.</p>
+              <p className="mt-3 text-sm text-slate-600">Select a program to see its curriculum units.</p>
             ) : coursesLoading ? (
-              <p className="mt-3 text-sm text-slate-600">Loading courses…</p>
+              <p className="mt-3 text-sm text-slate-600">Loading units…</p>
             ) : coursesError ? (
               <p className="mt-3 text-sm text-red-600">{coursesError}</p>
-            ) : availableCourses.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-600">
-                No active courses found for this program.
-              </p>
             ) : (
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                {availableCourses.map((c) => {
-                  const checked = selectedSet.has(c.id);
-                  return (
-                    <label
-                      key={c.id}
-                      className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-slate-300"
-                    >
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
-                        checked={checked}
-                        onChange={(e) => {
-                          setSelectedCourseIds((prev) => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(c.id);
-                            else next.delete(c.id);
-                            return Array.from(next);
-                          });
-                        }}
-                      />
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900">
-                          {c.code}
-                          <span className="font-normal text-slate-500"> — {c.name}</span>
-                        </p>
-                        <p className="text-xs text-slate-500">{formatCurrency(c.unit_fee ?? 0)}</p>
-                      </div>
+              <>
+                {semesters.length > 0 && (
+                  <div className="mt-3 max-w-xs">
+                    <label htmlFor="semester" className="block text-xs font-medium text-slate-700">
+                      Semester
                     </label>
-                  );
-                })}
-              </div>
+                    <Select
+                      id="semester"
+                      value={String(semester ?? '')}
+                      options={semesters.map((value) => ({
+                        value: String(value),
+                        label: `Semester ${value}`,
+                      }))}
+                      onChange={(value) => {
+                        const next = Number(value);
+                        setSemester(next);
+                        setSelectedCourseIds([]);
+                        void loadUnits(next);
+                      }}
+                    />
+                  </div>
+                )}
+
+                {availableCourses.length === 0 ? (
+                  <p className="mt-3 text-sm text-slate-600">
+                    No active units are configured for this semester in the programme curriculum.
+                  </p>
+                ) : (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {availableCourses.map((c) => {
+                      const checked = selectedSet.has(c.id);
+                      return (
+                        <label
+                          key={c.id}
+                          className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 hover:border-slate-300"
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-500"
+                            checked={checked}
+                            onChange={(e) => {
+                              setSelectedCourseIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(c.id);
+                                else next.delete(c.id);
+                                return Array.from(next);
+                              });
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-900">
+                              {c.code}
+                              <span className="font-normal text-slate-500"> — {c.name}</span>
+                            </p>
+                            <p className="text-xs text-slate-500">{formatCurrency(c.unit_fee ?? 0)}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </CardContent>

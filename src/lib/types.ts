@@ -1,6 +1,6 @@
 export type UserRole = 'superadmin' | 'admin' | 'staff' | 'teacher' | 'student' | 'inactive';
 export type StudentStatus = 'active' | 'inactive' | 'graduated' | 'suspended' | 'withdrawn';
-export type EnrollmentStatus = 'pending' | 'active' | 'completed' | 'dropped';
+export type EnrollmentStatus = 'pending' | 'active' | 'completed' | 'dropped' | 'deregistered';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 export type PaymentStatus = 'pending' | 'paid' | 'partial' | 'overdue' | 'waived';
 export type PaymentSubmissionStatus = 'pending' | 'approved' | 'rejected';
@@ -61,12 +61,117 @@ export interface Program {
   name: string;
   code: string;
   admission_prefix: string | null;
+  admission_number_format: string | null;
+  admission_sequence_start: number;
+  program_type: string | null;
+  study_modes: string[];
+  campus: string | null;
   description: string | null;
   duration_months: number;
   tuition_fee: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProgrammeCurriculum {
+  id: string;
+  program_id: string;
+  name: string;
+  academic_year: string;
+  version: string;
+  is_active: boolean;
+  effective_from: string | null;
+  effective_to: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  program?: Program;
+}
+
+export interface CurriculumUnit {
+  id: string;
+  curriculum_id: string;
+  course_id: string;
+  semester: number;
+  is_active: boolean;
+  sort_order: number | null;
+  created_at: string;
+  updated_at: string;
+  course?: Course;
+  curriculum?: ProgrammeCurriculum;
+}
+
+export interface CurriculumUnitOption {
+  id: string;
+  curriculum_unit_id: string;
+  code: string;
+  name: string;
+  credits: number;
+  unit_fee: number;
+  semester: number;
+  sort_order: number | null;
+  is_active: boolean;
+}
+
+export interface ProgrammeChangeHistory {
+  id: string;
+  student_id: string;
+  previous_program_id: string | null;
+  new_program_id: string | null;
+  previous_program_code: string | null;
+  previous_program_name: string | null;
+  new_program_code: string | null;
+  new_program_name: string | null;
+  previous_admission_number: string | null;
+  new_admission_number: string | null;
+  previous_intake_id: string | null;
+  new_intake_id: string | null;
+  previous_intake_name: string | null;
+  new_intake_name: string | null;
+  previous_study_mode: string | null;
+  new_study_mode: string | null;
+  previous_curriculum_id: string | null;
+  new_curriculum_id: string | null;
+  previous_curriculum_name: string | null;
+  new_curriculum_name: string | null;
+  previous_semester: number | null;
+  new_semester: number | null;
+  previous_academic_year: string | null;
+  new_academic_year: string | null;
+  reason: string;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  changed_at: string;
+}
+
+export interface ProgrammeChangePreview {
+  student_id: string;
+  student_name: string;
+  previous_admission_number: string | null;
+  previous_program_id: string | null;
+  new_program_id: string;
+  new_program_code: string;
+  new_program_name: string;
+  new_admission_number: string;
+  admission_format: string;
+  intake_id: string | null;
+  intake_name: string | null;
+  study_mode: string | null;
+  academic_year: string;
+  curriculum_id: string;
+  curriculum_name: string;
+  curriculum_academic_year: string;
+  available_semesters: number[];
+}
+
+export interface ProgrammeChangeResult {
+  history_id: string;
+  student_id: string;
+  student_name: string;
+  changed_at: string;
+  previous: Record<string, unknown>;
+  new: Record<string, unknown>;
 }
 
 export interface Course {
@@ -104,6 +209,10 @@ export interface Student {
   emergency_contact_phone: string | null;
   program_id: string | null;
   intake_id: string | null;
+  curriculum_id: string | null;
+  current_semester: number;
+  study_mode: string | null;
+  academic_year: string | null;
   enrollment_date: string;
   status: StudentStatus;
   registration_source: RegistrationSource | null;

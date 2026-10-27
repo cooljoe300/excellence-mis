@@ -59,9 +59,45 @@ export function ProgramFormModal({ onClose, program }: { onClose: () => void; pr
           required
         />
         <p className="text-xs text-slate-500 -mt-2">
-          Used in admission numbers as {'{CODE}'} — e.g. CIFA → EOC/CIFA/001/26, CPAF →
-          EOC/CPAF/001/26
+          Replaces {'{CODE}'} in the programme&apos;s admission number format.
         </p>
+        <Input
+          name="admission_number_format"
+          label="Admission number format (optional)"
+          placeholder="EOC/{CODE}/{SEQ3}/{YY}"
+          defaultValue={program?.admission_number_format ?? ''}
+        />
+        <p className="text-xs text-slate-500 -mt-2">
+          Leave blank to use the global format. Tokens: {'{CODE}'}, {'{YYYY}'}, {'{YY}'},{' '}
+          {'{AY}'}, {'{INTAKE}'}, {'{MODE}'}, {'{CAMPUS}'}, {'{SEQ}'}, {'{SEQ3}'}, {'{SEQ4}'},{' '}
+          {'{SEQ:n}'}. A sequence token is required.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input
+            name="admission_sequence_start"
+            label="Admission sequence start"
+            type="number"
+            min={1}
+            defaultValue={program?.admission_sequence_start?.toString() ?? '1'}
+          />
+          <Input
+            name="program_type"
+            label="Programme type (optional)"
+            placeholder="e.g. Certificate, Diploma, Professional"
+            defaultValue={program?.program_type ?? ''}
+          />
+          <Input
+            name="study_modes"
+            label="Study modes (optional)"
+            placeholder="e.g. Online, Blended, Evening"
+            defaultValue={(program?.study_modes ?? []).join(', ')}
+          />
+          <Input
+            name="campus"
+            label="Campus (optional)"
+            defaultValue={program?.campus ?? ''}
+          />
+        </div>
         <Textarea
           name="description"
           label="Description"
