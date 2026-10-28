@@ -36,7 +36,7 @@ export async function recalculateFeePaymentAfterDeregistration(
 ): Promise<{ success: true } | { error: string }> {
   const { data: fee, error: feeError } = await supabase
     .from('fee_payments')
-    .select('id, amount, amount_paid, status, description, paid_date')
+    .select('id, amount, amount_paid, status, description, paid_date, discount_amount')
     .eq('id', feePaymentId)
     .single();
 
@@ -53,11 +53,11 @@ export async function recalculateFeePaymentAfterDeregistration(
 
   const itemsTotal = (items ?? []).reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
   const amountPaid = Number(fee.amount_paid ?? 0);
-  let newAmount = itemsTotal;
+  const discount = Number(fee.discount_amount ?? 0);
 
-  if (amountPaid > newAmount) {
-    newAmount = amountPaid;
-  }
+  // The invoice total is the billed units minus any discount. Overpayments are
+  // credited through amount_paid, not by inflating the billed amount.
+  const newAmount = Math.max(itemsTotal - discount, 0);
 
   const status = derivePaymentStatus(newAmount, amountPaid);
 

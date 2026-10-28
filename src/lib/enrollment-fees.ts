@@ -89,7 +89,7 @@ export async function createFeeInvoiceForEnrollments(
   // Check for existing fee payment for this student + term combination
   const { data: existingFeePayment, error: existingError } = await supabase
     .from('fee_payments')
-    .select('id, amount, amount_paid, status, description')
+    .select('id, amount, amount_paid, status, description, discount_amount')
     .eq('student_id', studentId)
     .eq('term_id', termId)
     .maybeSingle();
@@ -108,7 +108,8 @@ export async function createFeeInvoiceForEnrollments(
       .eq('fee_payment_id', feePaymentId);
     
     const existingItemsTotal = (existingItems ?? []).reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
-    finalAmount = existingItemsTotal + totalFee;
+    const discount = Number(existingFeePayment.discount_amount ?? 0);
+    finalAmount = Math.max(existingItemsTotal + totalFee - discount, 0);
 
     // Update the fee payment with new amount and description
     const { error: updateError } = await supabase

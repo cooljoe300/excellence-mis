@@ -70,9 +70,7 @@ export default async function StudentFeeStatementPage({
                         {formatDate(fee.created_at)}
                       </p>
                     </div>
-                    <Badge status={balance <= 0 ? 'active' : fee.status}>
-                      {balance <= 0 ? 'paid' : fee.status}
-                    </Badge>
+                    <Badge status={fee.status}>{fee.status}</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -87,6 +85,12 @@ export default async function StudentFeeStatementPage({
                           <span>{formatCurrency(item.amount)}</span>
                         </div>
                       ))}
+                      {Number(fee.discount_amount ?? 0) > 0 && (
+                        <div className="flex justify-between gap-4 font-medium text-emerald-700">
+                          <span>Discount</span>
+                          <span>−{formatCurrency(Number(fee.discount_amount))}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-4">
