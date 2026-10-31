@@ -11,6 +11,7 @@ import type { StudentStatus } from '@/lib/types';
 import { uploadStudentPassportPhoto } from '@/lib/student-photo';
 import { logAudit } from '@/lib/audit-logger';
 import { getCurrentUserRole } from '@/lib/auth';
+import { resolveCurrentIntakeId } from '@/lib/intake-assignment';
 
 function generateTemporaryPassword(length = 12): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -41,13 +42,27 @@ async function applyPhotoFromForm(
   return { photoUrl: upload.url };
 }
 
+function firstRelation<T>(value: T | T[] | null | undefined): T | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
+
+// Intakes for the list: prefer the junction table (supports multiple
+// intakes), and fall back to the legacy students.intake_id relation for
+// students who never got a student_intakes row.
+function resolveStudentIntakes(student: any, junctionIntakes: any[] | undefined) {
+  if (junctionIntakes && junctionIntakes.length > 0) return junctionIntakes;
+  const legacyIntake = firstRelation(student.intake);
+  return legacyIntake ? [legacyIntake] : [];
+}
+
 export async function getStudents(search?: string) {
   const supabase = await createClient();
   
-  // Get unique students with their programs
+  // Get unique students with their programs and legacy intake relation
   let query = supabase
     .from('students')
-    .select('*, program:programs(*)')
+    .select('*, program:programs(*), intake:intakes(*)')
     .order('created_at', { ascending: false });
 
   if (search) {
@@ -80,7 +95,7 @@ export async function getStudents(search?: string) {
   // Attach intakes to each student
   const studentsWithIntakes = students.map(student => ({
     ...student,
-    intakes: intakesByStudent.get(student.id) || []
+    intakes: resolveStudentIntakes(student, intakesByStudent.get(student.id))
   }));
 
   return studentsWithIntakes;
@@ -90,7 +105,7 @@ export async function getStudent(id: string) {
   const supabase = await createClient();
   const { data: student, error: studentError } = await supabase
     .from('students')
-    .select('*, program:programs(*)')
+    .select('*, program:programs(*), intake:intakes(*)')
     .eq('id', id)
     .single();
   
@@ -104,14 +119,16 @@ export async function getStudent(id: string) {
   
   if (intakesError) throw new Error(intakesError.message);
 
+  const junctionIntakes = studentIntakes?.map(si => ({
+    ...si.intake,
+    is_primary: si.is_primary,
+    enrollment_date: si.enrollment_date,
+    status: si.status
+  }));
+
   return {
     ...student,
-    intakes: studentIntakes?.map(si => ({
-      ...si.intake,
-      is_primary: si.is_primary,
-      enrollment_date: si.enrollment_date,
-      status: si.status
-    })) || []
+    intakes: resolveStudentIntakes(student, junctionIntakes)
   };
 }
 
@@ -223,6 +240,13 @@ export async function createStudent(formData: FormData) {
     authUserId = existingAuthUser.id;
   }
 
+  // Fall back to the current active intake when the form does not pick one,
+  // so every student is grouped under an intake on the Students list.
+  let intakeId = (formData.get('intake_id') as string) || null;
+  if (!intakeId) {
+    intakeId = await resolveCurrentIntakeId(supabase);
+  }
+
   const { data, error } = await supabase
     .from('students')
     .insert({
@@ -240,7 +264,7 @@ export async function createStudent(formData: FormData) {
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: programId,
-      intake_id: (formData.get('intake_id') as string) || null,
+      intake_id: intakeId,
       study_mode: (formData.get('study_mode') as string)?.trim() || null,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||
@@ -265,19 +289,19 @@ export async function createStudent(formData: FormData) {
     return { error: error.message };
   }
 
-  // Create student_intakes record for the selected intake
-  const intakeId = (formData.get('intake_id') as string) || null;
+  // Create the student_intakes junction row (idempotent — migration 058's
+  // trigger may already have created it from students.intake_id).
   if (intakeId) {
     const { error: intakeError } = await supabase
       .from('student_intakes')
-      .insert({
+      .upsert({
         student_id: data.id,
         intake_id: intakeId,
         is_primary: true,
         enrollment_date: (formData.get('enrollment_date') as string) || new Date().toISOString().split('T')[0],
         status: (formData.get('status') as StudentStatus) || 'active',
-      });
-    
+      }, { onConflict: 'student_id,intake_id' });
+
     if (intakeError) {
       console.warn('Failed to create student_intakes record:', intakeError.message);
       // Don't fail the entire registration - just log the error

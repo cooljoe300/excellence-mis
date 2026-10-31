@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { StudentStatus } from '@/lib/types';
 import { uploadStudentPassportPhoto } from '@/lib/student-photo';
+import { resolveCurrentIntakeId } from '@/lib/intake-assignment';
 
 async function applyPhotoFromForm(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -285,6 +286,12 @@ export async function createMyStudentRecord(formData: FormData) {
     }
   }
 
+  // The self-registration form has no intake picker, so assign the current
+  // active intake. Migration 058's trigger mirrors it into student_intakes
+  // (the student session cannot insert junction rows directly — junction RLS
+  // is staff/admin only, which is why the list used to show "—").
+  const intakeId = (formData.get('intake_id') as string) || (await resolveCurrentIntakeId(supabase));
+
   const { data, error } = await supabase
     .from('students')
     .insert({
@@ -302,7 +309,7 @@ export async function createMyStudentRecord(formData: FormData) {
       emergency_contact_name: (formData.get('emergency_contact_name') as string) || null,
       emergency_contact_phone: (formData.get('emergency_contact_phone') as string) || null,
       program_id: programId,
-      intake_id: (formData.get('intake_id') as string) || null,
+      intake_id: intakeId,
       study_mode: (formData.get('study_mode') as string)?.trim() || null,
       enrollment_date:
         (formData.get('enrollment_date') as string) ||

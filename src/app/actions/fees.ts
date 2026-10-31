@@ -14,7 +14,7 @@ export async function getFeePayments() {
   const { data, error } = await supabase
     .from('fee_payments')
     .select(
-      '*, student:students(*, program:programs(*)), term:academic_terms(*), submissions:fee_payment_submissions(*), items:fee_payment_items(*, course:courses(code, name))'
+      '*, student:students(*, program:programs(*), intake:intakes(*)), term:academic_terms(*), submissions:fee_payment_submissions(*), items:fee_payment_items(*, course:courses(code, name))'
     )
     .order('created_at', { ascending: false });
 
@@ -33,23 +33,34 @@ export async function getFeePayments() {
     .from('student_intakes')
     .select('student_id, intake:intakes(*)')
     .in('student_id', studentIds);
-  
+
+  const intakesByStudent = new Map<string, any[]>();
   if (!intakesError && studentIntakes) {
-    const intakesByStudent = new Map<string, any[]>();
     studentIntakes.forEach(si => {
       if (!intakesByStudent.has(si.student_id)) {
         intakesByStudent.set(si.student_id, []);
       }
       intakesByStudent.get(si.student_id)?.push(si.intake);
     });
-
-    // Attach intakes to each fee payment's student
-    data?.forEach(fee => {
-      if (fee.student) {
-        (fee.student as any).intakes = intakesByStudent.get(fee.student_id) || [];
-      }
-    });
   }
+
+  // Attach intakes to each fee payment's student, falling back to the
+  // legacy students.intake_id relation when no junction row exists.
+  data?.forEach(fee => {
+    if (fee.student) {
+      const junction = intakesByStudent.get(fee.student_id);
+      if (junction && junction.length > 0) {
+        (fee.student as any).intakes = junction;
+      } else {
+        const legacyIntake = (fee.student as any).intake;
+        (fee.student as any).intakes = Array.isArray(legacyIntake)
+          ? legacyIntake
+          : legacyIntake
+            ? [legacyIntake]
+            : [];
+      }
+    }
+  });
 
   return data ?? [];
 }
