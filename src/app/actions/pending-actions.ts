@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrency } from '@/lib/utils';
+import { summarizeFeesByStudent } from '@/lib/fee-money';
 
 export type PendingActionPriority = 'urgent' | 'high' | 'normal' | 'info';
 
@@ -88,21 +89,22 @@ export async function getAdminPendingActions(): Promise<PendingAction[]> {
     }
 
     // 4. Students with Outstanding Fees (NORMAL priority)
+    // Net each student's invoices, so a credit on one invoice can offset a
+    // balance on another instead of being counted twice.
     const { data: outstandingPayments } = await supabase
       .from('fee_payments')
-      .select('student_id, amount, amount_paid')
-      .gt('amount', 0);
+      .select('student_id, amount, amount_paid');
 
-    const studentsWithOutstanding = new Set(
-      outstandingPayments?.filter((p: any) => Number(p.amount_paid || 0) < Number(p.amount)).map((p: any) => p.student_id) || []
-    );
-    
-    if (studentsWithOutstanding.size > 0) {
+    const studentsWithOutstanding = summarizeFeesByStudent(
+      (outstandingPayments ?? []) as Array<{ student_id: string; amount: number; amount_paid: number }>
+    ).filter((summary) => summary.balance > 0);
+
+    if (studentsWithOutstanding.length > 0) {
       actions.push({
         id: 'outstanding-fees',
         title: 'Students with Outstanding Fees',
-        description: `${studentsWithOutstanding.size} students have unpaid balances`,
-        count: studentsWithOutstanding.size,
+        description: `${studentsWithOutstanding.length} students have unpaid balances`,
+        count: studentsWithOutstanding.length,
         priority: 'normal',
         icon: 'AlertCircle',
         route: '/dashboard/fees',

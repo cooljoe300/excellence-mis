@@ -160,16 +160,11 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     return acc;
   }, {} as Record<string, number>);
 
-  // Calculate financial summary
+  // Calculate financial summary from the authoritative invoice amounts.
+  // `amount_paid` is the money actually received, regardless of the status label.
   const payments = feePayments ?? [];
   const totalFees = payments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const feesPaid = payments.reduce((sum, p) => {
-    // Only count paid or partial status
-    if (p.status === 'paid' || p.status === 'partial') {
-      return sum + Number(p.amount_paid);
-    }
-    return sum;
-  }, 0);
+  const feesPaid = payments.reduce((sum, p) => sum + Number(p.amount_paid), 0);
   const feesBalance = Math.max(0, totalFees - feesPaid);
 
   // Calculate profile completion
@@ -280,12 +275,7 @@ function generateDashboardActions(
 
   // Check fee balance
   const totalFees = feePayments.reduce((sum, p) => sum + Number(p.amount), 0);
-  const feesPaid = feePayments.reduce((sum, p) => {
-    if (p.status === 'paid' || p.status === 'partial') {
-      return sum + Number(p.amount_paid);
-    }
-    return sum;
-  }, 0);
+  const feesPaid = feePayments.reduce((sum, p) => sum + Number(p.amount_paid), 0);
   const balance = Math.max(0, totalFees - feesPaid);
 
   if (balance > 0) {

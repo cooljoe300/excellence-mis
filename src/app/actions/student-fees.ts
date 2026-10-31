@@ -6,7 +6,6 @@ import { getPaymentSettings } from '@/app/actions/system-settings';
 import { getMyStudentRecord } from '@/app/actions/student-self';
 import { getFeePayment } from '@/app/actions/fees';
 import type { FeePayment } from '@/lib/types';
-import { getFeeBalance } from '@/lib/utils';
 import { isRestrictedStudentStatus } from '@/lib/student-deregistration-fees';
 import { logWhatsAppNotification, getWhatsAppService } from '@/app/actions/whatsapp-notifications';
 import { getSystemSettings } from '@/app/actions/system-settings';
@@ -49,44 +48,13 @@ export async function getMyFeesPageData() {
     fees = (fallback.data ?? []) as FeePayment[];
   }
 
-  // Filter out fee payment items for deregistered enrollments
-  // Get all enrollment IDs for this student that are deregistered
-  const { data: deregisteredEnrollments } = await supabase
-    .from('enrollments')
-    .select('id')
-    .eq('student_id', student.id)
-    .eq('status', 'deregistered');
-
-  const deregisteredEnrollmentIds = new Set(
-    (deregisteredEnrollments ?? []).map((e) => e.id as string)
-  );
-
-  // Filter fee payment items to exclude those linked to deregistered enrollments
-  fees = fees.map((fee) => {
-    if (!fee.items || !Array.isArray(fee.items)) return fee;
-    return {
-      ...fee,
-      items: fee.items.filter((item: any) => 
-        !item.enrollment_id || !deregisteredEnrollmentIds.has(item.enrollment_id)
-      )
-    };
-  });
-
-  const totalDue = fees.reduce((sum, fee) => sum + getFeeBalance({ ...fee, deregisteredEnrollmentIds }), 0);
+  // `fee.amount` is already net of discounts and of deregistered units, so the
+  // student portal, the staff fees page and the reports all agree.
+  const totalBilled = fees.reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
   const totalPaid = fees.reduce((sum, fee) => sum + Number(fee.amount_paid ?? 0), 0);
-  const totalBilled = fees.reduce((sum, fee) => {
-    // Calculate billed amount based only on active (non-deregistered) items
-    if (fee.items && Array.isArray(fee.items) && deregisteredEnrollmentIds.size > 0) {
-      const activeItemsTotal = fee.items.reduce((itemSum: number, item: any) => {
-        if (!item.enrollment_id || !deregisteredEnrollmentIds.has(item.enrollment_id)) {
-          return itemSum + Number(item.amount || 0);
-        }
-        return itemSum;
-      }, 0);
-      return sum + activeItemsTotal;
-    }
-    return sum + Number(fee.amount ?? 0);
-  }, 0);
+  // Net the student's invoices as a whole (reports do the same) so a credit on
+  // one invoice offsets a balance on another instead of being double counted.
+  const totalDue = Math.max(0, totalBilled - totalPaid);
 
   return {
     student,

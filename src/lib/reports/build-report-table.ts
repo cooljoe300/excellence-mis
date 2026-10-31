@@ -1,5 +1,16 @@
 import type { ReportsBundle } from '@/app/actions/reports';
-import { formatCurrency, getAdmissionNumber, getFeeBalance } from '@/lib/utils';
+import { formatCurrency, getAdmissionNumber } from '@/lib/utils';
+import {
+  classifyStudentFees,
+  invoiceBalance,
+  invoiceBilled,
+  invoiceCredit,
+  invoicePaid,
+  studentFeeStatusLabel,
+  summarizeFeeTotals,
+  summarizeFeesByStudent,
+  type StudentFeeSummary,
+} from '@/lib/fee-money';
 import type { Attendance, Course, Enrollment, FeePayment, Program, Student } from '@/lib/types';
 import {
   STUDENT_LIST_HEADERS,
@@ -169,7 +180,8 @@ export function filterFees(fees: FeePayment[], filters: ReportFilters) {
     const student = fee.student;
     if (filters.programId && student?.program_id !== filters.programId) return false;
     if (filters.intakeId && student?.intake_id !== filters.intakeId) return false;
-    if (filters.status && fee.status !== filters.status) return false;
+    // Student status filters the student record; payment status filters the invoice.
+    if (filters.status && student?.status !== filters.status) return false;
     if (filters.paymentStatus && fee.status !== filters.paymentStatus) return false;
     const termName = fee.term?.name ?? '';
     if (filters.termName && termName !== filters.termName) return false;
@@ -296,9 +308,10 @@ function feeStudentHeaders() {
     'Phone',
     'Email',
     'Term',
-    'Amount',
+    'Billed',
     'Paid',
     'Balance',
+    'Credit',
     'Status',
   ];
 }
@@ -313,14 +326,15 @@ function feeStudentRow(fee: FeePayment): string[] {
     studentPhone(student),
     studentEmail(student),
     displayValue(fee.term?.name),
-    formatCurrency(fee.amount),
-    formatCurrency(fee.amount_paid),
-    formatCurrency(getFeeBalance(fee)),
+    formatCurrency(invoiceBilled(fee)),
+    formatCurrency(invoicePaid(fee)),
+    formatCurrency(invoiceBalance(fee)),
+    formatCurrency(invoiceCredit(fee)),
     displayValue(fee.status),
   ];
 }
 
-function aggregatedStudentFeeRow(item: { student?: Student; expected: number; paid: number; balance: number }): string[] {
+function aggregatedStudentFeeRow(item: StudentFeeSummary): string[] {
   const student = item.student;
   return [
     studentDisplayName(student),
@@ -330,24 +344,48 @@ function aggregatedStudentFeeRow(item: { student?: Student; expected: number; pa
     studentPhone(student),
     studentEmail(student),
     'All Terms',
-    formatCurrency(item.expected),
+    formatCurrency(item.billed),
     formatCurrency(item.paid),
     formatCurrency(item.balance),
-    item.balance > 0 ? 'Outstanding' : item.paid > 0 ? 'Paid' : 'Pending',
+    formatCurrency(item.credit),
+    studentFeeStatusLabel(item),
   ];
 }
 
 function feeStats(fees: FeePayment[]): ReportStat[] {
-  const expected = fees.reduce((sum, fee) => sum + Number(fee.amount), 0);
-  const paid = fees.reduce((sum, fee) => sum + Number(fee.amount_paid), 0);
-  const outstanding = fees.reduce((sum, fee) => sum + getFeeBalance(fee), 0);
-  const withBalances = new Set(fees.filter((fee) => getFeeBalance(fee) > 0).map((fee) => fee.student_id)).size;
+  const totals = summarizeFeeTotals(fees);
   return [
-    { label: 'Total Expected Fees', value: formatCurrency(expected) },
-    { label: 'Total Paid', value: formatCurrency(paid) },
-    { label: 'Outstanding Balance', value: formatCurrency(outstanding) },
-    { label: 'Students with Balances', value: String(withBalances) },
+    { label: 'Total Billed', value: formatCurrency(totals.billed) },
+    { label: 'Total Paid', value: formatCurrency(totals.paid) },
+    { label: 'Outstanding Balance', value: formatCurrency(totals.outstanding) },
+    { label: 'Credit Balance', value: formatCurrency(totals.credit) },
+    { label: 'Students with Balances', value: String(totals.studentsWithBalance) },
   ];
+}
+
+function selectedStudentFeeStats(fees: FeePayment[], summaries: StudentFeeSummary[]): ReportStat[] {
+  const ids = new Set(summaries.map((summary) => summary.studentId));
+  return feeStats(fees.filter((fee) => ids.has(fee.student_id)));
+}
+
+function studentFeeReport(
+  title: string,
+  description: string,
+  fees: FeePayment[],
+  summaries: StudentFeeSummary[],
+  generated: string,
+  applied: string[]
+): ReportTable {
+  return {
+    title,
+    headers: feeStudentHeaders(),
+    rows: summaries.map(aggregatedStudentFeeRow),
+    rowStudentIds: summaries.map((summary) => summary.studentId),
+    summary: `${description} · ${summaries.length} students · Generated ${generated}`,
+    appliedFilters: applied,
+    landscape: true,
+    stats: selectedStudentFeeStats(fees, summaries),
+  };
 }
 
 export function buildReportTable(
@@ -520,6 +558,7 @@ export function buildReportTable(
     }
 
     case 'fee-summary': {
+      const totals = summarizeFeeTotals(fees);
       const feeSummary = fees.reduce(
         (acc, fee) => {
           acc[fee.status] = (acc[fee.status] ?? 0) + 1;
@@ -527,47 +566,32 @@ export function buildReportTable(
         },
         {} as Record<string, number>
       );
-      const revenue = fees.reduce((sum, f) => sum + Number(f.amount_paid), 0);
       return {
         title: 'Fee Collection Summary',
         headers: ['Item', 'Value'],
         rows: [
-          ['Revenue collected', formatCurrency(revenue)],
+          ['Total billed', formatCurrency(totals.billed)],
+          ['Revenue collected', formatCurrency(totals.paid)],
+          ['Outstanding balance', formatCurrency(totals.outstanding)],
+          ['Credit balance', formatCurrency(totals.credit)],
+          ['Students with balances', String(totals.studentsWithBalance)],
           ...Object.entries(feeSummary).map(([status, count]) => [`Invoices (${status})`, String(count)]),
         ],
-        summary: `${fees.length} invoices · Generated ${generated}`,
+        summary: `${fees.length} invoices · ${summarizeFeesByStudent(fees).length} students · Generated ${generated}`,
         appliedFilters: applied,
         stats: feeStats(fees),
       };
     }
 
     case 'fee-ledger': {
-      // Aggregate by student to avoid duplicates when student has multiple fee records
-      const byStudent = new Map<string, { student: Student; fees: FeePayment[] }>();
-      for (const fee of fees) {
-        if (!fee.student) continue;
-        const current = byStudent.get(fee.student_id) ?? {
-          student: fee.student,
-          fees: []
-        };
-        current.fees.push(fee);
-        byStudent.set(fee.student_id, current);
-      }
-      
-      // For each student, show their most recent fee record
-      const studentFees = [...byStudent.values()].map(({ student, fees }) => {
-        const mostRecent = fees.sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )[0];
-        return { student, fee: mostRecent };
-      });
-      
+      // One row per invoice — the ledger must match the invoice pages exactly.
+      const students = new Set(fees.map((fee) => fee.student_id)).size;
       return {
         title: 'Fee Payments Ledger',
         headers: feeStudentHeaders(),
-        rows: studentFees.map(({ fee }) => feeStudentRow(fee)),
-        rowStudentIds: studentFees.map(({ student }) => student.id),
-        summary: `${studentFees.length} students with fee records · Generated ${generated}`,
+        rows: fees.map(feeStudentRow),
+        rowStudentIds: fees.map((fee) => fee.student_id),
+        summary: `${fees.length} invoices for ${students} students · Generated ${generated}`,
         appliedFilters: applied,
         landscape: true,
         stats: feeStats(fees),
@@ -575,298 +599,170 @@ export function buildReportTable(
     }
 
     case 'outstanding-fees': {
-      // Aggregate by student to avoid duplicates
-      const byStudent = new Map<string, { student?: Student; expected: number; paid: number }>();
-      for (const fee of fees) {
-        const current = byStudent.get(fee.student_id) ?? {
-          student: fee.student,
-          expected: 0,
-          paid: 0,
-        };
-        current.expected += Number(fee.amount);
-        current.paid += Number(fee.amount_paid);
-        current.student = current.student || fee.student;
-        byStudent.set(fee.student_id, current);
-      }
-      
-      const outstanding = [...byStudent.entries()]
-        .map(([id, item]) => ({ id, ...item, balance: Math.max(0, item.expected - item.paid) }))
-        .filter((item) => item.balance > 0)
+      const outstanding = summarizeFeesByStudent(fees)
+        .filter((summary) => summary.balance > 0)
         .sort((a, b) => b.balance - a.balance);
-      
-      return {
-        title: 'Outstanding Fees',
-        headers: feeStudentHeaders(),
-        rows: outstanding.map((item) => aggregatedStudentFeeRow(item)),
-        rowStudentIds: outstanding.map((item) => item.id),
-        summary: `${outstanding.length} students with outstanding balances · Generated ${generated}`,
-        appliedFilters: applied,
-        landscape: true,
-        stats: feeStats(fees.filter((f) => getFeeBalance(f) > 0)),
-      };
+      return studentFeeReport(
+        'Outstanding Fees',
+        'Outstanding balances',
+        fees,
+        outstanding,
+        generated,
+        applied
+      );
     }
 
     case 'zero-payment-students': {
-      // Aggregate by student to avoid duplicates
-      const byStudent = new Map<string, { student?: Student; expected: number; paid: number }>();
-      for (const fee of fees) {
-        const current = byStudent.get(fee.student_id) ?? {
-          student: fee.student,
-          expected: 0,
-          paid: 0,
-        };
-        current.expected += Number(fee.amount);
-        current.paid += Number(fee.amount_paid);
-        current.student = current.student || fee.student;
-        byStudent.set(fee.student_id, current);
-      }
-      
-      const zero = [...byStudent.entries()]
-        .map(([id, item]) => ({ id, ...item, balance: Math.max(0, item.expected - item.paid) }))
-        .filter((item) => item.paid === 0);
-      
-      return {
-        title: 'Students With Zero Payment',
-        headers: feeStudentHeaders(),
-        rows: zero.map((item) => aggregatedStudentFeeRow(item)),
-        rowStudentIds: zero.map((item) => item.id),
-        summary: `${zero.length} students with no payments · Generated ${generated}`,
-        appliedFilters: applied,
-        landscape: true,
-        stats: feeStats(fees.filter((f) => Number(f.amount_paid) === 0)),
-      };
+      const zero = summarizeFeesByStudent(fees)
+        .filter((summary) => summary.billed > 0 && summary.paid === 0)
+        .sort((a, b) => b.balance - a.balance);
+      return studentFeeReport(
+        'Students With Zero Payment',
+        'Students with no payments received',
+        fees,
+        zero,
+        generated,
+        applied
+      );
     }
 
     case 'partially-paid-students': {
-      // Aggregate by student to avoid duplicates
-      const byStudent = new Map<string, { student?: Student; expected: number; paid: number }>();
-      for (const fee of fees) {
-        const current = byStudent.get(fee.student_id) ?? {
-          student: fee.student,
-          expected: 0,
-          paid: 0,
-        };
-        current.expected += Number(fee.amount);
-        current.paid += Number(fee.amount_paid);
-        current.student = current.student || fee.student;
-        byStudent.set(fee.student_id, current);
-      }
-      
-      const partial = [...byStudent.entries()]
-        .map(([id, item]) => ({ id, ...item, balance: Math.max(0, item.expected - item.paid) }))
-        .filter((item) => item.paid > 0 && item.balance > 0);
-      
-      return {
-        title: 'Partially Paid Students',
-        headers: feeStudentHeaders(),
-        rows: partial.map((item) => aggregatedStudentFeeRow(item)),
-        rowStudentIds: partial.map((item) => item.id),
-        summary: `${partial.length} students with partial payments · Generated ${generated}`,
-        appliedFilters: applied,
-        landscape: true,
-        stats: feeStats(fees.filter((f) => Number(f.amount_paid) > 0 && getFeeBalance(f) > 0)),
-      };
+      const partial = summarizeFeesByStudent(fees)
+        .filter((summary) => summary.paid > 0 && summary.balance > 0)
+        .sort((a, b) => b.balance - a.balance);
+      return studentFeeReport(
+        'Partially Paid Students',
+        'Students with partial payments',
+        fees,
+        partial,
+        generated,
+        applied
+      );
     }
 
     case 'fully-paid-students': {
-      // Aggregate by student to avoid duplicates
-      const byStudent = new Map<string, { student?: Student; expected: number; paid: number }>();
-      for (const fee of fees) {
-        const current = byStudent.get(fee.student_id) ?? {
-          student: fee.student,
-          expected: 0,
-          paid: 0,
-        };
-        current.expected += Number(fee.amount);
-        current.paid += Number(fee.amount_paid);
-        current.student = current.student || fee.student;
-        byStudent.set(fee.student_id, current);
-      }
-      
-      const paid = [...byStudent.entries()]
-        .map(([id, item]) => ({ id, ...item, balance: Math.max(0, item.expected - item.paid) }))
-        .filter((item) => item.balance === 0);
-      
-      return {
-        title: 'Fully Paid Students',
-        headers: feeStudentHeaders(),
-        rows: paid.map((item) => aggregatedStudentFeeRow(item)),
-        rowStudentIds: paid.map((item) => item.id),
-        summary: `${paid.length} students fully paid · Generated ${generated}`,
-        appliedFilters: applied,
-        landscape: true,
-        stats: feeStats(fees.filter((f) => getFeeBalance(f) === 0)),
-      };
+      const settled = summarizeFeesByStudent(fees)
+        .filter((summary) => classifyStudentFees(summary) === 'settled')
+        .sort((a, b) => b.paid - a.paid);
+      return studentFeeReport(
+        'Fully Paid Students',
+        'Students with no remaining balance',
+        fees,
+        settled,
+        generated,
+        applied
+      );
     }
 
     case 'students-with-balances': {
-      const byStudent = new Map<string, { student?: Student; expected: number; paid: number }>();
-      for (const fee of fees) {
-        const current = byStudent.get(fee.student_id) ?? {
-          student: fee.student,
-          expected: 0,
-          paid: 0,
-        };
-        current.expected += Number(fee.amount);
-        current.paid += Number(fee.amount_paid);
-        current.student = current.student || fee.student;
-        byStudent.set(fee.student_id, current);
-      }
-      const rows = [...byStudent.entries()]
-        .map(([id, item]) => ({ id, ...item, balance: Math.max(0, item.expected - item.paid) }))
-        .filter((item) => item.balance > 0)
+      const rows = summarizeFeesByStudent(fees)
+        .filter((summary) => summary.balance > 0)
         .sort((a, b) => b.balance - a.balance);
       return {
         title: 'Students with Balances',
-        headers: ['Student', 'Admission No.', 'Programme', 'Intake', 'Phone', 'Email', 'Expected', 'Paid', 'Balance'],
-        rows: rows.map((item) => [
-          studentDisplayName(item.student),
-          admissionNo(item.student),
-          programName(item.student),
-          intakeName(item.student),
-          studentPhone(item.student),
-          studentEmail(item.student),
-          formatCurrency(item.expected),
-          formatCurrency(item.paid),
-          formatCurrency(item.balance),
-        ]),
-        rowStudentIds: rows.map((item) => item.id),
+        headers: feeStudentHeaders(),
+        rows: rows.map(aggregatedStudentFeeRow),
+        rowStudentIds: rows.map((summary) => summary.studentId),
         summary: `${rows.length} students with balances · Generated ${generated}`,
         appliedFilters: applied,
         landscape: true,
         stats: [
           { label: 'Students with Balances', value: String(rows.length) },
           { label: 'Outstanding Balance', value: formatCurrency(rows.reduce((sum, item) => sum + item.balance, 0)) },
+          { label: 'Credit Balance', value: formatCurrency(rows.reduce((sum, item) => sum + item.credit, 0)) },
         ],
       };
     }
 
     case 'fee-collection-by-date': {
-      // Aggregate by student first to avoid duplicates, then group by date
-      const byStudent = new Map<string, { expected: number; paid: number; created_at: string }>();
+      // Collections are grouped by the date the money was received.
+      const byDate = new Map<string, { count: number; total: number }>();
       for (const fee of fees) {
-        if (fee.status !== 'paid' && fee.status !== 'partial') continue;
-        const current = byStudent.get(fee.student_id) ?? {
-          expected: 0,
-          paid: 0,
-          created_at: fee.created_at || ''
-        };
-        current.expected += Number(fee.amount);
-        current.paid += Number(fee.amount_paid);
-        if (fee.created_at && (!current.created_at || fee.created_at > current.created_at)) {
-          current.created_at = fee.created_at;
-        }
-        byStudent.set(fee.student_id, current);
+        const paid = invoicePaid(fee);
+        if (paid <= 0) continue;
+        const date = fee.paid_date?.slice(0, 10) || fee.created_at?.slice(0, 10) || 'Unknown';
+        const current = byDate.get(date) ?? { count: 0, total: 0 };
+        current.count += 1;
+        current.total += paid;
+        byDate.set(date, current);
       }
-      
-      const byDate = [...byStudent.values()].reduce(
-        (acc, item) => {
-          const date = item.created_at?.slice(0, 10) || 'Unknown';
-          if (!acc[date]) acc[date] = { count: 0, total: 0 };
-          acc[date].count += 1;
-          acc[date].total += item.paid;
-          return acc;
-        },
-        {} as Record<string, { count: number; total: number }>
-      );
-      
+      const collected = [...byDate.values()].reduce((sum, item) => sum + item.total, 0);
       return {
         title: 'Fee Collection by Date',
-        headers: ['Date', 'Transactions', 'Total Collected'],
-        rows: Object.entries(byDate)
+        headers: ['Date', 'Invoices', 'Total Collected'],
+        rows: [...byDate.entries()]
           .sort(([a], [b]) => b.localeCompare(a))
           .map(([date, item]) => [date, String(item.count), formatCurrency(item.total)]),
-        summary: `${byStudent.size} student transactions · Generated ${generated}`,
+        summary: `${collected ? formatCurrency(collected) : formatCurrency(0)} collected across ${byDate.size} dates · Generated ${generated}`,
         appliedFilters: applied,
-        stats: feeStats(fees.filter((f) => f.status === 'paid' || f.status === 'partial')),
+        stats: [
+          { label: 'Total Collected', value: formatCurrency(collected) },
+          { label: 'Payment Dates', value: String(byDate.size) },
+          { label: 'Invoices Paid', value: String([...byDate.values()].reduce((sum, item) => sum + item.count, 0)) },
+        ],
       };
     }
 
     case 'fee-collection-by-program': {
-      // Aggregate by student first to avoid duplicates, then group by program
-      const byStudent = new Map<string, { student: Student; expected: number; paid: number }>();
+      const byProgram = new Map<string, { billed: number; paid: number; invoices: number }>();
       for (const fee of fees) {
-        if (fee.status !== 'paid' && fee.status !== 'partial') continue;
         if (!fee.student) continue;
-        const current = byStudent.get(fee.student_id) ?? {
-          student: fee.student,
-          expected: 0,
-          paid: 0,
-        };
-        current.expected += Number(fee.amount);
-        current.paid += Number(fee.amount_paid);
-        byStudent.set(fee.student_id, current);
+        const billed = invoiceBilled(fee);
+        if (billed <= 0) continue;
+        const name = fee.student.program?.name ?? 'Unassigned';
+        const current = byProgram.get(name) ?? { billed: 0, paid: 0, invoices: 0 };
+        current.billed += billed;
+        current.paid += invoicePaid(fee);
+        current.invoices += 1;
+        byProgram.set(name, current);
       }
-      
-      const byProgram = [...byStudent.values()].reduce(
-        (acc, item) => {
-          const name = item.student.program?.name ?? 'Unassigned';
-          if (!acc[name]) acc[name] = { expected: 0, paid: 0, count: 0 };
-          acc[name].expected += item.expected;
-          acc[name].paid += item.paid;
-          acc[name].count += 1;
-          return acc;
-        },
-        {} as Record<string, { expected: number; paid: number; count: number }>
-      );
-      
+      const entries = [...byProgram.entries()].sort(([, a], [, b]) => b.paid - a.paid);
       return {
         title: 'Fee Collection by Programme',
-        headers: ['Programme', 'Expected', 'Collected', 'Outstanding', 'Collection %', 'Records'],
-        rows: Object.entries(byProgram).map(([program, item]) => {
-          const outstanding = item.expected - item.paid;
-          const rate = item.expected > 0 ? `${((item.paid / item.expected) * 100).toFixed(1)}%` : 'N/A';
+        headers: ['Programme', 'Billed', 'Collected', 'Outstanding', 'Collection %', 'Invoices'],
+        rows: entries.map(([program, item]) => {
+          const outstanding = Math.max(0, item.billed - item.paid);
+          const rate = item.billed > 0 ? `${((item.paid / item.billed) * 100).toFixed(1)}%` : 'N/A';
           return [
             program,
-            formatCurrency(item.expected),
+            formatCurrency(item.billed),
             formatCurrency(item.paid),
             formatCurrency(outstanding),
             rate,
-            String(item.count),
+            String(item.invoices),
           ];
         }),
-        summary: `${Object.keys(byProgram).length} programmes · ${byStudent.size} students · Generated ${generated}`,
+        summary: `${entries.length} programmes · Generated ${generated}`,
         appliedFilters: applied,
-        stats: feeStats(fees.filter((f) => f.status === 'paid' || f.status === 'partial')),
+        stats: [
+          { label: 'Total Billed', value: formatCurrency(entries.reduce((sum, [, item]) => sum + item.billed, 0)) },
+          { label: 'Total Collected', value: formatCurrency(entries.reduce((sum, [, item]) => sum + item.paid, 0)) },
+          { label: 'Outstanding', value: formatCurrency(entries.reduce((sum, [, item]) => sum + Math.max(0, item.billed - item.paid), 0)) },
+        ],
       };
     }
 
     case 'fee-collection-by-method': {
-      // Aggregate by student first to avoid duplicates, then group by payment method
-      const byStudent = new Map<string, { payment_method: string | null; paid: number }>();
+      // Each invoice keeps its own payment method; do not attribute a
+      // student's whole balance to the method of their latest invoice.
+      const byMethod = new Map<string, { count: number; total: number }>();
       for (const fee of fees) {
-        if (fee.status !== 'paid' && fee.status !== 'partial') continue;
-        const current = byStudent.get(fee.student_id) ?? {
-          payment_method: fee.payment_method,
-          paid: 0,
-        };
-        current.paid += Number(fee.amount_paid);
-        if (fee.payment_method) {
-          current.payment_method = fee.payment_method;
-        }
-        byStudent.set(fee.student_id, current);
+        const paid = invoicePaid(fee);
+        if (paid <= 0) continue;
+        const method = fee.payment_method?.trim() || 'Unspecified';
+        const current = byMethod.get(method) ?? { count: 0, total: 0 };
+        current.count += 1;
+        current.total += paid;
+        byMethod.set(method, current);
       }
-      
-      const byMethod = [...byStudent.values()].reduce(
-        (acc, item) => {
-          const method = item.payment_method || 'Unknown';
-          if (!acc[method]) acc[method] = { count: 0, total: 0 };
-          acc[method].count += 1;
-          acc[method].total += item.paid;
-          return acc;
-        },
-        {} as Record<string, { count: number; total: number }>
-      );
-      
+      const entries = [...byMethod.entries()].sort(([, a], [, b]) => b.total - a.total);
       return {
         title: 'Fee Collection by Payment Method',
-        headers: ['Payment Method', 'Transactions', 'Total Collected'],
-        rows: Object.entries(byMethod)
-          .sort(([, a], [, b]) => b.total - a.total)
-          .map(([method, item]) => [method, String(item.count), formatCurrency(item.total)]),
-        summary: `${byStudent.size} student transactions · Generated ${generated}`,
+        headers: ['Payment Method', 'Invoices', 'Total Collected'],
+        rows: entries.map(([method, item]) => [method, String(item.count), formatCurrency(item.total)]),
+        summary: `${formatCurrency(entries.reduce((sum, [, item]) => sum + item.total, 0))} across ${entries.length} methods · Generated ${generated}`,
         appliedFilters: applied,
-        stats: feeStats(fees.filter((f) => f.status === 'paid' || f.status === 'partial')),
+        stats: entries.map(([method, item]) => ({ label: method, value: formatCurrency(item.total) })).slice(0, 4),
       };
     }
 
@@ -1082,16 +978,16 @@ export const REPORT_OPTIONS: ReportOption[] = [
   { key: 'unit-enrollments', label: 'Unit / Subject Enrollment', category: 'Academic Reports', description: 'Every unit enrollment with student contacts.' },
   { key: 'student-academic-records', label: 'Student Academic Records', category: 'Academic Reports', description: 'Enrollment and grade records with student contacts.' },
   { key: 'attendance', label: 'Attendance', category: 'Academic Reports', description: 'Attendance register with student phone and email.' },
-          { key: 'fee-summary', label: 'Fee Payments', category: 'Finance Reports', description: 'Fee collection totals from live payment records.' },
-  { key: 'fee-ledger', label: 'Payment History', category: 'Finance Reports', description: 'Invoice ledger with student contact details.' },
-  { key: 'outstanding-fees', label: 'Outstanding Fees', category: 'Finance Reports', description: 'Invoices that still have a balance.' },
-  { key: 'fully-paid-students', label: 'Fully Paid Students', category: 'Finance Reports', description: 'Invoices with no remaining balance.' },
+  { key: 'fee-summary', label: 'Fee Payments', category: 'Finance Reports', description: 'Billed, collected, outstanding and credit totals.' },
+  { key: 'fee-ledger', label: 'Payment History', category: 'Finance Reports', description: 'Every invoice with billed, paid, balance and status.' },
+  { key: 'outstanding-fees', label: 'Outstanding Fees', category: 'Finance Reports', description: 'Students whose combined invoices still have a balance.' },
+  { key: 'fully-paid-students', label: 'Fully Paid Students', category: 'Finance Reports', description: 'Students who have settled all billed invoices.' },
   { key: 'students-with-balances', label: 'Students with Balances', category: 'Finance Reports', description: 'Students whose combined invoices still have a balance.' },
-  { key: 'zero-payment-students', label: 'Zero Payment', category: 'Finance Reports', description: 'Invoices with no payment received.' },
-  { key: 'partially-paid-students', label: 'Partially Paid', category: 'Finance Reports', description: 'Invoices that are part-paid.' },
-  { key: 'fee-collection-by-date', label: 'Collection by Date', category: 'Finance Reports', description: 'Paid and partial collections grouped by date.' },
-  { key: 'fee-collection-by-program', label: 'Collection by Programme', category: 'Finance Reports', description: 'Fee collection performance by programme.' },
-  { key: 'fee-collection-by-method', label: 'Collection by Method', category: 'Finance Reports', description: 'Fee collection grouped by payment method.' },
+  { key: 'zero-payment-students', label: 'Zero Payment', category: 'Finance Reports', description: 'Students with billed fees and no payment received.' },
+  { key: 'partially-paid-students', label: 'Partially Paid', category: 'Finance Reports', description: 'Students who have paid part of their balance.' },
+  { key: 'fee-collection-by-date', label: 'Collection by Date', category: 'Finance Reports', description: 'Money received grouped by payment date.' },
+  { key: 'fee-collection-by-program', label: 'Collection by Programme', category: 'Finance Reports', description: 'Collection performance by programme.' },
+  { key: 'fee-collection-by-method', label: 'Collection by Method', category: 'Finance Reports', description: 'Money received grouped by payment method.' },
   { key: 'admission-statistics', label: 'Admission Statistics', category: 'Administrative Reports', description: 'Admission counts by programme and status.' },
   { key: 'intake-summary', label: 'Intake Statistics', category: 'Administrative Reports', description: 'Student counts by intake.' },
   { key: 'programs', label: 'Programme Statistics', category: 'Administrative Reports', description: 'Programme register and tuition.' },

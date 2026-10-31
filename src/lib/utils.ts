@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { format, parseISO } from 'date-fns';
+import { invoiceBalance, invoiceBilled } from '@/lib/fee-money';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -48,32 +49,18 @@ export function getAdmissionNumber(student: {
   return student.admission_number ?? student.student_number;
 }
 
-export function getFeeBalance(fee: { 
-  amount: number; 
-  amount_paid: number; 
-  original_amount?: number | null; 
+export function getFeeBalance(fee: {
+  amount: number;
+  amount_paid: number;
+  original_amount?: number | null;
   discount_amount?: number;
   items?: { amount: number; enrollment_id?: string | null }[];
   deregisteredEnrollmentIds?: Set<string>;
 }) {
-  // If fee payment items are provided and we have deregistered enrollment IDs,
-  // calculate balance based only on active (non-deregistered) items
-  if (fee.items && fee.deregisteredEnrollmentIds && fee.deregisteredEnrollmentIds.size > 0) {
-    const activeItemsTotal = fee.items.reduce((sum, item) => {
-      // Only count items that are not linked to deregistered enrollments
-      if (!item.enrollment_id || !fee.deregisteredEnrollmentIds!.has(item.enrollment_id)) {
-        return sum + Number(item.amount || 0);
-      }
-      return sum;
-    }, 0);
-    
-    // Balance = active items total - amount paid
-    return Math.max(0, activeItemsTotal - Number(fee.amount_paid));
-  }
-  
-  // Balance = adjusted amount (original - discount) - amount paid
-  const adjustedAmount = fee.amount;
-  return Math.max(0, Number(adjustedAmount) - Number(fee.amount_paid));
+  // `amount` is the billed total after discounts and after deregistered units
+  // have been removed (see migration 056). Re-deriving it from line items made
+  // the same invoice show different balances on different screens.
+  return invoiceBalance(fee);
 }
 
 export function getOriginalFeeAmount(fee: { original_amount?: number | null; amount: number }) {
@@ -135,6 +122,7 @@ export function getStudentFeeDisplayStatus(fee: {
   submissions?: { status?: string; amount: number }[];
 }) {
   const balance = getFeeBalance(fee);
+  if (invoiceBilled(fee) <= 0 && Number(fee.amount_paid ?? 0) <= 0) return 'waived';
   if (balance <= 0) return 'paid';
   if (getPendingSubmissionAmount(fee.submissions) > 0) return 'pending approval';
   return fee.status;

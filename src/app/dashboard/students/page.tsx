@@ -6,11 +6,11 @@ import { PageHeader, DataTable } from '@/components/ui/page-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
-import { getStudents } from '@/app/actions/students';
+import { getStudents, deleteStudentCompletely } from '@/app/actions/students';
 import { generateStudentLoginDetails } from '@/app/actions/students';
 import { formatDate, getAdmissionNumber } from '@/lib/utils';
 import { StudentSearch } from '@/components/students/student-search';
-import { MessageCircle, Copy, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, Copy, CheckCircle2, Trash2, AlertTriangle } from 'lucide-react';
 
 function getRegistrationSourceLabel(source: string | null): string {
   if (source === 'self_registered') return 'Self Registered';
@@ -18,13 +18,18 @@ function getRegistrationSourceLabel(source: string | null): string {
   return 'Unknown';
 }
 
+type StudentRow = Awaited<ReturnType<typeof getStudents>>[number];
+
 export default function StudentsPage() {
-  const [students, setStudents] = useState<any[]>([]);
+  const [students, setStudents] = useState<StudentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [loginDetails, setLoginDetails] = useState<any | null>(null);
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<StudentRow | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function loadStudents() {
@@ -105,6 +110,43 @@ Excellence Online College`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function openDeleteModal(student: StudentRow) {
+    setDeleteTarget(student);
+    setDeleteConfirm('');
+  }
+
+  function closeDeleteModal() {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteConfirm('');
+  }
+
+  const deleteReference = deleteTarget ? getAdmissionNumber(deleteTarget) : '';
+  const deleteConfirmed =
+    !!deleteTarget &&
+    deleteConfirm.trim().toUpperCase() === String(deleteReference).trim().toUpperCase();
+
+  async function handleDeleteStudent() {
+    if (!deleteTarget || !deleteConfirmed) return;
+
+    setDeleting(true);
+    const result = await deleteStudentCompletely(deleteTarget.id, deleteConfirm);
+    setDeleting(false);
+
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+
+    setStudents((current) => current.filter((student) => student.id !== deleteTarget.id));
+    setDeleteTarget(null);
+    setDeleteConfirm('');
+
+    if (result.warning) {
+      alert(result.warning);
+    }
   }
 
   if (loading) {
@@ -221,6 +263,15 @@ Excellence Online College`;
                       <Link href={`/dashboard/students/${student.id}`}>
                         <Button variant="ghost" size="sm">View</Button>
                       </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openDeleteModal(student)}
+                        title="Delete student permanently"
+                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -281,6 +332,72 @@ Excellence Online College`;
             A new temporary password has been generated. The student will be required to change it on next login.
           </p>
         </div>
+      </Modal>
+
+      {/* Permanent delete modal */}
+      <Modal
+        open={!!deleteTarget}
+        onClose={closeDeleteModal}
+        title="Delete student permanently"
+        size="md"
+      >
+        {deleteTarget && (
+          <div className="space-y-4">
+            <div className="flex gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+              <div className="text-sm text-red-800">
+                <p className="font-semibold">This action cannot be undone.</p>
+                <p className="mt-1">
+                  Deleting <strong>{deleteTarget.first_name} {deleteTarget.last_name}</strong>{' '}
+                  ({deleteReference}) also deletes their portal login, enrollments, attendance,
+                  invoices, payment history, discounts, intakes and payment requests.
+                </p>
+                {deleteTarget.profile_id && (
+                  <p className="mt-2">
+                    If you only want to stop the student from studying, set their status to{' '}
+                    <strong>Withdrawn</strong> instead so their records are kept.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="delete-confirmation" className="block text-sm font-medium text-slate-700">
+                Type <span className="font-mono font-semibold text-slate-900">{deleteReference}</span>{' '}
+                to confirm
+              </label>
+              <input
+                id="delete-confirmation"
+                type="text"
+                value={deleteConfirm}
+                onChange={(event) => setDeleteConfirm(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && deleteConfirmed && !deleting) {
+                    void handleDeleteStudent();
+                  }
+                }}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={deleteReference}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono text-slate-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeDeleteModal} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleDeleteStudent}
+                disabled={!deleteConfirmed || deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete permanently'}
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

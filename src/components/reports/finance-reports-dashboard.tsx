@@ -2,10 +2,11 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CreditCard, DollarSign, FileText, Download, ArrowRight, Banknote, Calendar, Briefcase, Wallet } from 'lucide-react';
+import { CreditCard, DollarSign, FileText, Banknote, Calendar, Briefcase, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { ReportsBundle } from '@/app/actions/reports';
-import { getFeeBalance } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
+import { invoicePaid, summarizeFeeTotals, summarizeFeesByStudent } from '@/lib/fee-money';
 
 interface FinanceReportsDashboardProps {
   data: ReportsBundle;
@@ -14,23 +15,19 @@ interface FinanceReportsDashboardProps {
 export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) {
   const router = useRouter();
 
-  // Calculate finance KPIs
-  const totalFees = data.fees.length;
-  const totalExpected = data.fees.reduce((sum, fee) => sum + Number(fee.amount || 0), 0);
-  const totalPaid = data.fees.reduce((sum, fee) => sum + Number(fee.amount_paid || 0), 0);
-  const totalOutstanding = data.fees.reduce((sum, fee) => sum + getFeeBalance(fee), 0);
-  
-  const fullyPaidStudents = new Set(data.fees.filter(fee => getFeeBalance(fee) === 0).map(fee => fee.student_id)).size;
-  const studentsWithBalances = new Set(data.fees.filter(fee => getFeeBalance(fee) > 0).map(fee => fee.student_id)).size;
-  const zeroPaymentStudents = new Set(data.fees.filter(fee => Number(fee.amount_paid) === 0).map(fee => fee.student_id)).size;
-  const partiallyPaidStudents = new Set(data.fees.filter(fee => Number(fee.amount_paid) > 0 && getFeeBalance(fee) > 0).map(fee => fee.student_id)).size;
+  const totals = summarizeFeeTotals(data.fees);
+  const summaries = summarizeFeesByStudent(data.fees);
 
-  // Calculate collections by payment method
+  const fullyPaidStudents = totals.settledStudents;
+  const studentsWithBalances = totals.studentsWithBalance;
+  const zeroPaymentStudents = totals.unpaidStudents;
+  const partiallyPaidStudents = totals.partialStudents;
+
+  // Collections by payment method, per invoice (not per student).
   const collectionsByMethod = data.fees.reduce((acc, fee) => {
-    if (fee.payment_method) {
-      const method = fee.payment_method;
-      acc[method] = (acc[method] || 0) + Number(fee.amount_paid || 0);
-    }
+    const paid = invoicePaid(fee);
+    if (!fee.payment_method || paid <= 0) return acc;
+    acc[fee.payment_method] = (acc[fee.payment_method] || 0) + paid;
     return acc;
   }, {} as Record<string, number>);
 
@@ -38,28 +35,28 @@ export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) 
     {
       key: 'fee-summary',
       title: 'Fee Payments',
-      description: 'Fee collection totals from live payment records',
-      count: totalFees,
+      description: 'Billed, collected, outstanding and credit totals',
+      count: totals.invoiceCount,
       icon: CreditCard,
     },
     {
       key: 'fee-ledger',
       title: 'Payment History',
-      description: 'Invoice ledger with student contact details',
-      count: new Set(data.fees.map(f => f.student_id)).size,
+      description: 'Every invoice with student contact details',
+      count: summaries.length,
       icon: FileText,
     },
     {
       key: 'outstanding-fees',
       title: 'Outstanding Fees',
-      description: 'Invoices that still have a balance',
+      description: 'Students whose combined invoices still have a balance',
       count: studentsWithBalances,
       icon: DollarSign,
     },
     {
       key: 'fully-paid-students',
       title: 'Fully Paid Students',
-      description: 'Invoices with no remaining balance',
+      description: 'Students whose combined invoices are fully settled',
       count: fullyPaidStudents,
       icon: Wallet,
     },
@@ -73,29 +70,29 @@ export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) 
     {
       key: 'zero-payment-students',
       title: 'Zero Payment',
-      description: 'Invoices with no payment received',
+      description: 'Students with billed invoices and no payment recorded',
       count: zeroPaymentStudents,
       icon: CreditCard,
     },
     {
       key: 'partially-paid-students',
       title: 'Partially Paid',
-      description: 'Invoices that are partially paid',
+      description: 'Students who have paid part of their balance',
       count: partiallyPaidStudents,
       icon: CreditCard,
     },
     {
       key: 'collection-by-date',
       title: 'Collection by Date',
-      description: 'Paid and partial collections grouped by date',
-      count: totalFees,
+      description: 'Money received grouped by payment date',
+      count: totals.invoiceCount,
       icon: Calendar,
     },
     {
       key: 'collection-by-program',
       title: 'Collection by Programme',
       description: 'Fee collection performance by programme',
-      count: totalFees,
+      count: totals.invoiceCount,
       icon: Briefcase,
     },
     {
@@ -125,7 +122,7 @@ export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) 
             <CardTitle className="text-sm font-medium text-slate-600">Total Fees Expected</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{totalExpected.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-slate-900">{formatCurrency(totals.billed)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -133,7 +130,7 @@ export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) 
             <CardTitle className="text-sm font-medium text-slate-600">Total Received</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">{totalPaid.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-green-600">{formatCurrency(totals.paid)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -141,15 +138,16 @@ export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) 
             <CardTitle className="text-sm font-medium text-slate-600">Outstanding Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-600">{totalOutstanding.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-red-600">{formatCurrency(totals.outstanding)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total Records</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">Credit Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{totalFees}</div>
+            <div className="text-3xl font-bold text-blue-600">{formatCurrency(totals.credit)}</div>
+            <p className="mt-1 text-xs text-slate-500">{totals.invoiceCount} invoices</p>
           </CardContent>
         </Card>
       </div>
@@ -205,10 +203,10 @@ export function FinanceReportsDashboard({ data }: FinanceReportsDashboardProps) 
                     <div className="w-48 h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-purple-600 rounded-full" 
-                        style={{ width: `${(amount / totalPaid) * 100}%` }}
+                        style={{ width: `${totals.paid > 0 ? (amount / totals.paid) * 100 : 0}%` }}
                       />
                     </div>
-                    <span className="text-sm font-medium text-slate-900 w-24 text-right">{amount.toLocaleString()}</span>
+                    <span className="text-sm font-medium text-slate-900 w-24 text-right">{formatCurrency(amount)}</span>
                   </div>
                 </div>
               ))}

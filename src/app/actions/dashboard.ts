@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { summarizeFeeTotals } from '@/lib/fee-money';
 import type { DashboardStats } from '@/lib/types';
 
 export interface AdminDashboardStats {
@@ -39,38 +40,19 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     supabase.from('programs').select('id', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('courses').select('id', { count: 'exact', head: true }).eq('is_active', true),
     supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('fee_payments').select('amount, amount_paid, status, items:fee_payment_items(*)'),
+    supabase.from('fee_payments').select('amount, amount_paid, status'),
   ]);
 
-  // Get all deregistered enrollment IDs to exclude from fee calculations
-  const { data: deregisteredEnrollments } = await supabase
-    .from('enrollments')
-    .select('id')
-    .eq('status', 'deregistered');
-
-  const deregisteredEnrollmentIds = new Set(
-    (deregisteredEnrollments ?? []).map((e) => e.id as string)
-  );
-
-  const fees = (feesRes.data ?? []).map((fee: any) => {
-    // Filter fee payment items to exclude those linked to deregistered enrollments
-    const filteredItems = fee.items?.filter((item: any) => 
-      !item.enrollment_id || !deregisteredEnrollmentIds.has(item.enrollment_id)
-    ) || [];
-
-    // Recalculate fee amount based on active items only
-    const activeItemsTotal = filteredItems.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
-    const adjustedAmount = activeItemsTotal > 0 ? activeItemsTotal : fee.amount;
-
-    return {
-      ...fee,
-      amount: adjustedAmount,
-    };
-  });
+  // `fee_payments.amount` already reflects discounts and item changes.
+  const fees = (feesRes.data ?? []) as Array<{
+    amount: number;
+    amount_paid: number;
+    status: string;
+  }>;
 
   const pendingFees = fees.filter((f) => f.status === 'pending' || f.status === 'partial').length;
   const overdueFees = fees.filter((f) => f.status === 'overdue').length;
-  const totalRevenue = fees.reduce((sum, f) => sum + (f.amount_paid ?? 0), 0);
+  const totalRevenue = fees.reduce((sum, f) => sum + Number(f.amount_paid ?? 0), 0);
 
   return {
     totalStudents: studentsRes.count ?? 0,
@@ -110,7 +92,7 @@ export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStat
       .select('status'),
     supabase
       .from('fee_payments')
-      .select('amount, amount_paid, status, student_id, items:fee_payment_items(*)')
+      .select('amount, amount_paid, status, student_id')
   ]);
 
   // Process program distribution
@@ -136,57 +118,27 @@ export async function getEnhancedDashboardStats(): Promise<EnhancedDashboardStat
     .map(([status, count]) => ({ status, count }))
     .sort((a, b) => b.count - a.count);
 
-  // Get all deregistered enrollment IDs to exclude from fee calculations
-  const { data: deregisteredEnrollments } = await supabase
-    .from('enrollments')
-    .select('id')
-    .eq('status', 'deregistered');
+  // Process financial data from the authoritative invoice amounts.
+  const fees = (feesWithStudentsRes.data ?? []) as Array<{
+    amount: number;
+    amount_paid: number;
+    status: string;
+    student_id: string;
+  }>;
 
-  const deregisteredEnrollmentIds = new Set(
-    (deregisteredEnrollments ?? []).map((e) => e.id as string)
-  );
-
-  // Process financial data
-  const fees = (feesWithStudentsRes.data ?? []).map((fee: any) => {
-    // Filter fee payment items to exclude those linked to deregistered enrollments
-    const filteredItems = fee.items?.filter((item: any) => 
-      !item.enrollment_id || !deregisteredEnrollmentIds.has(item.enrollment_id)
-    ) || [];
-
-    // Recalculate fee amount based on active items only
-    const activeItemsTotal = filteredItems.reduce((sum: number, item: any) => sum + Number(item.amount || 0), 0);
-    const adjustedAmount = activeItemsTotal > 0 ? activeItemsTotal : fee.amount;
-
-    return {
-      ...fee,
-      amount: adjustedAmount,
-    };
-  });
-
-  const totalExpectedFees = fees.reduce((sum, f) => sum + (f.amount ?? 0), 0);
-  const feesCollected = fees.reduce((sum, f) => sum + (f.amount_paid ?? 0), 0);
-  const outstandingFees = fees.reduce((sum, f) => sum + Math.max(0, (f.amount ?? 0) - (f.amount_paid ?? 0)), 0);
-  const creditBalance = fees.reduce((sum, f) => sum + Math.max(0, (f.amount_paid ?? 0) - (f.amount ?? 0)), 0);
-  
-  const studentsWithOutstanding = new Set(
-    fees.filter(f => (f.amount ?? 0) > (f.amount_paid ?? 0)).map(f => f.student_id)
-  ).size;
-  
-  const studentsWithCredits = new Set(
-    fees.filter(f => (f.amount_paid ?? 0) > (f.amount ?? 0)).map(f => f.student_id)
-  ).size;
+  const feeTotals = summarizeFeeTotals(fees);
 
   return {
     ...baseStats,
     newAdmissionsThisMonth: newAdmissionsRes.count ?? 0,
     studentsByProgram,
     studentsByStatus,
-    totalExpectedFees,
-    feesCollected,
-    outstandingFees,
-    creditBalance,
-    studentsWithOutstanding,
-    studentsWithCredits,
+    totalExpectedFees: feeTotals.billed,
+    feesCollected: feeTotals.paid,
+    outstandingFees: feeTotals.outstanding,
+    creditBalance: feeTotals.credit,
+    studentsWithOutstanding: feeTotals.studentsWithBalance,
+    studentsWithCredits: feeTotals.creditStudents,
   };
 }
 

@@ -10,6 +10,7 @@ import {
 import type { StudentStatus } from '@/lib/types';
 import { uploadStudentPassportPhoto } from '@/lib/student-photo';
 import { logAudit } from '@/lib/audit-logger';
+import { getCurrentUserRole } from '@/lib/auth';
 
 function generateTemporaryPassword(length = 12): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -525,6 +526,151 @@ export async function deleteStudent(id: string) {
   });
 
   return { success: true };
+}
+
+/**
+ * Permanently removes a student and everything linked to them.
+ *
+ * Deleting the students row cascades through enrollments, attendance, invoices,
+ * payment submissions/items, discounts, intakes, programme history and payment
+ * requests (all student-owned tables use ON DELETE CASCADE). The portal auth
+ * user is removed separately because students.profile_id is ON DELETE SET NULL.
+ */
+export async function deleteStudentCompletely(id: string, confirmation: string) {
+  const role = await getCurrentUserRole();
+  if (role !== 'superadmin' && role !== 'admin' && role !== 'staff') {
+    return { error: 'Only staff or administrators can permanently delete a student.' };
+  }
+
+  let admin: ReturnType<typeof createAdminClient>;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { error: 'Permanent deletion is not configured on the server (service role key missing).' };
+  }
+
+  const { data: student, error: studentError } = await admin
+    .from('students')
+    .select('id, first_name, last_name, student_number, admission_number, email, profile_id')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (studentError) return { error: studentError.message };
+  if (!student) return { error: 'Student not found. They may already have been deleted.' };
+
+  const reference = String(student.admission_number || student.student_number || '').trim();
+  if (!reference) {
+    return { error: 'This student has no admission number, so deletion cannot be confirmed.' };
+  }
+  if (confirmation.trim().toUpperCase() !== reference.toUpperCase()) {
+    return { error: `Type the admission number ${reference} exactly to confirm deletion.` };
+  }
+
+  // Capture a summary for the audit trail before the rows disappear.
+  const [feesResult, enrollmentsResult, submissionsResult] = await Promise.all([
+    admin.from('fee_payments').select('amount, amount_paid').eq('student_id', id),
+    admin.from('enrollments').select('id', { count: 'exact', head: true }).eq('student_id', id),
+    admin.from('fee_payment_submissions').select('id', { count: 'exact', head: true }).eq('student_id', id),
+  ]);
+
+  const fees = (feesResult.data ?? []) as Array<{ amount: number | string | null; amount_paid: number | string | null }>;
+  const totalBilled = fees.reduce((sum, fee) => sum + Number(fee.amount ?? 0), 0);
+  const totalPaid = fees.reduce((sum, fee) => sum + Number(fee.amount_paid ?? 0), 0);
+  const invoiceCount = fees.length;
+  const enrollmentCount = enrollmentsResult.count ?? 0;
+  const submissionCount = submissionsResult.count ?? 0;
+
+  const { error: deleteError } = await admin.from('students').delete().eq('id', id);
+  if (deleteError) {
+    return { error: `Failed to delete student: ${deleteError.message}` };
+  }
+
+  let portalAccountRemoved = false;
+  let warning: string | undefined;
+
+  if (student.profile_id) {
+    const { data: linkedProfile } = await admin
+      .from('profiles')
+      .select('role')
+      .eq('id', student.profile_id)
+      .maybeSingle();
+
+    if (linkedProfile && linkedProfile.role !== 'student') {
+      warning =
+        'The student record was deleted, but the linked portal profile is not a student account, so it was left untouched. Review it in Users & Roles.';
+    } else {
+      const { error: authError } = await admin.auth.admin.deleteUser(student.profile_id);
+
+      if (!authError) {
+        portalAccountRemoved = true;
+      } else {
+        const authStatus = (authError as { status?: number }).status;
+        const authUserMissing = authStatus === 404 || /not found/i.test(authError.message);
+
+        if (authUserMissing) {
+          // Auth user is already gone; remove the leftover profile row if one remains.
+          const { error: profileError } = await admin
+            .from('profiles')
+            .delete()
+            .eq('id', student.profile_id);
+          portalAccountRemoved = !profileError;
+          if (profileError) {
+            warning = 'The student record was deleted, but their leftover profile could not be removed.';
+          }
+        } else {
+          console.warn('deleteStudentCompletely: failed to delete auth user:', authError.message);
+          warning =
+            'The student record and all academic/finance data were deleted, but their portal login could not be removed. Remove it from Users & Roles.';
+        }
+      }
+    }
+  }
+
+  revalidatePath('/dashboard');
+  revalidatePath('/dashboard/students');
+  revalidatePath(`/dashboard/students/${id}`);
+  revalidatePath('/dashboard/enrollments');
+  revalidatePath('/dashboard/deregistered-units');
+  revalidatePath('/dashboard/attendance');
+  revalidatePath('/dashboard/fees');
+  revalidatePath('/dashboard/reports');
+  revalidatePath('/student');
+
+  // Log audit action
+  await logAudit({
+    action: 'delete',
+    module: 'students',
+    entityType: 'student',
+    entityId: id,
+    entityName: `${student.first_name} ${student.last_name} (${reference})`,
+    details:
+      `Permanently deleted student · ${invoiceCount} invoice(s) (billed KES ${totalBilled.toFixed(2)}, paid KES ${totalPaid.toFixed(2)}) · ` +
+      `${enrollmentCount} enrollment(s) · ${submissionCount} payment submission(s) · ` +
+      `portal account ${portalAccountRemoved ? 'removed' : 'not removed'}`,
+    previousValue: {
+      id,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      admission_number: student.admission_number,
+      student_number: student.student_number,
+      email: student.email,
+      profile_id: student.profile_id,
+      invoiceCount,
+      totalBilled,
+      totalPaid,
+      enrollmentCount,
+      submissionCount,
+      portalAccountRemoved,
+    },
+    actorType: 'ADMIN',
+  });
+
+  return {
+    success: true,
+    name: `${student.first_name} ${student.last_name}`,
+    reference,
+    warning,
+  };
 }
 
 export async function generateStudentLoginDetails(studentId: string) {

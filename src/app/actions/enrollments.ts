@@ -315,8 +315,9 @@ export async function getEnrollmentsWithFees() {
     .in('student_id', studentIds)
     .in('term_id', termIds);
   
-  // Map fee payments by student_id:term_id
-  // We track: totalRequired (from fee_payment.amount), paid (from fee_payment.amount_paid where status is paid/partial)
+  // Map fee payments by student_id:term_id.
+  // `amount` is already net of discounts and `amount_paid` is the money
+  // actually received, so both are summed as-is to match the reports.
   const feePaymentsByStudentTerm = new Map();
   feePayments?.forEach((fp: any) => {
     const key = `${fp.student_id}:${fp.term_id}`;
@@ -324,12 +325,8 @@ export async function getEnrollmentsWithFees() {
       feePaymentsByStudentTerm.set(key, { totalRequired: 0, paid: 0 });
     }
     const studentTermFees = feePaymentsByStudentTerm.get(key);
-    // Sum up all fee_payment.amount to get total required fees (this is the official fee structure)
     studentTermFees.totalRequired += Number(fp.amount || 0);
-    // Only count paid/partial status payments as actual paid amount
-    if (fp.status === 'paid' || fp.status === 'partial') {
-      studentTermFees.paid += Number(fp.amount_paid || 0);
-    }
+    studentTermFees.paid += Number(fp.amount_paid || 0);
   });
   
   // Group enrollments by student_id:term_id to calculate total required fees from course unit_fees

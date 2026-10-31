@@ -21,7 +21,7 @@ import {
   type ReportFilters,
   type ReportKey,
 } from '@/lib/reports/build-report-table';
-import { getFeeBalance } from '@/lib/utils';
+import { summarizeFeesByStudent, classifyStudentFees } from '@/lib/fee-money';
 import type { ReportsBundle } from '@/app/actions/reports';
 import {
   Banknote,
@@ -68,23 +68,19 @@ function reportCount(key: ReportKey, data: ReportsBundle, filters: ReportFilters
     case 'attendance':
       return data.attendance.length;
     case 'fee-ledger':
-      // Count unique students with fee records
-      return new Set(fees.map((f) => f.student_id)).size;
+      // Unique students with fee records
+      return summarizeFeesByStudent(fees).length;
     case 'fee-summary':
       return fees.length;
     case 'outstanding-fees':
     case 'students-with-balances':
-      // Count unique students with balances
-      return new Set(fees.filter((fee) => getFeeBalance(fee) > 0).map((f) => f.student_id)).size;
+      return summarizeFeesByStudent(fees).filter((summary) => summary.balance > 0).length;
     case 'zero-payment-students':
-      // Count unique students with zero payments
-      return new Set(fees.filter((f) => Number(f.amount_paid) === 0).map((f) => f.student_id)).size;
+      return summarizeFeesByStudent(fees).filter((summary) => summary.billed > 0 && summary.paid === 0).length;
     case 'partially-paid-students':
-      // Count unique students with partial payments
-      return new Set(fees.filter((f) => Number(f.amount_paid) > 0 && getFeeBalance(f) > 0).map((f) => f.student_id)).size;
+      return summarizeFeesByStudent(fees).filter((summary) => summary.paid > 0 && summary.balance > 0).length;
     case 'fully-paid-students':
-      // Count unique students fully paid
-      return new Set(fees.filter((fee) => getFeeBalance(fee) === 0).map((f) => f.student_id)).size;
+      return summarizeFeesByStudent(fees).filter((summary) => classifyStudentFees(summary) === 'settled').length;
     case 'programs':
       return data.programs.length;
     case 'courses':
