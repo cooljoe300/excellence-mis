@@ -34,6 +34,7 @@ import {
   Building2,
   TrendingUp,
   Lock,
+  Database,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -103,6 +104,7 @@ const allNavItems: NavItem[] = [
   // Admin navigation - ADMINISTRATION
   { href: '/dashboard/users', label: 'Users & Roles', icon: Shield, roles: ['superadmin', 'admin'] as UserRole[], section: 'ADMINISTRATION' },
   { href: '/dashboard/audit-logs', label: 'Audit Logs', icon: FileText, roles: ['superadmin', 'admin'] as UserRole[], section: 'ADMINISTRATION' },
+  { href: '/dashboard/database', label: 'Database', icon: Database, roles: ['superadmin', 'admin'] as UserRole[], section: 'ADMINISTRATION' },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ADMINISTRATION' },
   // Admin navigation - legacy semesters (keeping for compatibility)
   { href: '/dashboard/semesters', label: 'Semesters', icon: CalendarDays, roles: ['superadmin', 'admin', 'staff'] as UserRole[], section: 'ACADEMICS' },
